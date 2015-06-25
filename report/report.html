@@ -1,0 +1,95 @@
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+
+
+<!-- DONT MODIFY THESE LINES -->
+
+<link rel='stylesheet' href='style.css' type='text/css' />
+<script src='json.js' type='text/javascript'></script>
+<script src='report.js' type='text/javascript'></script>
+<!-- ************************ -->
+
+</head>
+
+<body onload="initReport()">
+<div id=top>
+	<div id="collapse_top">
+		<div id=top_header>
+			<p id=title>htcap report</p>
+			<hr>
+			<table id=infos>			
+				<tr><td>Target:</td><td id=infos_target></td></tr>
+				<tr><td>Scan date:</td><td id=infos_scan_date></td></tr>
+				<tr><td>Urls scanned:</td><td id=infos_scanned_urls></td></tr>
+				<tr><td>Urls out of scope:</td><td>
+					<span id=infos_outofscope></span> 
+					<span class=button id=outofscope-open>open</span>
+				</td></tr>
+				<tr><td>Scan time:</td><td id=infos_scan_time></td></tr>
+				<!-- <tr><td>Command:</td><td id=infos_commandline></td></tr>	-->			
+			</table>
+			
+		</div>
+	</div>
+	<hr>
+
+	<div id=filtersbox>
+		<form>
+			<div>
+				<span><input type=checkbox id=allfilters> <b>Show:</b> </span> <span id=filters></span>
+			</div>
+			<table>
+				<tr>
+					<td>Hide Urls: <p class="hidden addregexp" id=add_url_regexp>add selected</p></td>		
+					<td><textarea id=urlhider tabindex=1  title='write here a regexp to hide matched urls'></textarea></td>
+					<td>&nbsp;</td>
+					<td>Hide Results: <p class="hidden addregexp" id=add_result_regexp>add selected text</p></td>		
+					<td><textarea id=reshider tabindex=2 title='write here a regexp to hide matched results'></textarea></td>			
+				</tr>
+			</table>
+		</form>		
+	</div>
+	<div id=buttons>
+		<span class=button id=marked-open>open marked</span>
+		<span class=button id=trash-open>open trash</span>
+		<span class=button id=collapse-all>collapse all</span>
+		<span class=button id=expand-visibles>expand visibles</span>
+		<span id=error_container></span>
+		
+	</div>
+	<hr>
+</div>
+
+<div id=report></div>
+
+
+<div id=marked class="modal hidden">
+	<div class=modal-bar>
+		Marked
+		<div id='marked-close' title=close>&#215;</div>
+	</div>
+	<div class=modal-content></div>
+</div>
+
+
+<div id=trash class="modal hidden">
+	<div class=modal-bar>
+		Trash
+		<div id='trash-close' title=close>&#215;</div>
+	</div>
+	<div class=modal-content></div>
+</div>
+
+
+<div id=outofscope class="modal hidden">
+	<div class=modal-bar>
+		Out of scope
+		<div id='outofscope-close' title=close>&#215;</div>
+	</div>
+	<div class=modal-content></div>
+</div>
+
+
+</body>
+</html>
