@@ -1,33 +1,57 @@
 
 
+var types = ['xhr','jsonp','websockets', 'forms', 'vulnerabilities','errors'];
 
 
+function getIcon(type, founds){
+	var icons = {			
+		forms:"F",
+		xhr: "X", 
+		jsonp: "S",	
+		errors: null, 		
+		websockets: "W",
+		vulnerabilities:"V"
+	};
 
-var props = ['ajax','scripts','websockets','elements','resources',/*'events',*//*'redirect_has_content','out_of_scope',*/'errors',/*'noprobe'*/ ];
+	if(icons[type] != null){
+		var iconclass = founds.indexOf(type) > -1 ? ".icon" : ".icon.icon-hidden";
+		return newElement("span" + iconclass,[ 'data-for', type,'title',getLabel(type) ], icons[type]);				
+	}
+	return null;
+}
 
 
-var icons = {	elements: "E", 
-				ajax: "A", 
-				scripts: "S", 
-				resources: "R", 
-				events: "EV", 
-				errors: null,//"ERR", 
-				noprobe: "NP", 
-				redirect_has_content: "RC", 
-				out_of_scope: null,// "OS",
-				websockets: "W"
-			};
-var labels = {	elements: "Elements", 
-				ajax: "Ajax", 
-				scripts: "Scripts", 
-				resources: "Resources", 
-				events: "Events", 
-				errors: "Errors", 
-				noprobe: "No Probe", 
-				redirect_has_content: "Redirect has content", 
-				out_of_scope: "Out of scope",
-				websockets: "Web Sockets"
-			};
+function getLabel(type){
+	var labels = {	
+		forms:"Forms",		
+		xhr: "XHR", 
+		jsonp: "JSONP", 		
+		errors: "Errors", 		
+		websockets: "Web Sockets",
+		vulnerabilities: "Vulnerabilities"
+	};
+
+	if(type in labels)
+		return labels[type];
+
+	return null;
+}
+
+// code_injection*,file_inclusion*,path_traversal*,rfi*,xss*,xxe*
+
+function getVulnName(type){
+	var labels = {	
+		xss:"Cross Site Scripting (XSS)",		
+		sqli: "Sql Injection", 
+		lfi: "Local File Inclusion", 		
+		
+	};
+	type = type.toLowerCase();
+	if(type in labels)
+		return labels[type];
+
+	return type;
+}
 
 
 function newElement(name, attributes, content, appendTo){
@@ -88,25 +112,52 @@ function createSection(result){
 	var founds = [];
 	var urlicons = [];		
 	
-	if(!resultHasData(result))
+	// if(!resultHasData(result))
+	// 	return;
+
+	if(result.out_of_scope || result.errors.indexOf('contentType') > -1)
 		return;
+
 
 	var accord = newElement("div.mainAccordion.accordion.accordion-closed");
 	
-	var parent = newElement("a.parent-url",['href',result.parent, 'target', '_blank','title','parent url'], result.parent);
+	var parent = newElement("a.parent-url",['href',result.referer, 'target', '_blank','title','parent url'], result.referer);
 	accord.appendChild(parent);
-	for(var i = 0; i < props.length; i++){
-		if(!(props[i] in result) || result[props[i]].length == 0) continue;
-		founds.push(props[i]);
-		urlicons.push(props[i]);	
-		var hdr = newElement("p.result-accordion-hdr.hdr-accordion.hdr-accordion-open",['data-for',props[i]], labels[props[i]], accord);
+	for(var i = 0; i < types.length; i++){
+		if(!(types[i] in result) || result[types[i]].length == 0) continue;
+		founds.push(types[i]);		
+		var hdr = newElement("p.result-accordion-hdr.hdr-accordion.hdr-accordion-open",['data-for',types[i]], getLabel(types[i]), accord);
 		hdr.onclick = function(){toggleAccordion(this)};
 		newElement("span.result-counter",[],"",hdr)
 		
-		var resAccord = newElement("div.results.accordion",['data-for',props[i]]);			
-		for(var a = 0; a < result[props[i]].length; a++){
-			var c = newElement("div.result",[], result[props[i]][a]);			
-			resAccord.appendChild(c);
+		var resAccord = newElement("div.results.accordion",['data-for',types[i]]);			
+		for(var a = 0; a < result[types[i]].length; a++){
+			var req = result[types[i]][a];
+			var trigger = newElement("span.trigger",["data-trigger", req.trigger], "☍");
+			if(req.trigger){
+				trigger.onclick = function(){				
+					this.textContent = this.textContent.length > 1 ? "☍" : this.getAttribute('data-trigger');
+					//this.textContent = this.getAttribute('data-trigger');
+				}	
+				trigger.setAttribute("title","trigger element: " + req.trigger)
+			} else {
+				trigger.className += " empty"
+			}
+
+			var cont = [trigger, req.request];
+			
+			//var cont = req.trigger + "-->" + result[types[i]][a].request;
+			if(types[i] == "vulnerabilities"){//console.log(req)
+				var vcont = JSON.parse(req);
+				cont = newElement("span.vuln-name",[], getVulnName(vcont.type));
+				cont.onclick = (function(c){return function(){
+					openModal("#vulnerability", newElement("pre",[],c));
+				}})(vcont.description);
+				
+			} 	
+
+			newElement("div.result",[], cont, resAccord);			
+			
 		}
 		accord.appendChild(resAccord);
 	}
@@ -119,16 +170,16 @@ function createSection(result){
 		urlattrs.push("title", "ERRORS");	
 	}			
 	
-	var link = newElement("span" + urlclass + ".hdr-accordion.hdr-accordion-closed", urlattrs, decodeURI(result.url))
+	var link_label = (result.method == "POST" ? "POST " : "") + decodeURI(result.url);
+	var link = newElement("span" + urlclass + ".hdr-accordion.hdr-accordion-closed", urlattrs, link_label);
 	var ics = newElement("span.icons");
 	
-	for(var a = 0; a < props.length; a++){
-		if(icons[props[a]] != null){
-			var iconclass = urlicons.indexOf(props[a]) > -1 ? ".icon" : ".icon.icon-hidden";
-			newElement("span" + iconclass,[ 'data-for', props[a],'title',labels[props[a]] ], icons[props[a]], ics);				
-		}
+	for(var a = 0; a < types.length; a++){
+		var ico = getIcon(types[a], founds);
+		if(ico) ics.appendChild(ico)		
 	}		
-	
+
+		
 	link.onclick = function(){toggleAccordion(this)}
 	var openico = newElement("a.open-new-win", ['href', result.url, 'target', '_blank', 'title', 'open in new window']);
 			
@@ -163,7 +214,8 @@ function createSection(result){
 	// 9 sec full
 	
 	section.appendChild(ics);
-	section.appendChild(openico);
+	if(result.method != "POST")
+		section.appendChild(openico);
 	section.appendChild(link);
 	section.appendChild(accord);
 
@@ -524,12 +576,28 @@ function addRegexp(target){
 function resultHasData(result){
 	if('out_of_scope' in result)
 		return false;
-	for(var a = 0; a < props.length; a++){
-		if(props[a] in result && result[props[a]].length > 0)
+	for(var a = 0; a < types.length; a++){
+		if(types[a] in result && result[types[a]].length > 0)
 			return true;
 	}
 
 	return false;
+}
+
+function openModal(selector, content){
+	document.querySelector("body").style.overflow = 'hidden';
+	query(selector).classList.remove("hidden");
+
+	if(content){
+		var c = query(selector +  " .modal-content")[0];
+		c.innerHTML = "";
+		c.appendChild(content);		
+	}
+}
+
+function closeModal(selector){
+	document.querySelector("body").style.overflow = 'visible';
+	query(selector).classList.add("hidden");
 }
 
 
@@ -537,8 +605,9 @@ function initGUI(){
 //	var results = report.results;
 	var infos = report.infos;
 
-//	var cont = query("#report");
 	var filters = query("#filters");
+
+	query("#htcap_version").textContent = infos.htcap_version;
 
 	query('#allfilters').onchange = function(){
 		var f = query('#filters').getElementsByTagName("input");
@@ -554,15 +623,18 @@ function initGUI(){
 	// 	query('#trash').classList.remove("hidden");
 	// }
 	query('#trash-close').onclick = function(){
-		document.querySelector("body").style.overflow = 'visible';
-		query('#trash').classList.add("hidden");
+		closeModal("#trash");
 	}
+
+	query('#vulnerability-close').onclick = function(){
+		closeModal("#vulnerability");
+	}
+
 
 	query('#marked-close').onclick = closeMerked;
 
 	query('#outofscope-close').onclick = function(){
-		document.querySelector("body").style.overflow = 'visible';
-		query("#outofscope").classList.add("hidden");
+		closeModal("#outofscope");
 	};
 
 	var btn;
@@ -573,8 +645,9 @@ function initGUI(){
 
 	//btn = newElement("span.button",[],"open trash",buttons);
 	query("#trash-open").onclick = function(){
-		document.querySelector("body").style.overflow = 'hidden';
-		query('#trash').classList.remove("hidden");
+		//document.querySelector("body").style.overflow = 'hidden';
+		//query('#trash').classList.remove("hidden");
+		openModal("#trash");
 	}
 
 	//btn = newElement("span.button",[],"collapse all",buttons);
@@ -598,15 +671,19 @@ function initGUI(){
 		query("#outofscope").classList.remove("hidden");
 	}
 
+
+	query("#nonhtml-open").onclick = function(){
+		openModal("#nonhtml");		
+	}
+	query('#nonhtml-close').onclick = function(){
+		closeModal("#nonhtml");
+	};
 	//newElement("span",['id','error_container'],'',buttons);
 
 	window.onscroll = (function(height){return function(){
 		var h = height - window.pageYOffset;
 		query("#collapse_top").style.height = (h > -1 ? h : 0) + "px";
-		//console.log((window.scrollY ) + " " + ( document.body.scrollHeight - window.innerHeight))	
-		if(0)if((window.scrollY + 100) >= (document.body.scrollHeight - window.innerHeight)) {
-			createSections(100);
-		}
+		
 	}})(elementHeight(query("#collapse_top")))
 
 	document.addEventListener("mouseup", function(e){
@@ -618,21 +695,25 @@ function initGUI(){
 	query("#add_result_regexp").onmousedown = function(){addRegexp('#reshider')};
 	query("#add_url_regexp").onmousedown = function(){addRegexp('#urlhider')};
 
-	var scan_time = parseInt(infos.scan_time / 60);
-	var scan_date = (new Date(parseInt(infos.scan_date) * 1000)).toString();
+	var scan_time = parseInt((infos.end_date - infos.start_date) / 60);
+	if(scan_time < 0){
+		scan_time = "-1";
+	}
+	var scan_date = (new Date(parseInt(infos.start_date) * 1000)).toString();
 	query('#infos_target').appendChild(document.createTextNode(infos.target));
 	query('#infos_scan_date').appendChild(document.createTextNode(scan_date));
-	query('#infos_scanned_urls').appendChild(document.createTextNode(infos.urls_scanned));
+	query('#infos_scanned_urls').appendChild(document.createTextNode(infos.pages_crawled));
 	query('#infos_scan_time').appendChild(document.createTextNode(scan_time + " minutes"));
-	//query('#infos_commandline').appendChild(document.createTextNode(infos.command_line));
+	query('#infos_commandline').appendChild(document.createTextNode("crawl " + infos.commandline));
 
-	for(var i = 0; i < props.length; i++){
-		var l = props[i];	
+	for(var i = 0; i < types.length; i++){
+		var l = types[i];	
 		
 		var opt = newElement('input',['type','checkbox','id','opt_'+l,'name',l,'checked',true]);
 		opt.onchange = filter;
 
-		var opt_l = newElement("label",['for',opt.id], labels[l] + " ")	
+		//var opt_l = newElement("label",['for',opt.id], labels[l] + " ")	
+		var opt_l = newElement("label",['for',opt.id], getLabel(l) + " ")	
 		
 		filters.appendChild(opt);
 		filters.appendChild(opt_l);
@@ -650,14 +731,23 @@ function initReport(){
 	
 
 	var tot_outofscope = 0;
+	var tot_nonhtml = 0;
 	var index = 0;
+	var modalurl;
 	for(var a = 0; a < results.length; a++){		
-		if('out_of_scope' in results[a]){			
-			var osc = newElement("p",[],null, query("#outofscope .modal-content")[0]);
-			newElement("a.url",['href',results[a].url, 'target','_blank'],results[a].url, osc);
-			newElement("br",[],"",osc);
-			newElement("a.parent-url",['href',results[a].parent, 'target','_blank','title','parent url'], results[a].parent, osc);
-			tot_outofscope++;
+
+		if('out_of_scope' in results[a] || results[a].errors.indexOf('contentType') > -1){	
+			if('out_of_scope' in results[a]){
+				modalurl = newElement("p",[],null, query("#outofscope .modal-content")[0]);
+				tot_outofscope++;
+			} else {
+				modalurl = newElement("p",[],null, query("#nonhtml .modal-content")[0]);
+				tot_nonhtml++;
+			}			
+			newElement("a.url",['href',results[a].url, 'target','_blank'],results[a].url, modalurl);
+			newElement("br",[],"",modalurl);
+			newElement("a.parent-url",['href',results[a].referer, 'target','_blank','title','parent url'], results[a].referer, modalurl);
+			
 		}
 
 		if(resultHasData(results[a])){
@@ -669,6 +759,7 @@ function initReport(){
 	createSections(-1);
 
 	query("#infos_outofscope").textContent = tot_outofscope;
+	query("#infos_nonhtml").textContent = tot_nonhtml;
 	
 	var links = query("a");
 	for(var a = 0; a < links.length; a++){

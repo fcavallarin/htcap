@@ -1,6 +1,5 @@
 body{
 	font-family:Helvetica;
-	//background-color:#047288;
 	margin:0;
 	padding:0;	
 	overflow:auto;	
@@ -26,7 +25,7 @@ label{
 }
 /*.row{
 	
-	//background-color:red;
+	
 }*/
 
 
@@ -121,7 +120,7 @@ label{
 
 .icon {
 	display: inline-block;
-	//background-color:#0c4f4f;
+	
 	background-color:#047288;
 	padding:4px;
 	padding-top:2px;
@@ -248,7 +247,7 @@ section.marked .mark-button:before{
 }
 .button-delayed:hover{
 	opacity:1;
-	//transition: opacity 2s ease-in;
+	
 }
 /*#trash .trash-button{
 	opacity:1;
@@ -259,14 +258,14 @@ section.marked .mark-button:before{
 }
 
 
-#trash-close, #marked-close, #outofscope-close{	
+#trash-close, #marked-close, #outofscope-close, #vulnerability-close, #nonhtml-close{	
 	position:absolute;
 	right:10px;
 	top:0px;
 	font-size:22px;
 	cursor:pointer;
 }
-#trash-close:hover, #marked-close:hover, #outofscope-close:hover{
+#trash-close:hover, #marked-close:hover, #outofscope-close:hover, #nonhtml-close:hover{
 	color:#F04158;
 }
 
@@ -289,14 +288,13 @@ section.marked .mark-button:before{
 	cursor:pointer;
 	display:inline-block;
 	vertical-align: bottom;
-	//max-width:calc(100% - 170px);
 	
-	white-space:nowrap;
-	//line-height:14px;
-	//font-size:14px;
+	
+	white-space:nowrap;	
+	
 	padding:0;
 	margin:0;
-	//background-color: gray;
+	
 	/*border-right-width: 13px;
 	border-right-style: solid;
 	border-image-slice: 1;
@@ -321,15 +319,22 @@ section.marked .mark-button:before{
 	opacity:0.05 !important;
 }
 
-/*.result{	
-	overflow-x:visible;
+.result{	
+	font-size:14px;
 }
-*/
+
 
 #outofscope p{
 	margin: 2px 0 6px 4px;
 }
 #outofscope p .parent-url{
+	padding-left:6px;
+}
+
+#nonhtml p{
+	margin: 2px 0 6px 4px;
+}
+#nonhtml p .parent-url{
 	padding-left:6px;
 }
 
@@ -353,3 +358,32 @@ section.marked .mark-button:before{
 !.accordion-open + p{
 	color:red;
 }
+
+#vulnerability pre{
+	padding:5px;
+}
+
+.vuln-name{
+	cursor:pointer;
+}
+
+
+span.trigger{
+	display: inline-block;
+	margin:0 4px 0 0;
+	padding: 1;
+	
+	min-width:12px;
+	height:12px;
+	cursor:pointer;
+	text-align:center;
+	font-size:13px;
+	line-height:14px;
+	color:#02582F;
+}
+
+span.trigger.empty{
+	opacity:.1;
+	cursor:default;
+}
+

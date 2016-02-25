@@ -1,33 +1,25 @@
-<html>
-<head>
-<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 
-
-<!-- DONT MODIFY THESE LINES -->
-
-<link rel='stylesheet' href='style.css' type='text/css' />
-<script src='json.js' type='text/javascript'></script>
-<script src='report.js' type='text/javascript'></script>
-<!-- ************************ -->
-
-</head>
 
 <body onload="initReport()">
 <div id=top>
 	<div id="collapse_top">
 		<div id=top_header>
-			<p id=title>htcap report</p>
+			<p id=title>Htcap <span id=htcap_version></span> Report</p>
 			<hr>
 			<table id=infos>			
 				<tr><td>Target:</td><td id=infos_target></td></tr>
-				<tr><td>Scan date:</td><td id=infos_scan_date></td></tr>
-				<tr><td>Urls scanned:</td><td id=infos_scanned_urls></td></tr>
-				<tr><td>Urls out of scope:</td><td>
+				<tr><td>Crawl date:</td><td id=infos_scan_date></td></tr>
+				<tr><td>Pages crawled:</td><td id=infos_scanned_urls></td></tr>
+				<tr><td>Crawl duration:</td><td id=infos_scan_time></td></tr>
+				<tr><td>Out of scope:</td><td>
 					<span id=infos_outofscope></span> 
 					<span class=button id=outofscope-open>open</span>
-				</td></tr>
-				<tr><td>Scan time:</td><td id=infos_scan_time></td></tr>
-				<!-- <tr><td>Command:</td><td id=infos_commandline></td></tr>	-->			
+				</td></tr>	
+				<tr><td>Non HTML:</td><td>
+					<span id=infos_nonhtml></span> 
+					<span class=button id=nonhtml-open>open</span>
+				</td></tr>				
+				<tr><td>Command:</td><td id=infos_commandline></td></tr>
 			</table>
 			
 		</div>
@@ -90,6 +82,23 @@
 	<div class=modal-content></div>
 </div>
 
+<div id=nonhtml class="modal hidden">
+	<div class=modal-bar>
+		Non HTML Documents
+		<div id='nonhtml-close' title=close>&#215;</div>
+	</div>
+	<div class=modal-content></div>
+</div>
+
+
+
+<div id=vulnerability class="modal hidden">
+	<div class=modal-bar>
+		Vulnerability Details
+		<div id='vulnerability-close' title=close>&#215;</div>
+	</div>
+	<div class=modal-content></div>
+</div>
 
 </body>
-</html>
+
