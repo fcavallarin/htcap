@@ -25,6 +25,7 @@ import threading
 import subprocess
 from random import choice
 import string
+from distutils import spawn
 
 
 from core.lib.exception import *
@@ -114,21 +115,12 @@ class Crawler:
 
 
 	def get_phantomjs_cmd(self):
-		
-		phantom_path = None 
-		
-		lp =  "%s%sphantomjs" % (os.getcwd(), os.sep)
-		
-		#try to find real path (avoid problems with cron and /usr/bin/env)
-		for path in [lp, lp+".exe", "/usr/bin/phantomjs", "/usr/local/bin/phantomjs", "/usr/share/bin/phantomjs"]:
-			if os.path.exists(path):
-				phantom_path = [path]
-				break
-		
-		if not phantom_path:
+		phantom_cmd = []
+		phantom_path = spawn.find_executable("phantomjs")
+		if phantom_path is None:
 			return None
-		phantom_path.extend(["--ignore-ssl-errors=yes","--web-security=false","--ssl-protocol=any","--debug=false"])
-		return phantom_path 
+		phantom_cmd.extend([phantom_path, "--ignore-ssl-errors=yes","--web-security=false","--ssl-protocol=any","--debug=false"])
+		return phantom_cmd 
 
 
 	def generate_filename(self, name, out_file_overwrite):	
