@@ -114,21 +114,23 @@ class Crawler:
 
 
 	def get_phantomjs_cmd(self):
+		standard_paths = [os.getcwd()]
+		envpath = os.environ['PATH'].split(os.pathsep)
+		exe_name = "phantomjs"
+
+		if sys.platform != "win32":
+			# force check to standard paths in case $PATH is not set (ie crontab)
+			standard_paths.extend(["/usr/bin", "/usr/local/bin", "/usr/share/bin"])
+		else:
+			exe_name = "%s.exe" % exe_name
 		
-		phantom_path = None 
+		exe_paths = ["%s%s%s" % (p, os.sep, exe_name) for p in standard_paths + envpath]
 		
-		lp =  "%s%sphantomjs" % (os.getcwd(), os.sep)
+		for exe in exe_paths:
+			if os.path.isfile(exe):
+				return [exe, "--ignore-ssl-errors=yes", "--web-security=false", "--ssl-protocol=any", "--debug=false"]
 		
-		#try to find real path (avoid problems with cron and /usr/bin/env)
-		for path in [lp, lp+".exe", "/usr/bin/phantomjs", "/usr/local/bin/phantomjs", "/usr/share/bin/phantomjs"]:
-			if os.path.exists(path):
-				phantom_path = [path]
-				break
-		
-		if not phantom_path:
-			return None
-		phantom_path.extend(["--ignore-ssl-errors=yes","--web-security=false","--ssl-protocol=any","--debug=false"])
-		return phantom_path 
+		return None	
 
 
 	def generate_filename(self, name, out_file_overwrite):	
