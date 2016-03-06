@@ -81,9 +81,9 @@ $ git clone https://github.com/segment-srl/htcap.git htcap
 $ htcap/htcap.py
 ```
 
-Alternatively you can download the latest zip [here](http://www.htcap.org/https://github.com/segment-srl/htcap/archive/master.zip).
+Alternatively you can download the latest zip [here](https://github.com/segment-srl/htcap/archive/master.zip).
 
-PhantomJs can be downloaded [here](http://www.htcap.org/http://phantomjs.org//download.html). It comes as a self-contained executable with all libraries linked  
+PhantomJs can be downloaded [here](http://phantomjs.org/download.html). It comes as a self-contained executable with all libraries linked  
 statically, so there is no need to install or compile anything else.  
 Htcap will search for phantomjs executable in the following paths:
 
