@@ -83,15 +83,15 @@ $ htcap/htcap.py
 
 Alternatively you can download the latest zip [here](https://github.com/segment-srl/htcap/archive/master.zip).
 
-PhantomJs can be downloaded [here](http://phantomjs.org/download.html). It comes as a self-contained executable with all libraries linked  
+PhantomJs can be downloaded [here](http://phantomjs.org//download.html). It comes as a self-contained executable with all libraries linked  
 statically, so there is no need to install or compile anything else.  
-Htcap will search for phantomjs executable in the following paths:
+Htcap will search for phantomjs executable in the locations listed below and in the paths listed in  
+$PATH environment varailbe:
 
- 1. ./phantomjs
- 2. ./phantomjs.exe
- 3. /usr/bin/phantomjs
- 4. /usr/local/bin/phantomjs
- 5. /usr/share/bin/phantomjs
+ 1. ./
+ 2. /usr/bin/
+ 3. /usr/local/bin/
+ 4. /usr/share/bin/
 
 To install htcap system-wide:
 
@@ -105,9 +105,9 @@ To install htcap system-wide:
 
 ## DEMOS
 
-You can find an online demo of the html report [here](http://www.htcap.org/scanme/report.html) and a screenshot of the database view [here](http://www.htcap.org/scanme/db_screen.png)  
-You can also explore the test pages [here](http://www.htcap.org/scanme/) to see from what the report has been generated. They also  
-include a page to [test ajax recursion](http://www.htcap.org/scanme/ng/).
+You can find an online demo of the html report [here](http://htcap.org/scanme/report.html) and a screenshot of the database view [here](http://htcap.org/scanme/db_screen.png)  
+You can also explore the test pages [here](http://htcap.org/scanme/) to see from what the report has been generated. They also  
+include a page to [test ajax recursion](http://htcap.org/scanme/ng/).
 
 ## EXPLORING DATABASE
 
@@ -116,7 +116,7 @@ sqlite3 client.
 
 ### BUILT-IN SCRIPT EXAMPLES
 
-Generate the html report. (demo report available [here](http://www.htcap.org/scanme/report.html))
+Generate the html report. (demo report available [here](http://htcap.org/scanme/report.html))
 
 ```console
 $ htcap/scripts/htmlreport.py target.db target.html
