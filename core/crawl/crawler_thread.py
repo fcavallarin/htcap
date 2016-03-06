@@ -253,6 +253,14 @@ class CrawlerThread(threading.Thread):
 			# set out_of_scope, apply user-supplied filters to urls (ie group_qs)
 			adjust_requests(requests)
 
+			Shared.th_lock_db.acquire()
+			Shared.database.save_request_response_data(request.db_id, errors=errors, html=request.html)
+			Shared.database.connect()
+			for r in requests:											
+				Shared.database.save_request(r)
+			Shared.database.close()			
+			Shared.th_lock_db.release()
+
 			notify = False
 			Shared.th_condition.acquire()
 			for req in requests_to_crawl:								
@@ -269,16 +277,7 @@ class CrawlerThread(threading.Thread):
 				Shared.th_condition.notifyAll() 
 	
 			Shared.th_condition.release()
-
-
-			Shared.th_lock_db.acquire()
-			Shared.database.save_request_response_data(request.db_id, errors=errors, html=request.html)
-			Shared.database.connect()
-			for r in requests:											
-				Shared.database.save_request(r)
-			Shared.database.close()
 			
-			Shared.th_lock_db.release()
 
 
 			
