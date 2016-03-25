@@ -56,8 +56,5 @@ class Probe:
 				self.html = val				
 
 
-	def get_requests_for_crawler(self, types):
-		return [req for req in self.requests if req.type in types]
-
 
 	# @TODO handle cookies set by ajax (in probe too)

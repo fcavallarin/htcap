@@ -11,22 +11,10 @@ version.
 """
 
 
-class Shared:
-	"""
-	data shared between threads
-	"""
-	
-	main_condition = None
-	th_condition = None
 
-	requests = []
-	requests_index = 0
-	crawl_results = []
-
-	starturl = ""
-	start_cookies = []
-	allowed_domains = set()
-	excluded_urls = set()	
-	
-	options = {}	
+class CrawlResult:
+	def __init__(self, request, found_requests = None, errors = None):
+		self.request = request
+		self.found_requests = found_requests if found_requests else []
+		self.errors = errors if errors else []
 

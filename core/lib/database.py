@@ -53,6 +53,10 @@ class Database:
 			)
 		"""
 
+		self.qry_create_request_index ="""
+			CREATE INDEX request_index ON request (type, method, url, http_auth, data, trigger)
+		"""
+
 		self.qry_create_request_child = """
 			CREATE TABLE request_child (	
 				id INTEGER PRIMARY KEY AUTOINCREMENT, 	
@@ -86,6 +90,27 @@ class Database:
 		"""
 
 
+
+	def connect(self):
+		self.conn = sqlite3.connect(self.dbname)
+		self.conn.row_factory = sqlite3.Row 
+
+
+	def close(self):
+		self.conn.close()
+
+	def begin(self):
+		self.conn.isolation_level = None
+		self.conn.execute("BEGIN TRANSACTION")
+
+	def commit(self):
+		self.conn.commit()
+
+	def dict_from_row(self, row):
+		return dict(zip(row.keys(), row)) 
+
+
+
 	def create(self):
 		
 		try:
@@ -94,12 +119,14 @@ class Database:
 			cur = self.conn.cursor()
 			cur.execute(self.qry_create_crawl_info)			
 			cur.execute(self.qry_create_request)
+			cur.execute(self.qry_create_request_index)
 			cur.execute(self.qry_create_request_child)
 			cur.execute(self.qry_create_request_child_index)
 			cur.execute(self.qry_create_assessment)
 			cur.execute(self.qry_create_vulnerability)
 			
 			cur.execute("INSERT INTO crawl_info values (NULL, NULL, NULL, NULL, NULL, NULL)")
+			
 			self.conn.commit()	
 			self.close()
 
@@ -149,18 +176,9 @@ class Database:
 			print str(e)
 
 
-	def connect(self):
-		self.conn = sqlite3.connect(self.dbname)
-		self.conn.row_factory = sqlite3.Row 
-
-	def close(self):
-		self.conn.close()
-
-	def dict_from_row(self, row):
-		return dict(zip(row.keys(), row)) 
-
 
 	def save_request(self, request):		
+
 		values = (			
 			request.parent_db_id,
 			request.type,
@@ -185,7 +203,6 @@ class Database:
 			request.http_auth if request.http_auth else "",
 			request.data,
 			json.dumps(request.trigger) if request.trigger else ""
-			#json.dumps([r.get_dict() for r in request.cookies])			
 		)
 		
 		# include trigger in query to save the same request with different triggers
@@ -210,46 +227,31 @@ class Database:
 				qry_child = "INSERT INTO request_child (id_request, id_child) VALUES (?,?)"
 				cur.execute(qry_child, (request.parent_db_id, req_id))						
 
-			self.conn.commit()
-			
 		except Exception as e:
 			print str(e)
 
-	def save_request_response_data(self, id_request, errors = None, html = None):
-		if not errors: errors = []
-		if not html: html = ""
-		if id_request == 0: # start url has id=0
+	
+
+	def save_crawl_result(self, result, crawled):
+		
+		if result.request.db_id == 0: # start url has id=0
 			return
-		qry = "UPDATE request SET crawled=1, crawler_errors=?, html=? where id=?"
+		qry = "UPDATE request SET crawled=?, crawler_errors=?, html=? where id=?"
 		values = (			
-			json.dumps(errors) if errors else "[]",
-			html,
-			id_request
+			1 if crawled else 0,
+			json.dumps(result.errors),
+			result.request.html if result.request.html else "",
+			result.request.db_id
 		)
 		
 		try:
-			self.connect()
 			cur = self.conn.cursor()
-			cur.execute(qry, values)
-			self.conn.commit()
-			self.close()
+			cur.execute(qry, values)			
 		except Exception as e:
 			print str(e)
 
-	def save_found_urls(self, url, parent, scanned):		
-		values = (
-			self.report_id, 
-			url, 
-			parent,
-			scanned
-		)
-		
-		try:
-			cur = self.conn.cursor()			
-			cur.execute(self.qry_insert_found_urls, values)
-			self.conn.commit()
-		except Exception as e:
-			print str(e)
+
+
 
 	def get_requests(self, types = "xhr"):
 		types = types.split(",")		

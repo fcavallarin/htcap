@@ -32,6 +32,7 @@ from core.lib.cookie import Cookie
 from core.lib.database import Database
 
 from lib.shared import *
+from lib.crawl_result import *
 from core.lib.request import Request
 from core.lib.http_get import HttpGet
 from crawler_thread import CrawlerThread
@@ -58,8 +59,7 @@ class Crawler:
 			"proxy": None,
 			"http_auth": None,
 			"use_urllib_onerror": True,	
-			"group_qs": False,
-			#"normalize_url_path": True,
+			"group_qs": False,			
 			"process_timeout": 300, # when lots of element(~25000) are added dynamically it can take some time..
 			"set_referer": True,
 			"scope": CRAWLSCOPE_DOMAIN,
@@ -133,6 +133,7 @@ class Crawler:
 		return None	
 
 
+
 	def generate_filename(self, name, out_file_overwrite):	
 		fname = generate_filename(name, None, out_file_overwrite)
 		if out_file_overwrite:
@@ -142,6 +143,7 @@ class Crawler:
 		return fname
 
 
+
 	def kill_threads(self, threads):
 		for th in threads:
 			if th.isAlive(): th.exit = True
@@ -149,33 +151,6 @@ class Crawler:
 		Shared.th_condition.acquire()
 		Shared.th_condition.notifyAll()
 		Shared.th_condition.release()	
-
-
-
-
-	def wait_crawler(self, threads, display_progress):
-		crawler_done = False
-		while not crawler_done:				
-			for th in threads:
-				crawler_done = True
-				for th1 in threads:
-					if th1.status == THSTAT_RUNNING:# and th1.isAlive(): 
-						crawler_done = False
-				if crawler_done: break;
-
-				if not th.isAlive(): continue #@todo fix
-				th.join(1)
-
-				if display_progress:
-					Shared.th_condition.acquire()									
-					scanned = Shared.requests_index #len(Shared.crawled_requests)
-					pending = len(Shared.requests) - scanned				
-					Shared.th_condition.release()					
-					tot = (scanned + pending) 
-					print_progressbar(tot, scanned, self.crawl_start_time, "pages processed")				
-
-		if display_progress:
-			print ""
 
 
 
@@ -191,9 +166,7 @@ class Crawler:
 				cookies.append({"name":k.strip(), "value":unquote(v.strip())})
 		except Exception as e:	
 			raise
-
-		# print cookies
-		# sys.exit(1)
+		
 		return cookies
 
 
@@ -207,13 +180,13 @@ class Crawler:
 			'command_line': " ".join(sys.argv)
 		}
 
-		Shared.database = Database(dbname, report_name, infos)
-		Shared.database.create()	
+		database = Database(dbname, report_name, infos)
+		database.create()
+		return database
 
 
 
-	def check_startrequest(self, request):
-		#def __init__(self, request, timeout, retries=None, useragent=None,  proxy=None, http_auth=None):
+	def check_startrequest(self, request):		
 
 		h = HttpGet(request, Shared.options['process_timeout'], 2, Shared.options['useragent'], Shared.options['proxy'])
 		try:
@@ -237,7 +210,7 @@ class Crawler:
 			httpget = HttpGet(getreq, 10, 1, "Googlebot", Shared.options['proxy'])			
 			lines = httpget.get_file().split("\n")
 		except urllib2.HTTPError:
-			return None
+			return []
 		except:
 			raise
 
@@ -255,7 +228,7 @@ class Crawler:
 				requests.append(req)
 
 
-		return adjust_requests(requests) if requests else None
+		return adjust_requests(requests) if requests else []
 
 
 
@@ -266,11 +239,111 @@ class Crawler:
 		
 
 
+	def main_loop(self, threads, start_requests, database, display_progress = True, verbose = False):
+		pending = len(start_requests)
+		crawled = 0
+
+		req_to_crawl = start_requests
+		try:			
+			while True:			
+				
+				if display_progress and not verbose:
+					tot = (crawled + pending) 
+					print_progressbar(tot, crawled, self.crawl_start_time, "pages processed")	
+
+				if pending == 0:
+					# is the check of running threads really needed?
+					running_threads = [t for t in threads if t.status == THSTAT_RUNNING]				
+					if len(running_threads) == 0:
+						if display_progress or verbose:
+							print ""
+						break
+
+				if len(req_to_crawl) > 0:
+					Shared.th_condition.acquire()					
+					Shared.requests.extend(req_to_crawl)
+					Shared.th_condition.notifyAll()
+					Shared.th_condition.release()	
+					
+				req_to_crawl = []
+				Shared.main_condition.acquire()
+				Shared.main_condition.wait(1)				
+				if len(Shared.crawl_results) > 0:						
+					database.connect()
+					database.begin()
+					for result in Shared.crawl_results:
+						crawled += 1
+						pending -= 1
+						if verbose:
+							print "crawl result for: %s " % result.request
+							if result.errors:
+								print "* crawler errors: %s" % ", ".join(result.errors)
+
+						database.save_crawl_result(result, True)				
+						for req in result.found_requests:
+							
+							if verbose:							
+								print "  new request found %s" % req
+
+							database.save_request(req)							
+
+							if not req.out_of_scope and request_is_crawlable(req) and req not in Shared.requests:
+								if request_depth(req) > Shared.options['max_depth'] or request_post_depth(req) > Shared.options['max_post_depth']:
+									if verbose:
+										print "  * cannot crawl: %s : crawl depth limit reached" % req
+									result = CrawlResult(req, errors=[ERROR_CRAWLDEPTH])
+									database.save_crawl_result(result, False)
+									continue
+
+								if req.redirects > Shared.options['max_redirects']:					
+									if verbose:
+										print "  * cannot crawl: %s : too many redirects" % req
+									result = CrawlResult(req, errors=[ERROR_MAXREDIRECTS])
+									database.save_crawl_result(result, False)
+									continue		
+								
+								pending += 1
+								req_to_crawl.append(req)
+												
+					Shared.crawl_results = []				
+					database.commit()
+					database.close()					
+				Shared.main_condition.release()		
+
+		except KeyboardInterrupt:
+			print "\nTerminated by user"
+			try:	
+				Shared.main_condition.release()
+				Shared.th_condition.release()
+			except:
+				pass
+
+
+
+	def init_crawl(self, start_req, check_starturl, get_robots_txt):
+		start_requests = [start_req]
+		try:
+			if check_starturl:			
+				self.check_startrequest(start_req)
+				stdoutw(". ")
+							
+			if get_robots_txt:			
+				rrequests = self.get_requests_from_robots(start_req)
+				stdoutw(". ")
+				for req in rrequests:
+					if not req.out_of_scope:						
+						start_requests.append(req)
+		except KeyboardInterrupt:
+			print "\nAborted"
+			sys.exit(0)
+
+		return start_requests
+
+
 	def main(self, argv):
-		Shared.options = self.defaults
-		Shared.th_lock = threading.Lock()
-		Shared.th_lock_db = threading.Lock()
+		Shared.options = self.defaults		
 		Shared.th_condition = threading.Condition()
+		Shared.main_condition = threading.Condition()
 
 
 		probe_cmd = self.get_phantomjs_cmd()
@@ -332,7 +405,7 @@ class Crawler:
 			elif o == '-p':			
 				if v == "tor": v = "socks5:127.0.0.1:9150"
 				proxy =  v.split(":")
-				if proxy[0] not in ("http", "https"): # != "http" and proxy[0] != "socks5":
+				if proxy[0] not in ("http", "https"): 
 					print "only http and socks5 proxies are supported"
 					sys.exit(1)
 				Shared.options['proxy'] = {"proto":proxy[0], "host":proxy[1], "port":proxy[2]}
@@ -425,34 +498,20 @@ class Crawler:
 		
 
 		start_req = Request(REQTYPE_LINK, "GET", Shared.starturl, set_cookie=Shared.start_cookies, http_auth=http_auth, referer=start_referer)
-		Shared.requests.append(start_req)
-
+		
 		stdoutw("Initializing . ")
 
-		try:
-			if check_starturl:			
-				self.check_startrequest(start_req)
-				stdoutw(". ")
-							
-			if get_robots_txt:			
-				rrequests = self.get_requests_from_robots(start_req)
-				stdoutw(". ")
-				if rrequests:				
-					Shared.requests.extend(rrequests)
-		except KeyboardInterrupt:
-			print "\nAborted"		
-			sys.exit(0)
-
-		
-
+		start_requests = self.init_crawl(start_req, check_starturl, get_robots_txt)
+				
+		database = None
 		fname = self.generate_filename(out_file, out_file_overwrite)
 		try:
-			self.init_db(fname, out_file)
+			database = self.init_db(fname, out_file)
 		except Exception as e:
 			print str(e)
 			sys.exit(1)
 
-		Shared.database.save_crawl_info(
+		database.save_crawl_info(
 			htcap_version = get_program_infos()['version'],
 			target = Shared.starturl,
 			start_date = self.crawl_start_time,
@@ -460,12 +519,12 @@ class Crawler:
 			user_agent = Shared.options['useragent']
 		)
 
-
-		# save initial requests from db (start_url and urls from robots.txt)
-		Shared.database.connect()		
-		for req in Shared.requests:
-			Shared.database.save_request(req)
-		Shared.database.close()
+		database.connect()
+		database.begin()		
+		for req in start_requests:
+			database.save_request(req)
+		database.commit()
+		database.close()
 
 		print "done"
 		print "Database %s initialized, crawl started with %d threads" % (fname, num_threads)
@@ -475,12 +534,8 @@ class Crawler:
 			threads.append(thread)		
 			thread.start()
 		
-		try:
-			self.wait_crawler(threads, display_progress)
-		except KeyboardInterrupt:
-			print "\nTerminated by user"	
 
-		
+		self.main_loop(threads, start_requests, database, display_progress)		
 		
 		self.kill_threads(threads)
 
@@ -488,6 +543,6 @@ class Crawler:
 
 		print "Crawl finished, %d pages analyzed in %d minutes" % (Shared.requests_index, (self.crawl_end_time - self.crawl_start_time) / 60)
 
-		Shared.database.save_crawl_info(end_date=self.crawl_end_time)
+		database.save_crawl_info(end_date=self.crawl_end_time)
 
 

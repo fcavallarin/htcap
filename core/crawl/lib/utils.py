@@ -91,3 +91,14 @@ def request_post_depth(request):
 		return 1
 
 	return 1 + request_post_depth(request.parent)
+
+
+
+def request_is_crawlable(request):
+	types = [REQTYPE_LINK, REQTYPE_REDIRECT]
+	if Shared.options['mode'] == CRAWLMODE_AGGRESSIVE and Shared.options['crawl_forms']:
+		types.append(REQTYPE_FORM)
+
+	return True if request.type in types else False
+
+

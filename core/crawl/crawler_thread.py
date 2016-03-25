@@ -40,6 +40,7 @@ from core.lib.utils import *
 from core.constants import *
 
 from lib.utils import *
+from lib.crawl_result import *
 
 
 
@@ -193,7 +194,7 @@ class CrawlerThread(threading.Thread):
 
 			try:				
 				request = self.wait_request()								
-			except ThreadExitRequestException:
+			except ThreadExitRequestException:				
 				if os.path.exists(self.cookie_file):
 					os.remove(self.cookie_file)
 				return
@@ -206,32 +207,13 @@ class CrawlerThread(threading.Thread):
 			purl = urlsplit(url)
 
 
-			if request_depth(request) > Shared.options['max_depth'] or request_post_depth(request) > Shared.options['max_post_depth']:				
-				Shared.th_lock_db.acquire()				
-				Shared.database.save_request_response_data(request.db_id, errors=[ERROR_CRAWLDEPTH])
-				Shared.th_lock_db.release()
-				continue
-
-			if request.out_of_scope:
-				continue				
-
 			probe = None
 
 			probe = self.send_probe(request, errors)			
 
 			if probe:
 				if probe.status == "ok" or probe.errcode == ERROR_PROBE_TO:
-				
-					if probe.redirect:																
-						# @todo: should redirect of the first url replace Shared.starturl ???																		
-						redirects = request.redirects + 1
-
-					reqtypes_to_crawl = [REQTYPE_LINK, REQTYPE_REDIRECT]
-					if Shared.options['mode'] == CRAWLMODE_AGGRESSIVE and Shared.options['crawl_forms']:
-						reqtypes_to_crawl.append(REQTYPE_FORM)
-
-					requests_to_crawl.extend(probe.get_requests_for_crawler(reqtypes_to_crawl))
-				
+					
 					requests = probe.requests
 
 					if probe.html:
@@ -244,39 +226,20 @@ class CrawlerThread(threading.Thread):
 					continue
 				try:		
 					hr = HttpGet(request, Shared.options['process_timeout'], self.process_retries, Shared.options['useragent'], Shared.options['proxy'])			
-					requests = hr.get_requests()
-					requests_to_crawl.extend(requests)					
+					requests = hr.get_requests()					
 				except Exception as e:					
 					errors.append(str(e))
 				
-
-			# set out_of_scope, apply user-supplied filters to urls (ie group_qs)
-			adjust_requests(requests)
-
-			Shared.th_lock_db.acquire()
-			Shared.database.save_request_response_data(request.db_id, errors=errors, html=request.html)
-			Shared.database.connect()
-			for r in requests:											
-				Shared.database.save_request(r)
-			Shared.database.close()			
-			Shared.th_lock_db.release()
-
-			notify = False
-			Shared.th_condition.acquire()
-			for req in requests_to_crawl:								
-				if req.redirects > Shared.options['max_redirects']:
-					errors.append(ERROR_MAXREDIRECTS)
-					# shoud use BREAK instead... if its a redirect len(requests_to_crawl) = 1
-					continue
 			
-				if not req in Shared.requests:
-					Shared.requests.append(req)
-					notify = True
-
-			if notify:
-				Shared.th_condition.notifyAll() 
-	
-			Shared.th_condition.release()
+			# set out_of_scope, apply user-supplied filters to urls (ie group_qs)			
+			adjust_requests(requests)
+			
+			Shared.main_condition.acquire()
+			res = CrawlResult(request, requests, errors)
+			Shared.crawl_results.append(res)
+			Shared.main_condition.notify()
+			Shared.main_condition.release()
+			
 			
 
 
