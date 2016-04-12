@@ -105,7 +105,10 @@ def group_qs_params(url):
 
 
 def normalize_url(url):
-	if not re.match("^https?://", url, re.I):
+	# add http if scheme is not present 
+	# if an url like 'test.com:80//path' is passed to urlsplit the result is:
+	# (scheme='test.com',  path='80//path', ...)	
+	if not re.match("^[a-z]+://", url, re.I):
 		url = "http://%s" % url
 		
 	purl = urlsplit(url)

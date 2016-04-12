@@ -133,29 +133,32 @@ function createSection(result){
 		var resAccord = newElement("div.results.accordion",['data-for',types[i]]);			
 		for(var a = 0; a < result[types[i]].length; a++){
 			var req = result[types[i]][a];
-			var trigger = newElement("span.trigger",["data-trigger", req.trigger], "☍");
-			if(req.trigger){
-				trigger.onclick = function(){				
-					this.textContent = this.textContent.length > 1 ? "☍" : this.getAttribute('data-trigger');
-					//this.textContent = this.getAttribute('data-trigger');
-				}	
-				trigger.setAttribute("title","trigger element: " + req.trigger)
-			} else {
-				trigger.className += " empty"
-			}
-
-			var cont = [trigger, req.request];
 			
-			//var cont = req.trigger + "-->" + result[types[i]][a].request;
-			if(types[i] == "vulnerabilities"){//console.log(req)
-				var vcont = JSON.parse(req);
-				cont = newElement("span.vuln-name",[], getVulnName(vcont.type));
-				cont.onclick = (function(c){return function(){
-					openModal("#vulnerability", newElement("pre",[],c));
-				}})(vcont.description);
-				
-			} 	
+			if(types[i] == "errors"){
+				cont = req;
+			} else {
+				var trigger = newElement("span.trigger",["data-trigger", req.trigger], "☍");
+				if(req.trigger){
+					trigger.onclick = function(){				
+						this.textContent = this.textContent.length > 1 ? "☍" : this.getAttribute('data-trigger');						
+					}	
+					trigger.setAttribute("title","trigger element: " + req.trigger)
+				} else {
+					trigger.className += " empty"
+				}
 
+				var cont = [trigger, req.request];
+				
+				//var cont = req.trigger + "-->" + result[types[i]][a].request;
+				if(types[i] == "vulnerabilities"){//console.log(req)
+					var vcont = JSON.parse(req);
+					cont = newElement("span.vuln-name",[], getVulnName(vcont.type));
+					cont.onclick = (function(c){return function(){
+						openModal("#vulnerability", newElement("pre",[],c));
+					}})(vcont.description);
+					
+				} 	
+			}
 			newElement("div.result",[], cont, resAccord);			
 			
 		}

@@ -21,7 +21,8 @@ class Request(object):
 	def __init__(self, type, method, url, parent = None, referer = None, data = None, trigger=None, json_cookies = None, set_cookie = None, http_auth=None, db_id = None, parent_db_id = None, out_of_scope = None):	
 		self.type = type
 		self.method = method
-
+		self._html = None
+		self._html_hash = None
 		url = url.strip()
 
 		try:
@@ -32,16 +33,19 @@ class Request(object):
 			except Exception as e:
 				raise AssertionError("unable to decode " + url)		
 
-		# extract http auth if present in url
-		# if credentials are present in url, the url IS absolute so we can do this before urljoin
-		# (foo:bar@example.local is NOT A VALID URL) 
-		auth, nurl = extract_http_auth(url)
-		if auth:
-			if not http_auth: 
-				http_auth = auth
-			url = nurl
-		
-		self.url = normalize_url( urljoin(parent.url, url) if parent else url )
+		if type != REQTYPE_UNKNOWN:
+			# extract http auth if present in url
+			# if credentials are present in url, the url IS absolute so we can do this before urljoin
+			# (foo:bar@example.local is NOT A VALID URL) 
+			auth, nurl = extract_http_auth(url)
+			if auth:
+				if not http_auth: 
+					http_auth = auth
+				url = nurl
+			
+			self.url = normalize_url( urljoin(parent.url, url) if parent else url )
+		else:
+			self.url = url
 
 		
 		# parent is the parent request that can be a redirect, referer is the referer page (ahead of redirects)
@@ -75,10 +79,7 @@ class Request(object):
 		
 		self.cookies = [c for c in self.all_cookies if c.is_valid_for_url(self.url)]
 
-		self._html = None
-				
 
-		self._html_hash = None
 
 	
 

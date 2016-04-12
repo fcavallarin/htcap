@@ -8,19 +8,47 @@ EXPORT="\"$CURDIR/../scripts/htmlreport.py\""
 VULNS="\"$CURDIR/../scripts/vulns.py\""
 
 HTCAP="\"$CURDIR/../htcap.py\""
+yes=false
+requests='link,redirect,form,xhr,jsonp'
+
+
+function yesno {	
+	if [ $1 = false ]; then
+		read yesno
+	else	
+		yesno="y"
+	fi
+
+	echo $yesno
+}
 
 if [ $# -lt 1 ];then
-	echo "usage "$(basename $0) "<host>"
+	echo "usage "$(basename $0) "[options]" "<host>"
+	echo "options:"
+	echo "  -r   set request types (default: " $requests ")"
+	echo "  -y   answare yes to all questions"
 	exit 1
 fi
 
+
+while getopts "r:y" opt; do	
+    case "$opt" in    
+    r)  requests=$OPTARG
+        ;;
+    y)  yes=true
+        ;;
+    esac
+done
+shift $((OPTIND-1))
+
 HOST=$1
+
+
 OUTFILE=`echo $HOST | sed -E 's/^https?:\/\///' | sed 's/\./_/g' | sed 's/\/.*//g'`	
 
 if [ -e "$OUTFILE.db" ];then
-	echo -n "$OUTFILE.db already exists. Overwrite it? (y/N): "
-	read yesno
-	if [ "$yesno" = "y" ]; then
+	echo -n "$OUTFILE.db already exists. Overwrite it? (y/N): " && $yes && echo "y"
+	if [ "$(yesno $yes)" = "y" ]; then
 		rm "$OUTFILE.db"
 	else
 		exit 1
@@ -29,15 +57,13 @@ fi
 
 
 echo $HTCAP crawl $HOST $OUTFILE.db | xargs $PY || exit 1
-echo -n "Run arachni? (y/N): "
-read yesno
-if [ "$yesno" = "y" ]; then
-	echo $HTCAP scan arachni $OUTFILE.db | xargs $PY || exit 1
+echo -n "Run arachni? (y/N): " && $yes && echo "y"
+if [ "$(yesno $yes)" = "y" ]; then
+	echo $HTCAP scan -r $requests arachni $OUTFILE.db | xargs $PY || exit 1
 fi
-echo -n "Run sqlmap? (y/N): "
-read yesno
-if [ "$yesno" = "y" ]; then
-	echo $HTCAP scan sqlmap $OUTFILE.db | xargs $PY || exit 1
+echo -n "Run sqlmap? (y/N): " && $yes && echo "y"
+if [ "$(yesno $yes)" = "y" ]; then
+	echo $HTCAP scan -r $requests sqlmap $OUTFILE.db | xargs $PY || exit 1
 fi
 echo 
 

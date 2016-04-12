@@ -67,6 +67,7 @@ class Cookie:
 			# if setter is None, no domain restrictions are applied (ie when loading cookies from db)
 			if self.setter and purl.hostname != self.setter.hostname: return False
 		else:
+			if not purl.hostname: return False
 			# url is valid ALSO if it is a subdomain of self.domain
 			sh = [t for t in self.domain.split(".")[::-1] if t] # skip empty vals (in case of .foo.bar)
 			uh = purl.hostname.split(".")[::-1]			
@@ -75,6 +76,7 @@ class Cookie:
 
 		if self.path:
 			# check if url's path is equal or subfolder of self.path
+			if not purl.path: return False
 			sp = [t for t in self.path.split("/") if t]
 			up = [t for t in purl.path.split("/") if t]				
 			if up[:len(sp)] != sp: return False

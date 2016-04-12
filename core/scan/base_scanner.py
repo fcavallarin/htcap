@@ -79,13 +79,13 @@ class BaseScanner:
 		self._duplicated_requests = []
 
 		urlpatterns = []
-		for req in self.pending_requests:			
-			if req.method == "GET":
-				pat = self.get_url_pattern(req.url)				
-				if pat in urlpatterns:								
-					self._duplicated_requests.append(req.db_id)
-				else:	
-					urlpatterns.append(pat)
+		for req in self.pending_requests:
+			if req.method != "GET": continue
+			pat = self.get_request_pattern(req)
+			if pat in urlpatterns:
+				self._duplicated_requests.append(req.db_id)
+			else:	
+				urlpatterns.append(pat)
 		
 		init = self.init(scanner_argv if scanner_argv else [])
 		
@@ -95,9 +95,7 @@ class BaseScanner:
 		for n in range(0, self.settings['num_threads']):	
 			thread = self.Executor(self)
 			self.threads.append(thread)		
-			thread.start()
-
-		
+			thread.start()	
 
 		try:
 			self.wait_executor(self.threads, display_progress)
@@ -128,19 +126,19 @@ class BaseScanner:
 
 	def wait_executor(self, threads, display_progress):
 		executor_done = False
-		while not executor_done:				
+		while not executor_done:
 			executor_done = True
-			for th in threads:		
-				if th.isAlive(): 				
+			for th in threads:
+				if th.isAlive():
 					executor_done = False
 				th.join(1)
 
 				if display_progress:
-					self._th_lock.acquire()				
+					self._th_lock.acquire()
 					scanned = self.performed_requests
-					pending = len(self.pending_requests)						
+					pending = len(self.pending_requests)
 					tot = self.tot_requests
-					self._th_lock.release()			
+					self._th_lock.release()
 
 					print_progressbar(tot, scanned, self.scan_start_time, "requests scanned")
 		if display_progress:
@@ -178,17 +176,23 @@ class BaseScanner:
 		self._th_lock_db.release()
 
 	
-	def get_url_pattern(self, url):
+	def get_request_pattern(self, request):
 		"""
-		returns url pattern for comparision (query parameters are sorted and without values)
+		returns requst pattern for comparision (query and data parameters are sorted and without values)
 		"""
-		purl = urlsplit(url)	
-		query = parse_qs(purl.query, True)
-		return [purl.scheme, purl.netloc, purl.path, sorted(query.keys())]
-
-	def is_request_duplicated(self, request):
+		purl = urlsplit(request.url)
+		query = parse_qs(purl.query, True) #second par is True to keep blank values
+		patt = [purl.scheme, purl.netloc, purl.path, sorted(query.keys())]
+		if request.data:			
+			query = parse_qs(request.data, True)
+			patt.append(sorted(query.keys()))
 		
+		return patt
+
+
+	def is_request_duplicated(self, request):		
 		return request.db_id in self._duplicated_requests
+
 
 	class Executor(threading.Thread):
 		

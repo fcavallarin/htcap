@@ -405,7 +405,7 @@ class Crawler:
 			elif o == '-p':			
 				if v == "tor": v = "socks5:127.0.0.1:9150"
 				proxy =  v.split(":")
-				if proxy[0] not in ("http", "https"): 
+				if proxy[0] not in ("http", "socks5"): 
 					print "only http and socks5 proxies are supported"
 					sys.exit(1)
 				Shared.options['proxy'] = {"proto":proxy[0], "host":proxy[1], "port":proxy[2]}

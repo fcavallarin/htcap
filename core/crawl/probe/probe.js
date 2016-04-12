@@ -294,7 +294,8 @@ function initProbe(options, inputValues){
 		var req = null;
 
 		url = url.split("#")[0];				
-		if(url.match(/^[a-z0-9\-_]+\:/i) && !url.match(/^https?\:/i)){
+
+		if(url.match(/^[a-z0-9\-_]+\:/i) && !url.match(/(^https?)|(^ftps?)\:/i)){
 			if(this.options.printUnknownRequests){
 				req = new this.Request("unknown", "GET", url);	
 			}

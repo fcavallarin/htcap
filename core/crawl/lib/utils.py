@@ -16,7 +16,7 @@ from core.lib.utils import *
 from shared import *
 import posixpath
 import json 
-
+import re
 
 
 
@@ -64,15 +64,13 @@ def adjust_requests(requests):
 	"""
 
 	for request in requests:
-		if not request_in_scope(request):
+		if request.type == REQTYPE_UNKNOWN or not request_in_scope(request):
 			request.out_of_scope = True
 
 		if Shared.options['group_qs']:
 			request.url = group_qs_params(request.url)
 
 	return requests
-
-
 
 
 def request_depth(request):
@@ -99,6 +97,6 @@ def request_is_crawlable(request):
 	if Shared.options['mode'] == CRAWLMODE_AGGRESSIVE and Shared.options['crawl_forms']:
 		types.append(REQTYPE_FORM)
 
-	return True if request.type in types else False
+	return request.type in types and re.match("^https?://", request.url, re.I)
 
 
