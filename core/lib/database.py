@@ -217,7 +217,7 @@ class Database:
 			req_id = 0
 			if not existing_req:
 				cur.execute(qry, values)
-				cur.execute("SELECT last_insert_rowid() as id")
+				cur.execute("SELECT last_insert_rowid() AS id")
 				request.db_id = cur.fetchone()['id']
 				req_id = request.db_id
 			else:

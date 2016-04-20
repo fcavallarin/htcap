@@ -260,7 +260,7 @@ class Crawler:
 						break
 
 				if len(req_to_crawl) > 0:
-					Shared.th_condition.acquire()					
+					Shared.th_condition.acquire()
 					Shared.requests.extend(req_to_crawl)
 					Shared.th_condition.notifyAll()
 					Shared.th_condition.release()	
@@ -287,7 +287,7 @@ class Crawler:
 
 							database.save_request(req)							
 
-							if not req.out_of_scope and request_is_crawlable(req) and req not in Shared.requests:
+							if request_is_crawlable(req) and req not in Shared.requests and req not in req_to_crawl:
 								if request_depth(req) > Shared.options['max_depth'] or request_post_depth(req) > Shared.options['max_post_depth']:
 									if verbose:
 										print "  * cannot crawl: %s : crawl depth limit reached" % req

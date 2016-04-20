@@ -25,6 +25,7 @@ import os
 import uuid
 import urllib2
 import shutil
+import datetime
 
 from urlparse import urlparse, urlsplit, urljoin, parse_qs
 
@@ -46,7 +47,7 @@ from core.lib.database import Database
 from core.lib.utils import *
 from core.constants import *
 
-import datetime
+from core.lib.request_pattern import RequestPattern
 
 
 
@@ -80,12 +81,11 @@ class BaseScanner:
 
 		urlpatterns = []
 		for req in self.pending_requests:
-			if req.method != "GET": continue
-			pat = self.get_request_pattern(req)
-			if pat in urlpatterns:
+			patt = RequestPattern(req).pattern
+			if patt in urlpatterns:
 				self._duplicated_requests.append(req.db_id)
 			else:	
-				urlpatterns.append(pat)
+				urlpatterns.append(patt)
 		
 		init = self.init(scanner_argv if scanner_argv else [])
 		
@@ -115,13 +115,14 @@ class BaseScanner:
 			scanner_exe = ""
 		)
 
+
 	def get_cmd(self, url, outfile):
 		cmd = []
 		return cmd
 
+
 	def scanner_executed(self, id_parent, out, err, out_file):
 		return
-
 
 
 	def wait_executor(self, threads, display_progress):
@@ -174,20 +175,6 @@ class BaseScanner:
 		self._th_lock_db.acquire()		
 		self.db.save_assessment(self.id_assessment, int(time.time()))		
 		self._th_lock_db.release()
-
-	
-	def get_request_pattern(self, request):
-		"""
-		returns requst pattern for comparision (query and data parameters are sorted and without values)
-		"""
-		purl = urlsplit(request.url)
-		query = parse_qs(purl.query, True) #second par is True to keep blank values
-		patt = [purl.scheme, purl.netloc, purl.path, sorted(query.keys())]
-		if request.data:			
-			query = parse_qs(request.data, True)
-			patt.append(sorted(query.keys()))
-		
-		return patt
 
 
 	def is_request_duplicated(self, request):		

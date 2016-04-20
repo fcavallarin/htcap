@@ -93,6 +93,9 @@ def request_post_depth(request):
 
 
 def request_is_crawlable(request):
+	if request.out_of_scope:
+		return False
+
 	types = [REQTYPE_LINK, REQTYPE_REDIRECT]
 	if Shared.options['mode'] == CRAWLMODE_AGGRESSIVE and Shared.options['crawl_forms']:
 		types.append(REQTYPE_FORM)
