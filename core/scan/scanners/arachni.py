@@ -98,7 +98,9 @@ class Arachni(BaseScanner):
 			"--scope-directory-depth-limit", "0",
 			"--scope-page-limit", "1",			
 			"--report-save-path", out_file,
-			"--snapshot-save-path", "/dev/null"
+			"--snapshot-save-path", "/dev/null",
+			#"--http-proxy-type", "socks5",
+			#"--http-proxy","127.0.0.1:9150"
 			]
 
 		if self.audit_both_methods:

@@ -331,7 +331,7 @@ class Crawler:
 				rrequests = self.get_requests_from_robots(start_req)
 				stdoutw(". ")
 				for req in rrequests:
-					if not req.out_of_scope:						
+					if request_is_crawlable(req) and not req in start_requests:
 						start_requests.append(req)
 		except KeyboardInterrupt:
 			print "\nAborted"

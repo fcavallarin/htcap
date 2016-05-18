@@ -160,11 +160,10 @@ function initProbe(options, inputValues){
 			}
 		}
 
-		console.log("elements get... searching for root nodes")
+		console.log("elements get... (tot "+elements.length+") searching for root nodes")
 		
-		for(var a = 0; a < elements.length; a++){					
-			var cur = elements[a];		
-			var p = cur.parentNode;
+		for(var a = 0; a < elements.length; a++){			
+			var p = elements[a];
 			var root = null;
 			// find the farest parent between added elements
 			while(p){
@@ -177,15 +176,14 @@ function initProbe(options, inputValues){
 			if(root && rootElements.indexOf(root) == -1){
 				//console.log("root element found "+ this.describeElement(root) + "  " +a)				
 				rootElements.push(root);				
-			}			
+			}
 		}
 
 		for(var a = 0; a < elements.length; a++){	
-			delete elements[a].__new;
-			delete elements[a].__skip;
+			delete elements[a].__new;			
 		}
 
-
+		console.log("root elements found: " + rootElements.length);
 		return rootElements;
 	}
 
@@ -486,7 +484,7 @@ function initProbe(options, inputValues){
 			if you trigger click on input type=color evertything freezes... maybe due to some
 			color picker that pops up ... 
 		*/
-		if(el.tagName.toLowerCase()=="input" && el.type.toLowerCase()=='color' && evname=='click'){
+		if(el.tagName == "INPUT" && el.type.toLowerCase()=='color' && evname=='click'){
 			return;
 		}
 
@@ -537,6 +535,7 @@ function initProbe(options, inputValues){
 
 
 	Probe.prototype.triggerElementEvents = function(element){
+		console.log("triggering events for " + this.describeElement(element));
 		var events = this.getEventsForElement(element);		
 		for(var a = 0; a < events.length; a++){
 			
@@ -575,7 +574,7 @@ function initProbe(options, inputValues){
 	Probe.prototype.describeElement = function(el){		
 		if(!el)
 			return "[]";
-		var tagName = (el == document ? "document" : (el == window ? "window" :el.tagName));
+		var tagName = (el == document ? "DOCUMENT" : (el == window ? "WINDOW" :el.tagName));
 		var text = null;
 		if(el.textContent){
 			text =  el.textContent.trim().replace(/\s/," ").substring(0,10)
@@ -625,19 +624,26 @@ function initProbe(options, inputValues){
 
 
 
-
 	Probe.prototype.getUrls = function(element){
-		var els = element.getElementsByTagName("a");
 		var a;
-		
-		for(a = 0; a < els.length; a++){
-			var url = els[a].getAttribute('href');
+		var links = element.getElementsByTagName("a");
+		var forms = element.getElementsByTagName("form");
+
+		if(element.tagName == "A"){
+			links = Array.prototype.slice.call(links, 0).concat(element);
+		}
+
+		if(element.tagName == "FORM"){
+			forms = Array.prototype.slice.call(forms, 0).concat(element);
+		}
+
+		for(a = 0; a < links.length; a++){
+			var url = links[a].getAttribute('href');
 			if(url){	
 				this.printLink(url);					
 			}
 		}
-
-		var forms = element.getElementsByTagName("form");
+		
 		for(a = 0; a < forms.length; a++){
 			var req = this.getFormAsRequest(forms[a]);
 			this.printRequest(req);			
@@ -666,7 +672,7 @@ function initProbe(options, inputValues){
 		for(var a = 0; a < inputs.length; a++){
 			if(!inputs[a].name) continue;
 			par = encodeURIComponent(inputs[a].name) + "=" + encodeURIComponent(inputs[a].value);
-			if(inputs[a].tagName.toLowerCase() == "input" && inputs[a].type != null){				
+			if(inputs[a].tagName == "INPUT" && inputs[a].type != null){				
 				
 				switch(inputs[a].type.toLowerCase()){
 					case "button":
@@ -783,7 +789,7 @@ function initProbe(options, inputValues){
 				} else {
 					xhrs = [];
 					ajaxCompleted = true;
-					checkDOM = false;
+					checkDOM = false;					
 				}				
 				
 				lastIndex = index;
@@ -800,7 +806,7 @@ function initProbe(options, inputValues){
 					if(counter < _this.options.maximumRecursion){
 						// getAddedElement is slow and can take time if the DOM is big (~25000 nodes)
 						// so use it only if ajax 
-						me = checkDOM ? _this.getAddedElements() : [];						
+						me = checkDOM ? _this.getAddedElements() : [];				
 						
 						meIndex = 0;
 						lastMeIndex = -1;					
