@@ -146,6 +146,9 @@ page.onCallback = function(data) {
 		case "die": // @TMP
 			console.log(data.argument);
 			phantom.exit(0);
+		case "render":
+			page.render("htcap_render.png")
+			break;
 		case "end":
 			if(options.returnHtml){
 				page.evaluate(function(options){					
@@ -226,12 +229,14 @@ page.open(site, page_settings, function(status) {
 	
 	assertContentTypeHtml(response);
 
-	page.evaluate(function(){			
+
+	page.evaluate(function(){
 		window.__PROBE__.waitAjax(function(xhrs){
-			console.log("start")			
-			window.__PROBE__.startAnalysis();			
-		});		
-	})	
+			console.log("start")
+			window.__PROBE__.startAnalysis();
+		});
+	})
+
 
 });
 

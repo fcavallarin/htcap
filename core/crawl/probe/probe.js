@@ -328,9 +328,11 @@ function initProbe(options, inputValues){
 	Probe.prototype.isAjaxCompleted = function(xhrs){
 		var alldone = true;
 		for(var a = 0; a < xhrs.length; a++){
-			//console.log("-->"+xhrs[a].readyState + " "+ xhrs.length)
+			//console.log("-->"+xhrs[a].readyState + " "+ xhrs[a].__request.url)
 			if(xhrs[a].readyState != 4 && ! xhrs[a].__skipped) alldone = false;		
 		}
+		//if(alldone)
+		//	console.log("-----------------> alla ajax completed")
 		return alldone;
 	}
 
@@ -339,7 +341,7 @@ function initProbe(options, inputValues){
 		
 		var xhrs = this.pendingAjax.slice();
 		this.pendingAjax = [];
-
+		console.log("----> ahax triggered: "+xhrs[1].__request.url)
 		var _this = this;
 		var timeout = this.options.ajaxTimeout;
 		var t = setInterval(function(){		
@@ -349,7 +351,6 @@ function initProbe(options, inputValues){
 				return;			
 			}
 			timeout -= 10;
-			//console.log("timeout "+timeout)
 		}, 0);
 
 		return xhrs;
@@ -471,7 +472,7 @@ function initProbe(options, inputValues){
 		var els = element.querySelectorAll("input, select, textarea");
 		
 		for(var a = 0; a < els.length; a++){
-			console.log("filling values  " + this.describeElement(els[a]))
+			//console.log("filling values  " + this.describeElement(els[a]))
 			if(this.setVal(els[a]))
 				ret = true;
 		}
@@ -535,7 +536,7 @@ function initProbe(options, inputValues){
 
 
 	Probe.prototype.triggerElementEvents = function(element){
-		console.log("triggering events for " + this.describeElement(element));
+		//console.log("triggering events for " + this.describeElement(element));
 		var events = this.getEventsForElement(element);		
 		for(var a = 0; a < events.length; a++){
 			
@@ -821,7 +822,7 @@ function initProbe(options, inputValues){
 				if(waitingRecursion){
 
 					if(lastMeIndex < meIndex){						
-						//console.log(threadId + " added " + _this.describeElement(me[meIndex]))					
+						console.log(threadId + " added " + _this.describeElement(me[meIndex]))
 						_this.analyzeDOM(me[meIndex], counter + 1, function(){recursionReturned = true});
 						lastMeIndex = meIndex;
 					}

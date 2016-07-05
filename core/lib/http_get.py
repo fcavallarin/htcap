@@ -21,6 +21,7 @@ import cookielib
 import urllib
 import urllib2
 import base64
+import ssl
 from urlparse import urlsplit, urljoin
 from urllib import urlencode
 from core.crawl.lib.urlfinder import UrlFinder
@@ -60,9 +61,7 @@ class HttpGet:
 
 		try :
 			
-			#handlers = [urllib2.HTTPCookieProcessor(jar_response), RedirectHandler]		
-			handlers = [urllib2.HTTPCookieProcessor(jar_response)]
-
+			handlers = [urllib2.HTTPCookieProcessor(jar_response), urllib2.HTTPSHandler(context=ssl.SSLContext(ssl.PROTOCOL_SSLv23))]
 			if not follow_redirect:
 				handlers.append(RedirectHandler)
 			

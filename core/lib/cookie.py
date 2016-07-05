@@ -21,9 +21,9 @@ class Cookie:
 	"""
 
 	def __init__(self, cookie, setter=None):		
-		self.name = (str(cookie['name']) if 'name' in cookie else None)	
-		self.domain = (str(cookie['domain']) if 'domain' in cookie else None)			
-		self.path = (str(cookie['path']) if 'path' in cookie else "/")
+		self.name = (str(cookie['name']) if 'name' in cookie and cookie['name'] else None)	
+		self.domain = (str(cookie['domain']) if 'domain' in cookie and cookie['domain'] else None)		
+		self.path = (str(cookie['path']) if 'path' in cookie and cookie['path'] else "/")
 
 		# setter is the url that set this cookie, it's used to handle cookies with domain=None
 		# if both domain and setter are None then no domain restrictions are applied (used when cookied are loaded from db)		
@@ -37,7 +37,7 @@ class Cookie:
 	
 
 	def update(self, cookie):
-		self.value = (quote(str(cookie['value'])) if 'value' in cookie else None)		
+		self.value = (quote(str(cookie['value'])) if 'value' in cookie and cookie['value'] else None)		
 		self.expires = (cookie['expires'] if 'expires' in cookie else None)		
 		self.secure = (cookie['secure'] if 'secure' in cookie else False)
 		self.httponly = (cookie['httponly'] if 'httponly' in cookie else False)		

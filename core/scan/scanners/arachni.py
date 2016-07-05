@@ -89,6 +89,7 @@ class Arachni(BaseScanner):
 		timeout = str(datetime.timedelta(seconds=(self.settings['process_timeout']-5)))
 
 		cmd = [			
+			#"--checks", "sql_injection*",
 			"--checks", "code_injection*,file_inclusion*,path_traversal*,rfi*,xss*,xxe*", # "xss*",
 			"--output-only-positives",
 			"--http-request-concurrency", "1",			
