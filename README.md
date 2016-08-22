@@ -530,7 +530,7 @@ if self.is_request_duplicated(request):
 The algorithm is extreamely simple, it just removes the values from parameters and it sorts  
 them alphabetically; for example http://www.test.local/a/?c=1&amp;a=2&amp;b=3 becames  
 http://www.test.local/a/?a=&amp;b=&amp;c= .  
-A good idea would be the use of the SimHash algorithm but lots of tests are needed.
+A good idea would be the use of the SimHash algorithm but lots of tests are needed.  
 In case of POST requests the same algorithm is also applied to the following payloads:
  1. URL-Encoded
  2. XML
