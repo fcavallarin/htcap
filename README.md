@@ -215,6 +215,7 @@ Options:
   -h               this help
   -w               overwrite output file
   -q               do not display progress informations
+  -v               be verbose
   -m MODE          set crawl mode:
                       - passive: do not intract with the page
                       - active: trigger events
@@ -242,6 +243,7 @@ Options:
   -N               don't normalize URL path (keep ../../)
   -R               maximum number of redirects to follow (default 10)
   -I               ignore robots.txt
+  -O               dont't override timeout functions (setTimeout, setInterval)
 
 
 
@@ -525,10 +527,14 @@ if self.is_request_duplicated(request):
 
 ```
 
-The algorithm is extreamely simple, it just removes the values from url parameters and it sorts  
+The algorithm is extreamely simple, it just removes the values from parameters and it sorts  
 them alphabetically; for example http://www.test.local/a/?c=1&amp;a=2&amp;b=3 becames  
 http://www.test.local/a/?a=&amp;b=&amp;c= .  
 A good idea would be the use of the SimHash algorithm but lots of tests are needed.
+In case of POST requests the same algorithm is also applied to the following payloads:
+ 1. URL-Encoded
+ 2. XML
+ 3. JSON
 
 ### Detailed Module Example:
 
