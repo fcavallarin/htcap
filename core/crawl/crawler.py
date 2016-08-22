@@ -25,6 +25,7 @@ import threading
 import subprocess
 from random import choice
 import string
+import ssl
 
 
 from core.lib.exception import *
@@ -509,6 +510,9 @@ class Crawler:
 
 
 		start_req = Request(REQTYPE_LINK, "GET", Shared.starturl, set_cookie=Shared.start_cookies, http_auth=http_auth, referer=start_referer)
+
+		if not hasattr(ssl, "SSLContext"):
+			print "* WARNING: SSLContext is not supported with this version of python, consider to upgrade to >= 2.7.9 in case of SSL errors"
 
 		stdoutw("Initializing . ")
 
