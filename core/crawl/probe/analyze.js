@@ -2,9 +2,9 @@
 HTCAP - beta 1
 Author: filippo.cavallarin@wearesegment.com
 
-This program is free software; you can redistribute it and/or modify it under 
-the terms of the GNU General Public License as published by the Free Software 
-Foundation; either version 2 of the License, or (at your option) any later 
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; either version 2 of the License, or (at your option) any later
 version.
 */
 
@@ -27,7 +27,7 @@ var response = null;
 
 var headers = {};
 
-var args = getopt(system.args,"hVaftUJdICc:MSEp:Tsx:A:r:mHX:PD:R:");
+var args = getopt(system.args,"hVaftUJdICc:MSEp:Tsx:A:r:mHX:PD:R:O");
 
 var page = require('webpage').create();
 var page_settings = {encoding: "utf8"};
@@ -39,12 +39,12 @@ if(typeof args == 'string'){
 	phantom.exit(-1);
 }
 
-for(var a = 0; a < args.opts.length; a++){			
+for(var a = 0; a < args.opts.length; a++){
 	switch(args.opts[a][0]){
-		case "P": 
-			page_settings.operation = "POST";				
+		case "P":
+			page_settings.operation = "POST";
 			break;
-		case "D": 
+		case "D":
 			page_settings.data = args.opts[a][1];
 			break;
 		case "R":
@@ -96,7 +96,7 @@ page.onError = function(msg, lineNum, sourceId) {
 	if(options.verbose)
 		console.log("console error: on   " + JSON.stringify(lineNum) + " " + msg);
 }
-	
+
 page.onAlert = function(msg) {
 	if(options.verbose)
   		console.log('ALERT: ' + msg);
@@ -127,14 +127,14 @@ page.onConfirm = function(msg) {return true;} // recently changed
 
 
 page.onInitialized = function(){
-	// try to hide phantomjs 
-	page.evaluate(function(){		
+	// try to hide phantomjs
+	page.evaluate(function(){
 		window.__callPhantom = window.callPhantom;
 		delete window.callPhantom;
 	});
-		
+
 	startProbe(random);
-	
+
 };
 
 
@@ -151,17 +151,17 @@ page.onCallback = function(data) {
 			break;
 		case "end":
 			if(options.returnHtml){
-				page.evaluate(function(options){					
+				page.evaluate(function(options){
 					window.__PROBE__.printPageHTML();
 				}, options);
 			}
-			
+
 			printStatus("ok", window.response.contentType);
 			phantom.exit(0);
 			break;
 
 	}
-	
+
 }
 
 
@@ -171,15 +171,15 @@ if(options.httpAuth){
 }
 
 if(options.referer){
-	headers['Referer'] = options.referer;	
+	headers['Referer'] = options.referer;
 }
 
 page.customHeaders = headers;
 
 
-for(var a = 0; a < options.setCookies.length; a++){		
+for(var a = 0; a < options.setCookies.length; a++){
 	// maybe this is wrogn acconding to rfc .. but phantomjs cannot set cookie witout a domain...
-	if(!options.setCookies[a].domain){		
+	if(!options.setCookies[a].domain){
 		var purl = document.createElement("a");
 		purl.href=site;
 		options.setCookies[a].domain = purl.hostname
@@ -187,8 +187,8 @@ for(var a = 0; a < options.setCookies.length; a++){
 	if(options.setCookies[a].expires)
 		options.setCookies[a].expires *= 1000;
 
-	phantom.addCookie(options.setCookies[a]);	
-	
+	phantom.addCookie(options.setCookies[a]);
+
 }
 
 
@@ -198,17 +198,17 @@ for(var a = 0; a < options.setCookies.length; a++){
 page.open(site, page_settings, function(status) {
 	var response = window.response; // just to be clear
 	if (status !== 'success'){
-		var mess = ""; 
-		var out = {response: response};				
-		if(!response || response.headers.length == 0){			
+		var mess = "";
+		var out = {response: response};
+		if(!response || response.headers.length == 0){
 			printStatus("error", "load");
 			phantom.exit(1);
-		} 
+		}
 
 		// check for redirect first
 		for(var a = 0; a < response.headers.length; a++){
 			if(response.headers[a].name.toLowerCase() == 'location'){
-				
+
 				if(options.getCookies){
 					printCookies(response.headers, site);
 				}
@@ -221,12 +221,12 @@ page.open(site, page_settings, function(status) {
 
 		phantom.exit(1);
 	}
-	
 
-	if(options.getCookies){											
+
+	if(options.getCookies){
 		printCookies(response.headers, site);
 	}
-	
+
 	assertContentTypeHtml(response);
 
 
