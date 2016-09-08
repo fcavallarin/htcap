@@ -641,12 +641,7 @@ A reference to the UI object is passed to all hooks, the purposes of that object
  - Let the user call some methods to interact with the page. Actually the available methods are:  
     - ui.render(path_to_file) - save a screenshot of the page current state 
     - ui.triggerEvent(element, event) - trigger an event
- - ui.render(path_to_file) - save a screenshot of the page current state
- - ui.triggerEvent(element, event) - trigger an event
-
- - ui.render(path_to_file) - save a screenshot of the page current state
- - ui.triggerEvent(element, event) - trigger an event
-
+ 
 Available hooks are:
 
  - onInit - called when the page is initialized
