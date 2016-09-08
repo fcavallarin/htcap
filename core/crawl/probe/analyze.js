@@ -27,11 +27,12 @@ var response = null;
 
 var headers = {};
 
-var args = getopt(system.args,"hVaftUJdICc:MSEp:Tsx:A:r:mHX:PD:R:O");
+var args = getopt(system.args,"hVaftUJdICc:MSEp:Tsx:A:r:mHX:PD:R:Oi:u:v");
 
 var page = require('webpage').create();
 var page_settings = {encoding: "utf8"};
 var random = "IsHOulDb34RaNd0MsTR1ngbUt1mN0t";
+var injectScript = null;
 
 
 if(typeof args == 'string'){
@@ -41,6 +42,10 @@ if(typeof args == 'string'){
 
 for(var a = 0; a < args.opts.length; a++){
 	switch(args.opts[a][0]){
+		case "h":
+			usage();
+			phantom.exit(1);
+			break;
 		case "P":
 			page_settings.operation = "POST";
 			break;
@@ -49,6 +54,14 @@ for(var a = 0; a < args.opts.length; a++){
 			break;
 		case "R":
 			random = args.opts[a][1];
+			break;
+		case "u":
+			injectScript = fs.read(args.opts[a][1]);
+			break;
+		case "v":
+			var vs = verifyUserScript(injectScript);
+			if(vs !== true) console.log(vs);
+			phantom.exit(0);
 			break;
 	}
 }
@@ -125,15 +138,19 @@ page.onNavigationRequested = onNavigationRequested;
 
 page.onConfirm = function(msg) {return true;} // recently changed
 
-
+/* phantomjs issue #11684 workaround */
+var isPageInitialized = false;
 page.onInitialized = function(){
+	if(isPageInitialized) return;
+	isPageInitialized = true;
+
 	// try to hide phantomjs
 	page.evaluate(function(){
 		window.__callPhantom = window.callPhantom;
 		delete window.callPhantom;
 	});
 
-	startProbe(random);
+	startProbe(random, injectScript);
 
 };
 
@@ -143,11 +160,16 @@ page.onCallback = function(data) {
 		case "print":
 			console.log(data.argument);
 			break;
+		case "log":
+			try{
+				fs.write("htcap_log-" + options.id + ".txt", data.argument + "\n", 'a');
+			} catch(e) {} // @
+			break;
 		case "die": // @TMP
 			console.log(data.argument);
 			phantom.exit(0);
 		case "render":
-			page.render("htcap_render.png")
+			page.render(data.argument)
 			break;
 		case "end":
 			if(options.returnHtml){
@@ -155,6 +177,10 @@ page.onCallback = function(data) {
 					window.__PROBE__.printPageHTML();
 				}, options);
 			}
+
+			page.evaluate(function(options){
+				window.__PROBE__.triggerUserEvent("onEnd");
+			});
 
 			printStatus("ok", window.response.contentType);
 			phantom.exit(0);
@@ -191,6 +217,10 @@ for(var a = 0; a < options.setCookies.length; a++){
 
 }
 
+page.viewportSize = {
+  width: 1920,
+  height: 1080
+};
 
 
 
@@ -231,7 +261,12 @@ page.open(site, page_settings, function(status) {
 
 
 	page.evaluate(function(){
+		//window.__PROBE__.triggerUserEvent("onLoad");
 		window.__PROBE__.waitAjax(function(xhrs){
+			window.__PROBE__.triggerUserEvent("onBeforeStart");
+			if(xhrs.length > 0){
+				window.__PROBE__.triggerUserEvent("onAllXhrsCompleted");
+			}
 			console.log("start")
 			window.__PROBE__.startAnalysis();
 		});

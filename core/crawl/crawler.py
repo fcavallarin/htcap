@@ -36,6 +36,8 @@ from lib.shared import *
 from lib.crawl_result import *
 from core.lib.request import Request
 from core.lib.http_get import HttpGet
+from core.lib.shell import CommandExecutor
+
 from crawler_thread import CrawlerThread
 
 from core.lib.utils import *
@@ -68,7 +70,7 @@ class Crawler:
 			"max_depth": 100,
 			"max_post_depth": 10,
 			"override_timeout_functions": True,
-			'crawl_forms': True # only if mode == CRAWLMODE_AGGRESSIVE
+			'crawl_forms': True# only if mode == CRAWLMODE_AGGRESSIVE
 		}
 
 
@@ -107,7 +109,8 @@ class Crawler:
 			   "  -A CREDENTIALS   username and password used for HTTP authentication separated by a colon\n"
 			   "  -U USERAGENT     set user agent\n"
 			   "  -t TIMEOUT       maximum seconds spent to analyze a page (default " + str(self.defaults['process_timeout']) + ")\n"
-			   "  -S               skip initial url check\n"
+			   "  -u USER_SCRIPT   inject USER_SCRIPT into any loaded page\n"
+			   "  -S               skip initial checks\n"
 			   "  -G               group query_string parameters with the same name ('[]' ending excluded)\n"
 			   "  -N               don't normalize URL path (keep ../../)\n"
 			   "  -R               maximum number of redirects to follow (default " + str(self.defaults['max_redirects']) + ")\n"
@@ -323,6 +326,18 @@ class Crawler:
 				pass
 
 
+	def check_user_script_syntax(self, probe_cmd, user_script):
+		try:
+			exe = CommandExecutor(probe_cmd + ["-u", user_script, "-v"] , False)
+			out = exe.execute(5)
+			if out:
+				print "\n* USER_SCRIPT error: %s" % out
+				sys.exit(1)
+			stdoutw(". ")
+		except KeyboardInterrupt:
+			print "\nAborted"
+			sys.exit(0)
+
 
 	def init_crawl(self, start_req, check_starturl, get_robots_txt):
 		start_requests = [start_req]
@@ -367,13 +382,14 @@ class Crawler:
 		cookie_string = None
 		display_progress = True
 		verbose = False
-		check_starturl = True
+		initial_checks = True
 		http_auth = None
 		get_robots_txt = True
 		save_html = False
+		user_script = None
 
 		try:
-			opts, args = getopt.getopt(argv, 'hc:t:jn:x:A:p:d:BGR:U:wD:s:m:C:qr:SIHFP:Ov')
+			opts, args = getopt.getopt(argv, 'hc:t:jn:x:A:p:d:BGR:U:wD:s:m:C:qr:SIHFP:Ovu:')
 		except getopt.GetoptError as err:
 			print str(err)
 			sys.exit(1)
@@ -443,7 +459,7 @@ class Crawler:
 					sys.exit(1)
 				Shared.options['mode'] = v
 			elif o == "-S":
-				check_starturl = False
+				initial_checks = False
 			elif o == "-I":
 				get_robots_txt = False
 			elif o == "-H":
@@ -458,6 +474,12 @@ class Crawler:
 				Shared.options['crawl_forms'] = False
 			elif o == "-v":
 				verbose = True
+			elif o == "-u":
+				if os.path.isfile(v):
+					user_script = os.path.abspath(v)
+				else:
+					print "error: unable to open USER_SCRIPT"
+					sys.exit(1)
 
 
 		if Shared.options['scope'] != CRAWLSCOPE_DOMAIN and len(Shared.allowed_domains) > 0:
@@ -470,8 +492,6 @@ class Crawler:
 				print "error decoding cookie string"
 				sys.exit(1)
 
-
-
 		if Shared.options['mode'] != CRAWLMODE_AGGRESSIVE:
 			probe_options.append("-f") # dont fill values
 		if Shared.options['mode'] == CRAWLMODE_PASSIVE:
@@ -481,19 +501,23 @@ class Crawler:
 			probe_cmd.append("--proxy-type=%s" % Shared.options['proxy']['proto'])
 			probe_cmd.append("--proxy=%s:%s" % (Shared.options['proxy']['host'], Shared.options['proxy']['port']))
 
+		probe_cmd.append(self.base_dir + 'probe/analyze.js')
+
+
 		if len(Shared.excluded_urls) > 0:
 			probe_options.extend(("-X", ",".join(Shared.excluded_urls)))
 
 		if save_html:
 			probe_options.append("-H")
 
-		probe_options.extend(("-x", str(Shared.options['process_timeout']) ))
+		if user_script:
+			probe_options.extend(("-u", user_script))
+
+		probe_options.extend(("-x", str(Shared.options['process_timeout'])))
 		probe_options.extend(("-A", Shared.options['useragent']))
 
 		if not Shared.options['override_timeout_functions']:
 			probe_options.append("-O")
-
-		probe_cmd.append(self.base_dir + 'probe/analyze.js')
 
 		Shared.probe_cmd = probe_cmd + probe_options
 
@@ -516,7 +540,10 @@ class Crawler:
 
 		stdoutw("Initializing . ")
 
-		start_requests = self.init_crawl(start_req, check_starturl, get_robots_txt)
+		if user_script and initial_checks:
+			self.check_user_script_syntax(probe_cmd, user_script)
+
+		start_requests = self.init_crawl(start_req, initial_checks, get_robots_txt)
 
 		database = None
 		fname = self.generate_filename(out_file, out_file_overwrite)

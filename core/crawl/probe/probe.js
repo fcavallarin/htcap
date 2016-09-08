@@ -14,9 +14,9 @@ version.
 	this function is passed to page.evaluate. doing so it is possible to avoid that the Probe object
 	is inserted into page window scope (only its instance is referred by window.__PROBE__)
 */
-function initProbe(options, inputValues){
+function initProbe(options, inputValues, userEvents){
 
-	function Probe(options, inputValues){
+	function Probe(options, inputValues, userEvents){
 		var _this = this;
 
 		this.options = options;
@@ -37,8 +37,30 @@ function initProbe(options, inputValues){
 		this.pendingAjax = [];
 		this.inputValues = inputValues;
 
-	};
+		this.userInterface = {
+			id: options.id,
+			vars: {},
+			log: function(str){
+				_this.log(str);
+			},
+			print: function(str){
+				_this.print(str)
+			},
+			render: function(file){
+				return _this.render(file);
+			},
+			triggerEvent: function(element, eventName){
+				_this.trigger(element, eventName);
+			}
+		};
+		this.userEvents = {};
+		if(userEvents){
+			try{
+				eval("this.userEvents=" + userEvents.trim() + ";");
+			} catch(e){}  // @
+		}
 
+	};
 
 
 	Probe.prototype.objectInArray  = function(arr, el, ignoreProperties){
@@ -146,7 +168,7 @@ function initProbe(options, inputValues){
 	Probe.prototype.getAddedElements = function(){
 		var elements = []
 		var rootElements = []
-
+		var ueRet = null;
 		var newDom = Array.prototype.slice.call( document.getElementsByTagName("*"), 0 );
 
 		console.log('get added elements start dom len: ' + this.DOMSnapshot.length + ' new dom len: ' + newDom.length);
@@ -174,13 +196,16 @@ function initProbe(options, inputValues){
 				p = p.parentNode;
 			}
 			if(root && rootElements.indexOf(root) == -1){
-				//console.log("root element found "+ this.describeElement(root) + "  " +a)
 				rootElements.push(root);
 			}
 		}
 
 		for(var a = 0; a < elements.length; a++){
 			delete elements[a].__new;
+		}
+
+		if(rootElements.length > 0){
+			this.triggerUserEvent("onDomModified", [rootElements, elements]);
 		}
 
 		console.log("root elements found: " + rootElements.length);
@@ -253,6 +278,13 @@ function initProbe(options, inputValues){
 		window.__callPhantom({cmd:'print', argument: str});
 	}
 
+	Probe.prototype.log = function(str){
+		window.__callPhantom({cmd:'log', argument: str});
+	}
+
+	Probe.prototype.render = function(file){
+		window.__callPhantom({cmd:'render', argument: file});
+	}
 
 	Probe.prototype.printRequest = function(req){
 		var k = req.key();
@@ -487,16 +519,21 @@ function initProbe(options, inputValues){
 			return;
 		}
 
+		var ueRet = this.triggerUserEvent("onBeforeTriggerEvent", [el, evname]);
+		if(!ueRet) return;
+
 		if ('createEvent' in document) {
 			var evt = document.createEvent('HTMLEvents');
 			evt.initEvent(evname, true, false);
 			el.dispatchEvent(evt);
-			return;
+		} else {
+			evname = 'on' + evname;
+			if( evname in el && typeof el[evname] == "function"){
+				el[evname]();
+			}
 		}
-		evname = 'on' + evname;
-		if( evname in el && typeof el[evname] == "function"){
-			el[evname]();
-		}
+
+		this.triggerUserEvent("onTriggerEvent", [el, evname])
 	};
 
 
@@ -722,6 +759,26 @@ function initProbe(options, inputValues){
 	};
 
 
+	Probe.prototype.addUserEvent = function(name, fnc){
+		if(!(name in this.userEvents) || typeof fnc != 'function'){
+			return false;
+		}
+		this.userEvents[name].push(fnc);
+		return true;
+	};
+
+
+
+	Probe.prototype.triggerUserEvent = function(name, params){
+		params = params || [];
+		if(!(name in this.userEvents) || typeof this.userEvents[name] != 'function'){
+			return true;
+		}
+		params.splice(0, 0, this.userInterface);
+		var ret = this.userEvents[name].apply(this.userInterface, params);
+		return !(ret === false) 
+	};
+
 
 	Probe.prototype.startAnalysis = function(){
 
@@ -745,7 +802,7 @@ function initProbe(options, inputValues){
 		var me = [];
 		var meIndex = 0, lastMeIndex = -1;
 		var xhrs = [];
-		var checkDOM = true;
+		var ajaxTriggered = true;
 
 		var threadId = window.lastThreadId++;
 
@@ -783,11 +840,11 @@ function initProbe(options, inputValues){
 				}
 
 				if(_this.pendingAjax.length > 0){
-					xhrs = _this.waitAjax(function(){ajaxCompleted = true; checkDOM = true});
+					xhrs = _this.waitAjax(function(){ajaxCompleted = true; ajaxTriggered = true});
 				} else {
 					xhrs = [];
 					ajaxCompleted = true;
-					checkDOM = false;
+					ajaxTriggered = false;
 				}
 
 				lastIndex = index;
@@ -799,12 +856,14 @@ function initProbe(options, inputValues){
 					ajaxCompleted = false;
 
 					_this.printRequestQueue();
-
+					if(ajaxTriggered){
+						_this.triggerUserEvent("onAllXhrsCompleted");
+					}
 
 					if(counter < _this.options.maximumRecursion){
 						// getAddedElement is slow and can take time if the DOM is big (~25000 nodes)
 						// so use it only if ajax
-						me = checkDOM ? _this.getAddedElements() : [];
+						me = ajaxTriggered ? _this.getAddedElements() : [];
 
 						meIndex = 0;
 						lastMeIndex = -1;
@@ -853,5 +912,5 @@ function initProbe(options, inputValues){
 
 
 
-	window.__PROBE__ = new Probe(options, inputValues);
+	window.__PROBE__ = new Probe(options, inputValues, userEvents);
 };

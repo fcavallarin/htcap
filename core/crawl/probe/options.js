@@ -9,7 +9,8 @@ version.
 */
 
 
-window.options ={
+window.options = {
+	id: 0,
 	verbose: false,
 	checkAjax: true,
 	fillValues: true,

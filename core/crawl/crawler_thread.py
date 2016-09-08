@@ -135,6 +135,9 @@ class CrawlerThread(threading.Thread):
 		if Shared.options['set_referer'] and request.referer:
 			params.extend(("-r", request.referer))
 
+
+		params.extend(("-i", str(request.db_id)))
+
 		params.append(url)
 
 

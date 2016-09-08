@@ -238,7 +238,8 @@ Options:
   -A CREDENTIALS   username and password used for HTTP authentication separated by a colon
   -U USERAGENT     set user agent
   -t TIMEOUT       maximum seconds spent to analyze a page (default 300)
-  -S               skip initial url check
+  -u USER_SCRIPT   inject USER_SCRIPT into any loaded page
+  -S               skip initial checks
   -G               group query_string parameters with the same name ('[]' ending excluded)
   -N               don't normalize URL path (keep ../../)
   -R               maximum number of redirects to follow (default 10)
@@ -626,3 +627,73 @@ to make those request visible to scanners.
 UPDATE request set out_of_scope=0 where type in ('xhr','websocket','jsonp')
 ```
 
+
+## User Script (experimental)
+
+Htcap allows the user to script the page analysis by using the so called User Script (-u option).  
+When htcap analyzes a page it triggers some hooks to let the user customize the analysis behaviour.  
+For example an hook is called before any XHR request and the user can deceide if it must be performed or cancelled.  
+
+A reference to the UI object is passed to all hooks, the purposes of that object are:  
+
+ - Let the user store variables inside the ui.vars object
+ - Let the user access the request id via ui.id
+ - Let the user call some methods to interact with the page. Actually the available methods are:  
+    - ui.render(path_to_file) - save a screenshot of the page current state 
+    - ui.triggerEvent(element, event) - trigger an event
+ - ui.render(path_to_file) - save a screenshot of the page current state
+ - ui.triggerEvent(element, event) - trigger an event
+
+ - ui.render(path_to_file) - save a screenshot of the page current state
+ - ui.triggerEvent(element, event) - trigger an event
+
+Available hooks are:
+
+ - onInit - called when the page is initialized
+ - onBeforeStart - called before the analysis starts
+ - onTriggerEvent - called before triggering an avent
+ - onXhr - called before XHR requests
+ - onAllXhrsCompleted - called when all XHRs are completed
+ - onDomModified - called when the DOM is modified
+ - onEnd - called before exit
+
+### User Script Example:
+
+```console
+
+
+{
+  onInit: function(ui){
+    // override natove methods
+    window.prompt = function(){ return "AAA" };
+    // init local variables
+    ui.vars.cnt = 0; 
+  },
+
+  onBeforeStart: function(ui){}, 
+
+  onBeforeTriggerEvent: function(ui, element, event){
+    // cancel trigger if element has calss kill-all
+    if(element.matches(".kill-all")) return false;
+  },
+
+  onTriggerEvent: function(ui, element, event){},
+
+  onXhr: function(ui, request){
+    // cancel XHR request if url matches XXX
+    if(request.url.match(/XXX/))
+      return false
+  },
+
+  onAllXhrsCompleted: function(ui){},
+
+  onDomModified: function(ui, rootElements, allElements){
+    // save a screenshot on every DOM change
+    ui.render(ui.id + "-screen-" + ui.vars.cnt + ".png");
+    ui.vars.cnt++; 
+  },
+
+  onEnd: function(ui){} 
+}
+
+```
