@@ -23,7 +23,7 @@ from core.constants import *
 
 def get_program_infos():
 	infos = {
-		"version": "1.0 beta",
+		"version": "1.0.1 - dev",
 		"author_name": "Filippo Cavallarin",
 		"author_email": "filippo.cavallarin@wearesegment.com"
 	}
@@ -42,7 +42,7 @@ def generate_filename(name, ext=None, out_file_overwrite=False):
 		ext = ft[-1]
 
 	# remove extension if present in name and equal to ext
-	if ft[-1] == ext: ft.pop()	
+	if ft[-1] == ext: ft.pop()
 
 	# always append ext, even if None
 	ft.append(ext)
@@ -51,26 +51,26 @@ def generate_filename(name, ext=None, out_file_overwrite=False):
 		bn = ft[-2]
 		i = 1
 		while os.path.exists(fname()):
-			ft[-2] = "%s-%d" % (bn, i)			
+			ft[-2] = "%s-%d" % (bn, i)
 			i += 1
 
 	return fname()
 
 
-def cmd_to_str(cmd):	
+def cmd_to_str(cmd):
 	ecmd = [pipes.quote(o) for o in cmd]
 	return " ".join(ecmd)
 
 
 def stdoutw(str):
 	sys.stdout.write(str)
-	sys.stdout.flush()		
+	sys.stdout.flush()
 
 
 def getrealdir(path):
 	return os.path.dirname(os.path.realpath(path)) + os.sep 
 
-	
+
 
 def print_progressbar(tot, scanned, start_time, label):
 	perc = (scanned * 33) / (tot if tot > 0 else 1)
@@ -95,11 +95,11 @@ def group_qs_params(url):
 
 	for t in reversed(qs):
 		if t[0].endswith("[]") or t[0] not in [f for f,_ in nqs]:
-			nqs.append(t)		
-	
-		
+			nqs.append(t)
+
+
 	purl = purl._replace(query = join_qsl(reversed(nqs)))
-	
+
 	return purl.geturl();
 
 
@@ -107,17 +107,17 @@ def group_qs_params(url):
 def normalize_url(url):
 	# add http if scheme is not present 
 	# if an url like 'test.com:80//path' is passed to urlsplit the result is:
-	# (scheme='test.com',  path='80//path', ...)	
+	# (scheme='test.com',  path='80//path', ...)
 	if not re.match("^[a-z]+://", url, re.I):
 		url = "http://%s" % url
-		
+
 	purl = urlsplit(url)
-	
+
 	# no path and no query_string .. just ensure url ends with /
 	if not purl.path:
 		return "%s/" % purl.geturl()
-	
-	# group multiple / (path//to///file -> path/to/file)	
+
+	# group multiple / (path//to///file -> path/to/file)
 	new_path = re.sub(r"/+","/", purl.path)
 	# normalize ../../../
 	new_path = posixpath.normpath(new_path)
@@ -125,10 +125,10 @@ def normalize_url(url):
 		new_path += '/'
 
 	purl = purl._replace(path = new_path)
-	
+
 	return purl.geturl()
 
-	
+
 
 
 def extract_http_auth(url):
@@ -145,14 +145,14 @@ def extract_http_auth(url):
 	except:
 		return (None, url)
 
-	
+
 	purl = purl._replace(netloc=netloc)
-	
+
 	return (auth, purl.geturl())
-	
 
 
-	
+
+
 def remove_tokens(query):
 	"""
 	tries to detect and remove tokens from a query string
@@ -161,10 +161,29 @@ def remove_tokens(query):
 
 	qs = parse_qsl(query)
 	nqs = []
-	for k,v in qs:		
-		if len(v) < 32 or not re.match(r'^[a-z0-9\-_\.:=]+$', v, re.I):			
+	for k,v in qs:
+		if len(v) < 32 or not re.match(r'^[a-z0-9\-_\.:=]+$', v, re.I):
 			nqs.append((k,v))
 
 	return join_qsl(nqs)
 
 
+
+def get_phantomjs_cmd():
+	standard_paths = [os.getcwd()]
+	envpath = os.environ['PATH'].split(os.pathsep)
+	exe_name = "phantomjs"
+
+	if sys.platform != "win32":
+		# force check to standard paths in case $PATH is not set (ie crontab)
+		standard_paths.extend(["/usr/bin", "/usr/local/bin", "/usr/share/bin"])
+	else:
+		exe_name = "%s.exe" % exe_name
+
+	exe_paths = ["%s%s%s" % (p, os.sep, exe_name) for p in standard_paths + envpath]
+
+	for exe in exe_paths:
+		if os.path.isfile(exe):
+			return [exe, "--ignore-ssl-errors=yes", "--web-security=false", "--ssl-protocol=any", "--debug=false"]
+
+	return None

@@ -22,7 +22,9 @@ from core.lib.utils import *
 from core.crawl.crawler import Crawler
 from core.scan.scanner import Scanner
 
-reload(sys)  
+from core.util.util import Util
+
+reload(sys)
 sys.setdefaultencoding('utf8')
 
 
@@ -30,10 +32,11 @@ def usage():
 	infos = get_program_infos()
 	print ("htcap ver " + infos['version'] + "\n"
 		   "usage: htcap <command>\n" 
-		   "Commands: \n"		  
+		   "Commands: \n"
 		   "  crawl                  run crawler\n"
-		   "  scan                   run scanner\n"		   
-		   )	
+		   "  scan                   run scanner\n"
+		   "  util                   run utility\n"
+		   )
 
 
 if __name__ == '__main__':
@@ -42,10 +45,12 @@ if __name__ == '__main__':
 		usage()
 		sys.exit(1)
 
-	elif sys.argv[1] == "crawl":		
+	elif sys.argv[1] == "crawl":
 		Crawler(sys.argv[2:])
-	elif sys.argv[1] == "scan":		
-		Scanner(sys.argv[2:])					
+	elif sys.argv[1] == "scan":
+		Scanner(sys.argv[2:])
+	elif sys.argv[1] == "util":
+		Util(sys.argv[2:])
 	else:
 		usage();
 		sys.exit(1)

@@ -120,24 +120,24 @@ class Crawler:
 
 
 
-	def get_phantomjs_cmd(self):
-		standard_paths = [os.getcwd()]
-		envpath = os.environ['PATH'].split(os.pathsep)
-		exe_name = "phantomjs"
+	# def get_phantomjs_cmd(self):
+	# 	standard_paths = [os.getcwd()]
+	# 	envpath = os.environ['PATH'].split(os.pathsep)
+	# 	exe_name = "phantomjs"
 
-		if sys.platform != "win32":
-			# force check to standard paths in case $PATH is not set (ie crontab)
-			standard_paths.extend(["/usr/bin", "/usr/local/bin", "/usr/share/bin"])
-		else:
-			exe_name = "%s.exe" % exe_name
+	# 	if sys.platform != "win32":
+	# 		# force check to standard paths in case $PATH is not set (ie crontab)
+	# 		standard_paths.extend(["/usr/bin", "/usr/local/bin", "/usr/share/bin"])
+	# 	else:
+	# 		exe_name = "%s.exe" % exe_name
 
-		exe_paths = ["%s%s%s" % (p, os.sep, exe_name) for p in standard_paths + envpath]
+	# 	exe_paths = ["%s%s%s" % (p, os.sep, exe_name) for p in standard_paths + envpath]
 
-		for exe in exe_paths:
-			if os.path.isfile(exe):
-				return [exe, "--ignore-ssl-errors=yes", "--web-security=false", "--ssl-protocol=any", "--debug=false"]
+	# 	for exe in exe_paths:
+	# 		if os.path.isfile(exe):
+	# 			return [exe, "--ignore-ssl-errors=yes", "--web-security=false", "--ssl-protocol=any", "--debug=false"]
 
-		return None
+	# 	return None
 
 
 
@@ -365,7 +365,7 @@ class Crawler:
 		Shared.main_condition = threading.Condition()
 
 
-		probe_cmd = self.get_phantomjs_cmd()
+		probe_cmd = get_phantomjs_cmd()
 		if not probe_cmd:
 			print "Error: unable to find phantomjs executable"
 			sys.exit(1)

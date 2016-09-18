@@ -12,7 +12,7 @@ crawling is done it is possible to launch several security scanners against the 
 save the scan results to the same database.  
 When the database is populated (at least with crawing data), it's possible to explore it with  
 ready-available tools such as sqlite3 or DBEaver or export the results in various formats using the  
-built-in scripts.
+built-in utilities.
 
 ## QUICK START
 
@@ -24,11 +24,16 @@ $ htcap/htcap.py crawl target.local target.db
 ```
 
 Once the crawl is done, the database (target.db) will contain all the requests discovered by the  
-crawler. To explore/export the database we can use the built-in scripts or ready available tools.  
+crawler. To explore/export the database we can use the htcap utilities or ready available tools.  
 For example, to list all discovered ajax calls we can use a single shell command:
 
 ```console
 $ echo "SELECT method,url,data FROM request WHERE type = 'xhr';" | sqlite3 target.db
+```
+or  
+
+```console
+$ htcap/htcap.py util lsajax target.db
 ```
 
 Now that the site is crawled it's possible to launch several vulnerability scanners against the  
@@ -49,20 +54,20 @@ Code Executions, File Inclusions ecc.
 Since scanner modules extend the BaseScanner class, they can be easly created or modified (see the  
 section "Writing Scanner Modules" of this manual).
 
-Htcap comes with several standalone scripts to export the crawl and scan results.  
+Htcap comes with several tools to export the crawl and scan results.  
 For example we can generate an interactive report containing the relevant informations about  
 website/webapp with the command below.  
 Relevant informations will include, for example, the list of all pages that trigger ajax calls or  
 websockets and the ones that contain vulnerabilities.
 
 ```console
-$ htcap/scripts/htmlreport.py target.db target.html
+$ htcap/htcap.py util report target.db target.html
 ```
 
-To scan a target with a single command use/modify the quickscan.sh script.
+For a list of discovered vulnerabilities use the "lsvuln" utility
 
 ```console
-$ htcap/scripts/quickscan.sh https://target.local
+$ htcap/htcap.py util lsvuln target.db
 ```
 
 ## SETUP
@@ -98,9 +103,21 @@ To install htcap system-wide:
 ```console
 # mv htcap /usr/share/
 # ln -s /usr/share/htcap/htcap.py /usr/local/bin/htcap
-# ln -s /usr/share/htcap/scripts/htmlreport.py /usr/local/bin/htcap_report
-# ln -s /usr/share/htcap/scripts/quickscan.sh /usr/local/bin/htcapquick
+```
 
+### Quick Scan Script
+
+To perform a vulnerability assessment with htcap you have to execute at last three commands:  
+one to execute the crawler, one to run a scanner and one to generate the report. To speed up  
+this process, htcap comes with a bash script that automates this process. It can also be  
+installed system-wide by creating a link to /usr/local/bin.
+
+```console
+ln -s /usr/share/htcap/scripts/quickscan.sh /usr/local/bin/htcapquick
+```
+
+```console
+htcapquick target.local
 ```
 
 ## DEMOS
@@ -111,21 +128,21 @@ include a page to [test ajax recursion](http://htcap.org/scanme/ng/).
 
 ## EXPLORING DATABASE
 
-In order to read the database it's possible to use the built-in scripts or any ready-available  
+In order to read the database it's possible to use the built-in utilities or any ready-available  
 sqlite3 client.
 
-### BUILT-IN SCRIPT EXAMPLES
+### UTILITY EXAMPLES
 
 Generate the html report. (demo report available [here](http://htcap.org/scanme/report.html))
 
 ```console
-$ htcap/scripts/htmlreport.py target.db target.html
+$ htcap/htcap.py util report target.db target.html
 ```
 
 List all pages that trigger ajax requests:
 
 ```console
-$ htcap/scripts/ajax.py target.db
+$ htcap/htcap.py util lsajax target.db
     Request ID: 6
     Page URL:   http://target.local/dashboard
     Referer:    http://target.local/
@@ -137,7 +154,7 @@ $ htcap/scripts/ajax.py target.db
 List all discovered SQL-Injection vulnerabilities:
 
 ```console
-$ htcap/scripts/vulns.py target.db "type='sqli'"
+$ htcap/htcap.py util lsvuln target.db "type='sqli'"
     C O M M A N D
     python /usr/local/bin/sqlmap --batch -u http://target.local/api/[...]
 
@@ -668,7 +685,7 @@ Available hooks are:
   onBeforeStart: function(ui){}, 
 
   onBeforeTriggerEvent: function(ui, element, event){
-    // cancel trigger if element has calss kill-all
+    // cancel trigger if element has class kill-all
     if(element.matches(".kill-all")) return false;
   },
 

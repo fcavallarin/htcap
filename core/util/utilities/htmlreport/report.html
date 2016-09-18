@@ -6,22 +6,22 @@
 		<div id=top_header>
 			<p id=title>Htcap <span id=htcap_version></span> Report</p>
 			<hr>
-			<table id=infos>			
-				<tr><td>Target:</td><td id=infos_target></td></tr>
-				<tr><td>Crawl date:</td><td id=infos_scan_date></td></tr>
-				<tr><td>Pages crawled:</td><td id=infos_scanned_urls></td></tr>
-				<tr><td>Crawl duration:</td><td id=infos_scan_time></td></tr>
-				<tr><td>Out of scope:</td><td>
+			<table id=infos>
+				<tr><td nowrap>Target:</td><td id=infos_target></td></tr>
+				<tr><td nowrap>Crawl date:</td><td id=infos_scan_date></td></tr>
+				<tr><td nowrap>Pages crawled:</td><td id=infos_scanned_urls></td></tr>
+				<tr><td nowrap>Crawl duration:</td><td id=infos_scan_time></td></tr>
+				<tr><td nowrap>Out of scope:</td><td>
 					<span id=infos_outofscope></span> 
 					<span class=button id=outofscope-open>open</span>
-				</td></tr>	
-				<tr><td>Non HTML:</td><td>
+				</td></tr>
+				<tr><td nowrap>Non HTML:</td><td>
 					<span id=infos_nonhtml></span> 
 					<span class=button id=nonhtml-open>open</span>
-				</td></tr>				
-				<tr><td>Command:</td><td id=infos_commandline></td></tr>
+				</td></tr>
+				<tr><td nowrap>Command:</td><td id=infos_commandline></td></tr>
 			</table>
-			
+
 		</div>
 	</div>
 	<hr>
@@ -33,22 +33,30 @@
 			</div>
 			<table>
 				<tr>
-					<td>Hide Urls: <p class="hidden addregexp" id=add_url_regexp>add selected</p></td>		
+					<td>Hide Urls: <p class="hidden addregexp" id=add_url_regexp>add selected</p></td>
 					<td><textarea id=urlhider tabindex=1  title='write here a regexp to hide matched urls'></textarea></td>
 					<td>&nbsp;</td>
-					<td>Hide Results: <p class="hidden addregexp" id=add_result_regexp>add selected text</p></td>		
-					<td><textarea id=reshider tabindex=2 title='write here a regexp to hide matched results'></textarea></td>			
+					<td>Hide Results: <p class="hidden addregexp" id=add_result_regexp>add selected text</p></td>
+					<td><textarea id=reshider tabindex=2 title='write here a regexp to hide matched results'></textarea></td>
 				</tr>
 			</table>
-		</form>		
+		</form>
 	</div>
 	<div id=buttons>
+		<span class=button id=notes-open>open notes</span>
 		<span class=button id=marked-open>open marked</span>
 		<span class=button id=trash-open>open trash</span>
+		<span class=button-spacer>&nbsp;</span>
 		<span class=button id=collapse-all>collapse all</span>
 		<span class=button id=expand-visibles>expand visibles</span>
+		<span class=button-spacer>&nbsp;</span>
+		<label for="load_status_input" class=button>load session</label><input style='display:none' type=file id="load_status_input">
+		<span class=button id=save-status>save session</span>
+		<span id=save_status class="hidden">
+			<input type=text placeholder="htcap_report_status.json"> <a class=button href="" download="">save</a>
+		</span>
 		<span id=error_container></span>
-		
+
 	</div>
 	<hr>
 </div>
@@ -72,6 +80,18 @@
 	</div>
 	<div class=modal-content></div>
 </div>
+
+
+<div id=notes class="modal hidden">
+	<div class=modal-bar>
+		Notes
+		<div id='notes-close' title=close>&#215;</div>
+	</div>
+	<div class=modal-content>
+		<textarea></textarea>
+	</div>
+</div>
+
 
 
 <div id=outofscope class="modal hidden">

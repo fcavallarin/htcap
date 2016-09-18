@@ -4,18 +4,20 @@ PY="/usr/bin/python"
 #THISFILE=$(readlink $0 || echo $0)
 CURDIR=$( cd "$(dirname "$(readlink $0 || echo $0)")" ; pwd -P )
 
-EXPORT="\"$CURDIR/../scripts/htmlreport.py\""
-VULNS="\"$CURDIR/../scripts/vulns.py\""
+# EXPORT="\"$CURDIR/../scripts/htmlreport.py\""
+# VULNS="\"$CURDIR/../scripts/vulns.py\""
 
 HTCAP="\"$CURDIR/../htcap.py\""
+EXPORT="$HTCAP util report"
+VULNS="$HTCAP util lsvuln"
 yes=false
 requests='link,redirect,form,xhr,jsonp'
 
 
-function yesno {	
+function yesno {
 	if [ $1 = false ]; then
 		read yesno
-	else	
+	else
 		yesno="y"
 	fi
 
@@ -31,8 +33,8 @@ if [ $# -lt 1 ];then
 fi
 
 
-while getopts "r:y" opt; do	
-    case "$opt" in    
+while getopts "r:y" opt; do
+    case "$opt" in 
     r)  requests=$OPTARG
         ;;
     y)  yes=true
@@ -44,7 +46,7 @@ shift $((OPTIND-1))
 HOST=$1
 
 
-OUTFILE=`echo $HOST | sed -E 's/^https?:\/\///' | sed 's/\./_/g' | sed 's/\/.*//g'`	
+OUTFILE=`echo $HOST | sed -E 's/^https?:\/\///' | sed 's/\./_/g' | sed 's/\/.*//g'`
 
 if [ -e "$OUTFILE.db" ];then
 	echo -n "$OUTFILE.db already exists. Overwrite it? (y/N): " && $yes && echo "y"
