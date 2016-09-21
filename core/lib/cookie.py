@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- 
 
 """
-HTCAP - beta 1
+HTCAP - www.htcap.org
 Author: filippo.cavallarin@wearesegment.com
 
 This program is free software; you can redistribute it and/or modify it under 
@@ -17,45 +17,45 @@ from urlparse import urlparse, urljoin
 
 class Cookie:
 	"""
-	RFC 6265  
+	RFC 6265
 	"""
 
-	def __init__(self, cookie, setter=None):		
-		self.name = (str(cookie['name']) if 'name' in cookie and cookie['name'] else None)	
-		self.domain = (str(cookie['domain']) if 'domain' in cookie and cookie['domain'] else None)		
+	def __init__(self, cookie, setter=None):
+		self.name = (str(cookie['name']) if 'name' in cookie and cookie['name'] else None)
+		self.domain = (str(cookie['domain']) if 'domain' in cookie and cookie['domain'] else None)
 		self.path = (str(cookie['path']) if 'path' in cookie and cookie['path'] else "/")
 
 		# setter is the url that set this cookie, it's used to handle cookies with domain=None
-		# if both domain and setter are None then no domain restrictions are applied (used when cookied are loaded from db)		
+		# if both domain and setter are None then no domain restrictions are applied (used when cookied are loaded from db)
 		self.setter = urlparse(setter) if setter else None
 
 
 		# if self.domain[0] != ".":
 		# 	self.domain = "." + self.domain
-		
+
 		self.update(cookie)
-	
+
 
 	def update(self, cookie):
-		self.value = (quote(str(cookie['value'])) if 'value' in cookie and cookie['value'] else None)		
-		self.expires = (cookie['expires'] if 'expires' in cookie else None)		
+		self.value = (quote(str(cookie['value'])) if 'value' in cookie and cookie['value'] else None)
+		self.expires = (cookie['expires'] if 'expires' in cookie else None)
 		self.secure = (cookie['secure'] if 'secure' in cookie else False)
-		self.httponly = (cookie['httponly'] if 'httponly' in cookie else False)		
+		self.httponly = (cookie['httponly'] if 'httponly' in cookie else False)
 
-		
+
 
 	def __eq__(self, other):
 		return  (other
-				and self.name == other.name				
+				and self.name == other.name
 				and self.path == other.path
 				and (self.domain == None or other.domain == None or self.domain == other.domain)
 				)
-	
-	def get_string(self):		
+
+	def get_string(self):
 		return "%s=%s; path = %s" % (self.name, self.value, self.path)#self.setter)
 
 
-	
+
 	# if domain is set it is valid for all subdomains
 	# if domain is not set it is valid only for the setter's domain 
 	def is_valid_for_url(self, url):
@@ -70,7 +70,7 @@ class Cookie:
 			if not purl.hostname: return False
 			# url is valid ALSO if it is a subdomain of self.domain
 			sh = [t for t in self.domain.split(".")[::-1] if t] # skip empty vals (in case of .foo.bar)
-			uh = purl.hostname.split(".")[::-1]			
+			uh = purl.hostname.split(".")[::-1]
 			# @TODO DO NOT trust self.domain blindely .. check if = to setter...
 			if uh[:len(sh)] != sh: return False
 
@@ -78,7 +78,7 @@ class Cookie:
 			# check if url's path is equal or subfolder of self.path
 			if not purl.path: return False
 			sp = [t for t in self.path.split("/") if t]
-			up = [t for t in purl.path.split("/") if t]				
+			up = [t for t in purl.path.split("/") if t]
 			if up[:len(sp)] != sp: return False
 
 		# @TODO!!!
@@ -93,19 +93,19 @@ class Cookie:
 	# def get_json(self):
 	# 	return json.dumps(self, default=lambda o: o.__dict__, sort_keys=True)
 
-	def get_dict(self):		
+	def get_dict(self):
 		return dict(
 			name = self.name,
 			value = self.value,
 			domain = self.domain,
-			path = self.path,			
-			secure = self.secure,				
-			expires = self.expires, 			
+			path = self.path,
+			secure = self.secure,
+			expires = self.expires, 
 			httponly = self.httponly
 		)
 
 
-	def get_cookielib_cookie(self):		
+	def get_cookielib_cookie(self):
 		return cookielib.Cookie(
 			version = 0, 
 			name = self.name,
@@ -141,7 +141,7 @@ class Cookie:
 
 		domain = self.domain
 		if domain:
-			if not domain.startswith("."): domain = ".%s" % domain				
+			if not domain.startswith("."): domain = ".%s" % domain
 		else:
 			domain = self.setter.hostname
 

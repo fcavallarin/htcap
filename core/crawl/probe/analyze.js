@@ -263,7 +263,7 @@ page.open(site, page_settings, function(status) {
 	page.evaluate(function(){
 		//window.__PROBE__.triggerUserEvent("onLoad");
 		window.__PROBE__.waitAjax(function(xhrs){
-			window.__PROBE__.triggerUserEvent("onBeforeStart");
+			window.__PROBE__.triggerUserEvent("onStart");
 			if(xhrs.length > 0){
 				window.__PROBE__.triggerUserEvent("onAllXhrsCompleted");
 			}

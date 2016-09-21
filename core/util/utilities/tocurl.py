@@ -15,7 +15,7 @@ class Tocurl(BaseUtil):
 	@staticmethod
 	def get_settings():
 		return dict(
-			descr = "Export saved requests to curl",
+			descr = "Export saved requests to curl arguments",
 			optargs = '',
 			minargs = 1
 		)
@@ -46,5 +46,5 @@ class Tocurl(BaseUtil):
 			cmd = [ "-k", '-H',cookies_str, '-X', method, '-H', referer, req['url']]
 			if req['data']:
 				cmd.extend(['--data', req['data']])
-			cmd.append("-i")
+
 			print cmd_to_str(cmd)

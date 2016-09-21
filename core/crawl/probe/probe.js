@@ -1,5 +1,5 @@
 /*
-HTCAP - beta 1
+HTCAP - www.htcap.org
 Author: filippo.cavallarin@wearesegment.com
 
 This program is free software; you can redistribute it and/or modify it under
@@ -394,6 +394,9 @@ function initProbe(options, inputValues, userEvents){
 		var options = this.options;
 		var _this = this;
 
+		var ueRet = this.triggerUserEvent("onFillInput", [el]);
+		if(ueRet === false) return;
+
 		var setv = function(name){
 			var ret = _this.getRandomValue('string');
 			for(var a = 0; a < options.inputNameMatchValue.length; a++){
@@ -519,8 +522,9 @@ function initProbe(options, inputValues, userEvents){
 			return;
 		}
 
-		var ueRet = this.triggerUserEvent("onBeforeTriggerEvent", [el, evname]);
-		if(!ueRet) return;
+		var ueRet = this.triggerUserEvent("onTriggerEvent", [el, evname]);
+		if(ueRet === false) return;
+
 
 		if ('createEvent' in document) {
 			var evt = document.createEvent('HTMLEvents');
@@ -533,7 +537,7 @@ function initProbe(options, inputValues, userEvents){
 			}
 		}
 
-		this.triggerUserEvent("onTriggerEvent", [el, evname])
+		this.triggerUserEvent("onEventTriggered", [el, evname])
 	};
 
 
