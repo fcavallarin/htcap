@@ -55,7 +55,7 @@ class Crawler:
 		self.crawl_end_time = None
 
 		self.defaults = {
-			"useragent": 'Mozilla/5.0 (Windows; U; Windows NT 5.1; it; rv:1.8.1.11) Gecko/20071127 Firefox/2.0.0.11',
+			"useragent": 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/53.0.2785.143 Safari/537.36',
 			"num_threads": 10,
 			"max_redirects": 10,
 			"out_file_overwrite": False,
