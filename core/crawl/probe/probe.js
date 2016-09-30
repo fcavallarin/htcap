@@ -44,7 +44,7 @@ function initProbe(options, inputValues, userEvents){
 				_this.log(str);
 			},
 			print: function(str){
-				_this.print(str)
+				_this.printUserOutput(str)
 			},
 			render: function(file){
 				return _this.render(file);
@@ -347,6 +347,12 @@ function initProbe(options, inputValues, userEvents){
 	Probe.prototype.printPageHTML = function(){
 		var html = document.documentElement.innerHTML;
 		var json = '["html",' + JSON.stringify(html) + '],';
+		this.print(json);
+	};
+
+
+	Probe.prototype.printUserOutput = function(str){
+		var json = '["user",' + JSON.stringify(str) + '],';
 		this.print(json);
 	};
 

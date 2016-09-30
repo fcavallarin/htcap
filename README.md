@@ -662,8 +662,10 @@ A reference to the UI object is passed to all hooks, the purposes of that object
 Available hooks are:
 
  - onInit - called when the page is initialized
- - onBeforeStart - called before the analysis starts
+ - onStart - called before the analysis starts
  - onTriggerEvent - called before triggering an avent
+ - onEventTriggered - called afted an event has fired
+ - onFillInput - called before filling an input value
  - onXhr - called before XHR requests
  - onAllXhrsCompleted - called when all XHRs are completed
  - onDomModified - called when the DOM is modified
@@ -682,15 +684,24 @@ Available hooks are:
     ui.vars.cnt = 0; 
   },
 
-  onBeforeStart: function(ui){}, 
+  onStart: function(ui){}, 
 
-  onBeforeTriggerEvent: function(ui, element, event){
+  onTriggerEvent: function(ui, element, event){
     // cancel trigger if element has class kill-all
     if(element.matches(".kill-all")) return false;
   },
 
-  onTriggerEvent: function(ui, element, event){},
+  onEventTriggered: function(ui, element, event){},
 
+  onFillInput: function(ui, element){
+    // force input value
+    if(element.name == "username")
+      element.value = "poplix";
+
+    // prevent htcap from filling input with a random value
+    return false;
+  },
+  
   onXhr: function(ui, request){
     // cancel XHR request if url matches XXX
     if(request.url.match(/XXX/))

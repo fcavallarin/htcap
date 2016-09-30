@@ -283,6 +283,8 @@ class Crawler:
 						pending -= 1
 						if verbose:
 							print "crawl result for: %s " % result.request
+							if len(result.request.user_output) > 0:
+								print "  user: %s" % json.dumps(result.request.user_output)
 							if result.errors:
 								print "* crawler errors: %s" % ", ".join(result.errors)
 

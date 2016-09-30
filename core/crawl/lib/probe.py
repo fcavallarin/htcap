@@ -16,44 +16,47 @@ from core.lib.cookie import Cookie
 from core.constants import *
 
 class Probe:
-	
+
 	def __init__(self, data, parent):
-		self.status = "ok"		
+		self.status = "ok"
 		self.requests = []
 		self.cookies = []
 		self.redirect = None;
 		# if True the probe returned no error BUT the json is not closed properly
 		self.partialcontent = False
 		self.html = None
-		
+		self.user_output = []
+
 		status = data.pop()
-		
+
 		if status['status'] == "error":
 			self.status = "error"
-			self.errcode = status['code']			
+			self.errcode = status['code']
 
 
 		if "partialcontent" in status:
 			self.partialcontent = status['partialcontent']
 
 		# grap cookies before creating rquests
-		for key,val in data:			
+		for key,val in data:
 			if key == "cookies":
-				for cookie in val:					
-					self.cookies.append(Cookie(cookie, parent.url))					
+				for cookie in val:
+					self.cookies.append(Cookie(cookie, parent.url))
 
 		if "redirect" in status:
 			self.redirect = status['redirect']
 			r = Request(REQTYPE_REDIRECT, "GET", self.redirect, parent=parent, set_cookie=self.cookies, parent_db_id=parent.db_id)
 			self.requests.append(r)
 
-		for key,val in data:						
-			if key == "request":				
+		for key,val in data:
+			if key == "request":
 				trigger = val['trigger'] if 'trigger' in val else None
-				r = Request(val['type'], val['method'], val['url'], parent=parent, set_cookie=self.cookies, data=val['data'], trigger=trigger, parent_db_id=parent.db_id )				
+				r = Request(val['type'], val['method'], val['url'], parent=parent, set_cookie=self.cookies, data=val['data'], trigger=trigger, parent_db_id=parent.db_id )
 				self.requests.append(r)
 			elif key == "html":
-				self.html = val				
+				self.html = val
+			elif key == "user":
+				self.user_output.append(val)
 
 
 

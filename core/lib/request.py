@@ -17,21 +17,22 @@ import json
 from core.lib.thirdparty.simhash import Simhash
 
 class Request(object):
-	
-	def __init__(self, type, method, url, parent = None, referer = None, data = None, trigger=None, json_cookies = None, set_cookie = None, http_auth=None, db_id = None, parent_db_id = None, out_of_scope = None):	
+
+	def __init__(self, type, method, url, parent = None, referer = None, data = None, trigger=None, json_cookies = None, set_cookie = None, http_auth=None, db_id = None, parent_db_id = None, out_of_scope = None):
 		self.type = type
 		self.method = method
 		self._html = None
 		self._html_hash = None
+		self.user_output = []
 		url = url.strip()
 
 		try:
-			url = url.decode("utf-8")			
+			url = url.decode("utf-8")
 		except:
 			try:
 				url = url.decode("latin-1")
 			except Exception as e:
-				raise AssertionError("unable to decode " + url)		
+				raise AssertionError("unable to decode " + url)
 
 		if type != REQTYPE_UNKNOWN:
 			# extract http auth if present in url
@@ -42,23 +43,23 @@ class Request(object):
 				if not http_auth: 
 					http_auth = auth
 				url = nurl
-			
+
 			self.url = normalize_url( urljoin(parent.url, url) if parent else url )
 		else:
 			self.url = url
 
-		
+
 		# parent is the parent request that can be a redirect, referer is the referer page (ahead of redirects)
-		self._parent = parent		
-		
-		
+		self._parent = parent
+
+
 		self.data = data if data else ""
 		self.trigger = trigger
 		self.db_id = db_id
 		self.parent_db_id = parent_db_id
 		self.out_of_scope = out_of_scope
 		self.cookies = []
-		
+
 		self.http_auth = parent.http_auth if not http_auth and parent else http_auth
 
 		self.redirects = parent.redirects + 1 if type == REQTYPE_REDIRECT and parent else 0
@@ -76,12 +77,12 @@ class Request(object):
 		else:
 			set_cookie = set_cookie if set_cookie else []
 			self.all_cookies = self.merge_cookies(set_cookie, parent.all_cookies) if parent else set_cookie
-		
+
 		self.cookies = [c for c in self.all_cookies if c.is_valid_for_url(self.url)]
 
 
 
-	
+
 
 	@property
 	def parent(self):
@@ -91,7 +92,7 @@ class Request(object):
 		return self._parent
 
 	@parent.setter
-	def parent(self, value):        
+	def parent(self, value):
 		self._parent = value
 
 
@@ -100,16 +101,16 @@ class Request(object):
 		return self._html
 
 	@html.setter
-	def html(self, value):        
+	def html(self, value):
 		self._html = value
-		self._html_hash = Simhash(value)		
+		self._html_hash = Simhash(value)
 
-	
+
 	def get_dict(self):
 		return dict(
 			type = self.type,
 			method = self.method,
-			url = self.url,			
+			url = self.url,
 			referer = self.referer,
 			data = self.data,
 			trigger = self.trigger,
@@ -119,13 +120,13 @@ class Request(object):
 			out_of_scope = self.out_of_scope
 		)
 
-	def cookies_from_json(self, cookies):			
-		#return [Cookie(c, self.parent.url) for c in json.loads(cookies)]		
-		
+	def cookies_from_json(self, cookies):
+		#return [Cookie(c, self.parent.url) for c in json.loads(cookies)]
+
 		# create Cookie without "setter" because cookies loaded from db are always valid (no domain restrictions)
 		# see Cookie.py 
 		return [Cookie(c) for c in json.loads(cookies)]
-				
+
 
 	def get_cookies_as_json(self):
 		cookies = [c.get_dict() for c in self.cookies]
@@ -134,15 +135,15 @@ class Request(object):
 
 
 	def merge_cookies(self, cookies1, cookies2):
-		cookies = list(cookies2)		
+		cookies = list(cookies2)
 		for parent_cookie in cookies1:
 			if parent_cookie not in cookies:
-				cookies.append(parent_cookie)				
-			else :				
+				cookies.append(parent_cookie)
+			else :
 				for cookie in cookies:
 					if parent_cookie == cookie:
-						cookie.update(parent_cookie.__dict__)								
-	
+						cookie.update(parent_cookie.__dict__)
+
 		return cookies
 
 
@@ -173,25 +174,25 @@ class Request(object):
 			tokens.extend(purl.path.split("/"))
 
 		data = [purl.query] if purl.query else []
-		
+
 		if request.data:
 			data.append(request.data)
 
 		for d in data:
 			qtokens = re.split(r'(?:&amp;|&)', d)
-			for qt in qtokens:	
+			for qt in qtokens:
 				tokens.extend(qt.split("=",1))
-		
+
 		#print tokens
 		return tokens
-	
+
 	# UNUSED
 	def compare_html(self, other):
 		if not other: return False
 
 		if not self.html and not other.html: return True
 
-		
+
 		if self.html and other.html:
 			return self._html_hash.distance(other._html_hash) <= 2
 
@@ -224,13 +225,13 @@ class Request(object):
 		if self.method == "POST":
 			data = remove_tokens(data)
 			odata = remove_tokens(odata)
-			
+
 		return (self.method, self.url, self.http_auth, data) == (other.method, other.url, other.http_auth, odata)
 
 
 
 	def __repr__(self):
-		print "DEBUG" + self.__str__()		
+		print "DEBUG" + self.__str__()
 
 	def __str__(self):
 		return "%s %s %s %s" % (self.type, self.method, self.get_full_url(), self.data)

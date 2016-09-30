@@ -222,6 +222,9 @@ class CrawlerThread(threading.Thread):
 					if probe.html:
 						request.html = probe.html
 
+					if len(probe.user_output) > 0:
+						request.user_output = probe.user_output
+
 			else :
 				errors.append(ERROR_PROBEFAILURE)
 				# get urls with python to continue crawling
