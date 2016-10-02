@@ -169,7 +169,28 @@ page.onCallback = function(data) {
 			console.log(data.argument);
 			phantom.exit(0);
 		case "render":
-			page.render(data.argument)
+			try {
+				page.render(data.argument);
+				return true;
+			} catch(e){
+				return false;
+			}
+			break;
+		case "fwrite":
+			try {
+				fs.write(data.file, data.content, data.mode || 'w');
+				return true;
+			} catch(e) {
+				console.log(e)
+				return false;
+			}
+			break;
+		case "fread":
+			try{
+				return "" + fs.read(data.file);
+			} catch(e){
+				return false;
+			}
 			break;
 		case "end":
 			if(options.returnHtml){
@@ -259,8 +280,8 @@ page.open(site, page_settings, function(status) {
 
 	assertContentTypeHtml(response);
 
-
 	page.evaluate(function(){
+
 		//window.__PROBE__.triggerUserEvent("onLoad");
 		window.__PROBE__.waitAjax(function(xhrs){
 			window.__PROBE__.triggerUserEvent("onStart");

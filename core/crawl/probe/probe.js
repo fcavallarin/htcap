@@ -46,6 +46,12 @@ function initProbe(options, inputValues, userEvents){
 			print: function(str){
 				_this.printUserOutput(str)
 			},
+			fread: function(file){
+				return _this.fread(file);
+			},
+			fwrite: function(file, content, mode){
+				return _this.fwrite(file, content, mode);
+			},
 			render: function(file){
 				return _this.render(file);
 			},
@@ -283,7 +289,15 @@ function initProbe(options, inputValues, userEvents){
 	}
 
 	Probe.prototype.render = function(file){
-		window.__callPhantom({cmd:'render', argument: file});
+		return window.__callPhantom({cmd:'render', argument: file});
+	}
+
+	Probe.prototype.fread = function(file){
+		return window.__callPhantom({cmd:'fread', file: file});
+	}
+
+	Probe.prototype.fwrite = function(file, content, mode){
+		return window.__callPhantom({cmd:'fwrite', file: file, content:content, mode:mode || 'w'});
 	}
 
 	Probe.prototype.printRequest = function(req){
