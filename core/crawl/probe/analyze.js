@@ -288,7 +288,6 @@ page.open(site, page_settings, function(status) {
 			if(xhrs.length > 0){
 				window.__PROBE__.triggerUserEvent("onAllXhrsCompleted");
 			}
-			console.log("start")
 			window.__PROBE__.startAnalysis();
 		});
 	})

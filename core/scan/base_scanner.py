@@ -56,12 +56,12 @@ class BaseScanner:
 		self.scan_start_time = int(time.time())
 		self.threads = []
 		self._th_lock = threading.Lock()
-		self._th_lock_db = threading.Lock()		
+		self._th_lock_db = threading.Lock()
 		self.performed_requests = 0
 		self._urlpatterns = []
 		self._exitcode = 0
 		self.scanner_name = self.__class__.__name__.lower()
-		self._running = False	
+		self._running = False
 		self.settings = self.get_settings()
 
 		#override default settings
@@ -70,7 +70,7 @@ class BaseScanner:
 		if process_timeout: self.settings['process_timeout'] = process_timeout
 		if scanner_exe: self.settings['scanner_exe'] = scanner_exe
 		self.settings['scanner_exe'] = self.settings['scanner_exe'].split(" ")
-			
+
 
 
 		self.db = Database(db_file)
@@ -84,18 +84,18 @@ class BaseScanner:
 			patt = RequestPattern(req).pattern
 			if patt in urlpatterns:
 				self._duplicated_requests.append(req.db_id)
-			else:	
+			else:
 				urlpatterns.append(patt)
-		
+
 		init = self.init(scanner_argv if scanner_argv else [])
-		
+
 		self._running = True
 		print "Scanner %s started with %d threads" % (self.scanner_name, self.settings['num_threads']) 
-		
-		for n in range(0, self.settings['num_threads']):	
+
+		for n in range(0, self.settings['num_threads']):
 			thread = self.Executor(self)
-			self.threads.append(thread)		
-			thread.start()	
+			self.threads.append(thread)
+			thread.start()
 
 		try:
 			self.wait_executor(self.threads, display_progress)
@@ -103,12 +103,12 @@ class BaseScanner:
 			print "\nTerminated by user"
 			self.kill_threads()
 
-		self.save_assessment()		
+		self.save_assessment()
 		sys.exit(self._exitcode)
 
 
 	def get_settings(self):
-		return dict(			
+		return dict(
 			request_types = "xhr,link,redirect,form,json",
 			num_threads = 10,
 			process_timeout = 120,
@@ -151,13 +151,13 @@ class BaseScanner:
 		for th in self.threads:
 			if th.isAlive(): th.exit = True
 		self._th_lock.release()
-		
+
 
 	def exit(self, code):
-		if self._running:			
+		if self._running:
 			self._th_lock.acquire()
 			self._exitcode = code
-			self._th_lock.release()			
+			self._th_lock.release()
 			self.kill_threads()
 			print "kill thread"
 			print ""
@@ -166,31 +166,31 @@ class BaseScanner:
 
 
 	def save_vulnerability(self, request, type, description):
-		self._th_lock_db.acquire()		
-		self.db.insert_vulnerability(self.id_assessment, request.db_id, type, description)		
+		self._th_lock_db.acquire()
+		self.db.insert_vulnerability(self.id_assessment, request.db_id, type, description)
 		self._th_lock_db.release()
 
 
 	def save_assessment(self):
-		self._th_lock_db.acquire()		
-		self.db.save_assessment(self.id_assessment, int(time.time()))		
+		self._th_lock_db.acquire()
+		self.db.save_assessment(self.id_assessment, int(time.time()))
 		self._th_lock_db.release()
 
 
-	def is_request_duplicated(self, request):		
+	def is_request_duplicated(self, request):
 		return request.db_id in self._duplicated_requests
 
 
 	class Executor(threading.Thread):
-		
+
 		def __init__(self, scanner):
 			threading.Thread.__init__(self)
 			self.scanner = scanner
-			self.exit = False		
+			self.exit = False
 			self.thread_uuid = uuid.uuid4()
-			self.tmp_dir = "%s%shtcap_tempdir-%s" % (tempfile.gettempdir(), os.sep, self.thread_uuid)				
+			self.tmp_dir = "%s%shtcap_tempdir-%s" % (tempfile.gettempdir(), os.sep, self.thread_uuid)
 			os.makedirs(self.tmp_dir, 0700)
-			
+
 		def inc_counter(self):
 			self.scanner._th_lock.acquire()
 			self.scanner.performed_requests += 1
@@ -199,31 +199,31 @@ class BaseScanner:
 		def run(self):
 			req = None
 			while True:
-				
+
 				self.scanner._th_lock.acquire()
 				if self.exit == True or len(self.scanner.pending_requests) == 0:
 					self.scanner._th_lock.release()
-					shutil.rmtree(self.tmp_dir)					
+					shutil.rmtree(self.tmp_dir)
 					return
 
 				req = self.scanner.pending_requests.pop()
-									
-				self.scanner._th_lock.release()						
 
-				
+				self.scanner._th_lock.release()
+
+
 				cmd_options = self.scanner.get_cmd(req, self.tmp_dir)
 				if cmd_options == False: 
 					self.inc_counter()
 					continue
 
 				cmd = self.scanner.settings['scanner_exe'] + cmd_options
-				
+
 
 				exe = CommandExecutor(cmd, True)
 				out, err = exe.execute(self.scanner.settings['process_timeout'])
 				# if err: print "\nError: \n%s\n%s\n%s\n" % (err," ".join(cmd),out)
-				
+
 				self.inc_counter()
 
 				self.scanner.scanner_executed(req, out,err, self.tmp_dir, cmd)
-				
+

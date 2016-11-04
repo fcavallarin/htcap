@@ -102,10 +102,12 @@ class Login(BaseUtil):
 			logouts = []
 
 		if not format:
+			print "Cookies:"
 			for c in cookies:
-				print "%s=%s" % (c.name, c.value)
+				print " %s=%s" % (c.name, c.value)
+			print "Logout urls:"
 			for u in logouts:
-				print u
+				print " %s" % u
 		elif format == "-A":
 			for c in cookies:
 				print cmd_to_str([c.name, c.value])

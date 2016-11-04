@@ -143,7 +143,7 @@ class Cookie:
 		if domain:
 			if not domain.startswith("."): domain = ".%s" % domain
 		else:
-			domain = self.setter.hostname
+			domain = self.setter.hostname if self.setter else "."
 
 		# @TODO capire come e se settare 'flag'
 		flag = "TRUE"

@@ -31,7 +31,7 @@ def get_program_infos():
 	return infos
 
 
-def generate_filename(name, ext=None, out_file_overwrite=False):
+def generate_filename(name, ext=None, out_file_overwrite=False, ask_out_file_overwrite=False):
 
 	def fname():
 		return ".".join([f for f in ft if f])
@@ -46,6 +46,14 @@ def generate_filename(name, ext=None, out_file_overwrite=False):
 
 	# always append ext, even if None
 	ft.append(ext)
+
+	if ask_out_file_overwrite and os.path.exists(fname()):
+		try:
+			sys.stdout.write("File %s already exists. Overwrite [y/N]: " % fname())
+			out_file_overwrite = sys.stdin.read(1) == "y"
+		except KeyboardInterrupt:
+			print "\nAborted"
+			sys.exit(0)
 
 	if not out_file_overwrite:
 		bn = ft[-2]

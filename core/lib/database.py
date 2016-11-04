@@ -259,7 +259,7 @@ class Database:
 	def get_requests(self, types = "xhr"):
 		types = types.split(",")
 		ret = []
-		qry = "SELECT * FROM request WHERE out_of_scope=0 AND type IN (" + ",".join(["?" for _ in range(0, len(types))]) + ")"
+		qry = "SELECT * FROM request WHERE out_of_scope=0 AND type IN (%s)" % ",".join("?"*len(types))
 		try:
 			self.connect()
 			cur = self.conn.cursor()
