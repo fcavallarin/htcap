@@ -12,7 +12,8 @@ EXPORT="$HTCAP util report"
 VULNS="$HTCAP util lsvuln"
 yes=false
 requests='link,redirect,form,xhr,jsonp'
-
+cookies=""
+excluded=""
 
 function yesno {
 	if [ $1 = false ]; then
@@ -28,17 +29,22 @@ if [ $# -lt 1 ];then
 	echo "usage "$(basename $0) "[options]" "<host>"
 	echo "options:"
 	echo "  -r   set request types (default: " $requests ")"
-	echo "  -y   answare yes to all questions"
+	echo "  -y   say yes to all questions"
+	echo "  -c   set cookies"
+	echo "  -x   set excluded urls"
 	exit 1
 fi
 
-
-while getopts "r:y" opt; do
+while getopts "r:yc:x:" opt; do
     case "$opt" in 
     r)  requests=$OPTARG
         ;;
     y)  yes=true
         ;;
+    c)	cookies="-c '$OPTARG'"
+		;;
+	x)	excluded="-x '$OPTARG'"
+		;;
     esac
 done
 shift $((OPTIND-1))
@@ -58,7 +64,7 @@ if [ -e "$OUTFILE.db" ];then
 fi
 
 
-echo $HTCAP crawl $HOST $OUTFILE.db | xargs $PY || exit 1
+echo $HTCAP crawl $cookies $excluded $HOST $OUTFILE.db | xargs $PY || exit 1
 echo -n "Run arachni? (y/N): " && $yes && echo "y"
 if [ "$(yesno $yes)" = "y" ]; then
 	echo $HTCAP scan -r $requests arachni $OUTFILE.db | xargs $PY || exit 1
@@ -72,13 +78,18 @@ echo
 if [ "`echo $VULNS $OUTFILE.db | xargs $PY`" = "" ];then
 	echo "No vulnerabilities found"
 else
-	echo "! VULNERABILITIES FOUND !"
+	echo "Detected vulnerabilities:"
+	/bin/bash -c 'sqlite3 -version' > /dev/null 2>&1 
+	if [ $? = 0 ]; then
+		echo "SELECT '  Type: ',type, ', found ',count(type) FROM vulnerability GROUP BY type ORDER BY count(type) DESC;" | sqlite3 -separator "" $OUTFILE.db
+	else 
+		echo "  Warning: unable to run sqlite3 command"
+	fi
+	echo
 fi
 
 rm "$OUTFILE".html 2> /dev/null
 echo $EXPORT $OUTFILE.db $OUTFILE.html | xargs $PY
-
-echo
 
 opener=""
 while [ "$opener" = "" ];do 

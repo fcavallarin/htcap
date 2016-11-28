@@ -64,14 +64,14 @@ UI Methods:
     ui.vars.cnt = 0; 
   },
 
-  onBeforeStart: function(ui){}, 
+  onStart: function(ui){}, 
 
-  onBeforeTriggerEvent: function(ui, element, event){
+  onTriggerEvent: function(ui, element, event){
     // cancel trigger if element has class kill-all
     if(element.matches(".kill-all")) return false;
   },
 
-  onTriggerEvent: function(ui, element, event){},
+  onEventTriggered: function(ui, element, event){},
 
   onFillInput: function(ui, element){
     // here it's possible to force a value or prevent it to be filled
