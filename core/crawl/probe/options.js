@@ -38,7 +38,7 @@ window.options = {
 	excludedUrls: [],
 	maximumRecursion: 50,
 	printUnknownRequests: false, // unknown requests are for example mailto: and javascript: urls
-
+	maximumAjaxChain: 30,
 	// map input names to string generators. see generateRandomValues to see all available generators
 	inputNameMatchValue:[ // regexps NEED to be string to get passed to phantom page
 		{name: "mail", value: "email"},

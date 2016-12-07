@@ -388,24 +388,31 @@ function initProbe(options, inputValues, userEvents){
 		return alldone;
 	}
 
-	Probe.prototype.waitAjax = function(callback){
-		//console.log("Waiting for ajaxs: "+xhrs.length)
-
+	Probe.prototype.waitAjax = function(callback, chainLimit){
+		var _this = this;
 		var xhrs = this.pendingAjax.slice();
 		this.pendingAjax = [];
-		var _this = this;
 		var timeout = this.options.ajaxTimeout;
+		var chainLimit = typeof chainLimit != 'undefined' ? chainLimit : this.options.maximumAjaxChain;
+		console.log("Waiting for ajaxs: "+chainLimit)
 		var t = setInterval(function(){
 			if((timeout <= 0) || _this.isAjaxCompleted(xhrs)){
 				clearInterval(t);
-				setTimeout(function(){ callback(xhrs) }, 5, true);
+				setTimeout(function(){
+					if(chainLimit > 0 && _this.pendingAjax.length > 0){
+						_this.waitAjax(callback, chainLimit - 1);
+					} else {
+						callback(xhrs.length > 0);
+					}
+				}, 100, true);
 				return;
 			}
 			timeout -= 10;
 		}, 0);
-
-		return xhrs;
+		console.log("Wait ajax return, "+chainLimit)
+		return xhrs.length > 0;
 	}
+
 
 
 
@@ -825,7 +832,7 @@ function initProbe(options, inputValues, userEvents){
 		var waitingRecursion = false;
 		var me = [];
 		var meIndex = 0, lastMeIndex = -1;
-		var xhrs = [];
+		var xhrs = false;
 		var ajaxTriggered = true;
 
 		var threadId = window.lastThreadId++;
@@ -866,7 +873,7 @@ function initProbe(options, inputValues, userEvents){
 				if(_this.pendingAjax.length > 0){
 					xhrs = _this.waitAjax(function(){ajaxCompleted = true; ajaxTriggered = true});
 				} else {
-					xhrs = [];
+					xhrs = false;
 					ajaxCompleted = true;
 					ajaxTriggered = false;
 				}
@@ -892,7 +899,7 @@ function initProbe(options, inputValues, userEvents){
 						meIndex = 0;
 						lastMeIndex = -1;
 						// if ajax has been triggered and some elements are modified then recurse thru modified elements
-						waitingRecursion = (me.length > 0 && xhrs.length > 0);
+						waitingRecursion = (me.length > 0 && xhrs);
 
 					} else {
 						console.log(">>>>RECURSON LIMIT REACHED :" + counter);

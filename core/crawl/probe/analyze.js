@@ -282,12 +282,12 @@ page.open(site, page_settings, function(status) {
 
 	page.evaluate(function(){
 
-		//window.__PROBE__.triggerUserEvent("onLoad");
-		window.__PROBE__.waitAjax(function(xhrs){
+		window.__PROBE__.waitAjax(function(ajaxTriggered){
 			window.__PROBE__.triggerUserEvent("onStart");
-			if(xhrs.length > 0){
+			if(ajaxTriggered){
 				window.__PROBE__.triggerUserEvent("onAllXhrsCompleted");
 			}
+			console.log("startAnalysis")
 			window.__PROBE__.startAnalysis();
 		});
 	})
