@@ -12,6 +12,7 @@ version.
 
 import re
 from HTMLParser import HTMLParser
+from urlparse import urljoin
 
 
 class UrlFinder:
@@ -19,27 +20,6 @@ class UrlFinder:
         self.html = html
 
     def get_urls(self):
-        urls = []
-
-        class UrlHTMLParser(HTMLParser):
-            def __init__(self):
-                HTMLParser.__init__(self)
-                self.base_tag_href = ""
-
-            def handle_starttag(self, tag, attrs):
-                # more info about the <base> tag: https://www.w3.org/wiki/HTML/Elements/base
-                if tag == "base":
-                    for key, val in attrs:
-                        if key == "href" and re.match("^https?://", val, re.I):
-                            self.base_tag_href = val.strip()
-
-                elif tag == "a":
-                    for key, val in attrs:
-                        if key == "href":
-                            if re.match("^https?://", val, re.I):
-                                urls.extend([val])
-                            elif not re.match("^[a-z]+:", val, re.I) and not val.startswith("#"):
-                                urls.extend(['{}{}'.format(self.base_tag_href, val)])
 
         try:
             parser = UrlHTMLParser()
@@ -47,4 +27,27 @@ class UrlFinder:
         except:
             raise
 
-        return urls
+        return parser.urls
+
+
+class UrlHTMLParser(HTMLParser):
+    def __init__(self):
+
+        HTMLParser.__init__(self)
+        self.base_url = ""
+        self.urls = []
+
+    def handle_starttag(self, tag, attrs):
+        # more info about the <base> tag: https://www.w3.org/wiki/HTML/Elements/base
+        if tag == "base":
+            for key, val in attrs:
+                if key == "href" and re.match("^https?://", val.strip(), re.I):
+                    self.base_url = val.strip()
+
+        elif tag == "a":
+            for key, val in attrs:
+                if key == "href":
+                    if re.match("^https?://", val, re.I):
+                        self.urls.extend([val])
+                    elif not re.match("^[a-z]+:", val, re.I) and not val.startswith("#"):
+                        self.urls.extend([urljoin(self.base_url, val)])

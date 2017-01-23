@@ -45,18 +45,6 @@ class UrlFinderTest(unittest.TestCase):
         html_sample = """<!DOCTYPE html>
             <html>
             <head>
-                <base href="http://somewhere.else/someWeirdPath" target="_self">
-            </head>
-            <body>
-            <a href="test.html">test</a>
-            </body>
-            </html>"""
-        finder = UrlFinder(html_sample)
-        self.assertEqual(finder.get_urls(), ["http://somewhere.else/someWeirdPath/test.html"])
-
-        html_sample = """<!DOCTYPE html>
-            <html>
-            <head>
                 <base href="http://somewhere.else/someWeirdPath/index.html" target="_self">
             </head>
             <body>
