@@ -116,6 +116,7 @@ class Crawler:
 			   "  -R               maximum number of redirects to follow (default " + str(self.defaults['max_redirects']) + ")\n"
 			   "  -I               ignore robots.txt\n"
 			   "  -O               dont't override timeout functions (setTimeout, setInterval)\n"
+			   "  -K               keep elements in the DOM (prevent removal)\n"
 			   )
 
 

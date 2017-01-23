@@ -128,6 +128,7 @@ function usage(){
 				"  -I              load images\n" + 
 				"  -O              dont't override timeout functions\n" +
 				"  -u              path to user script to inject\n" +
+				"  -K              keep elements in the DOM (prevent removal)\n" +
 				"  -v              verify user script and exit";
 	console.log(usage);
 }
@@ -216,6 +217,9 @@ function parseArgsToOptions(args){
 				break;
 			case "i":
 				options.id = args.opts[a][1];
+				break;
+			case "K":
+				options.preventElementRemoval = true;
 				break;
 		}
 	}
@@ -490,6 +494,14 @@ function startProbe(random, injectScript) {
 				}
 			})(window.setInterval);
 
+		}
+
+		if(options.preventElementRemoval){
+			//Node.prototype.originalremoveChild = Node.prototype.removeChild;
+			Node.prototype.removeChild = function(node){
+				//console.log(node);
+				return node;
+			}
 		}
 
 		HTMLFormElement.prototype.originalSubmit = HTMLFormElement.prototype.submit;
