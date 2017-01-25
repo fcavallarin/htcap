@@ -29,7 +29,7 @@ class UrlFinderTest(unittest.TestCase):
 
         self.assertEqual(finder.get_urls(), ["test.html"])
 
-    def test_with_relative_link_and_base_href(self):
+    def test_with_relative_link_and_absolute_base_href(self):
         html_sample = """<!DOCTYPE html>
             <html>
             <head>
@@ -53,6 +53,31 @@ class UrlFinderTest(unittest.TestCase):
             </html>"""
         finder = UrlFinder(html_sample)
         self.assertEqual(finder.get_urls(), ["http://somewhere.else/someWeirdPath/test.html"])
+
+    def test_with_relative_link_and_relative_base_href(self):
+        html_sample = """<!DOCTYPE html>
+            <html>
+            <head>
+                <base href="/someWeirdPath/" target="_self">
+            </head>
+            <body>
+            <a href="test.html">test</a>
+            </body>
+            </html>"""
+        finder = UrlFinder(html_sample)
+        self.assertEqual(finder.get_urls(), ["/someWeirdPath/test.html"])
+
+        html_sample = """<!DOCTYPE html>
+            <html>
+            <head>
+                <base href="someWeirdPath/" target="_self">
+            </head>
+            <body>
+            <a href="test.html">test</a>
+            </body>
+            </html>"""
+        finder = UrlFinder(html_sample)
+        self.assertEqual(finder.get_urls(), ["someWeirdPath/test.html"])
 
     def test_with_anchor_link(self):
         html_sample = '<a href="#test">test</a>'
