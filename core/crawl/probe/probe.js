@@ -705,7 +705,7 @@ function initProbe(options, inputValues, userEvents){
 		}
 
 		for(a = 0; a < links.length; a++){
-			var url = links[a].getAttribute('href');
+			var url = links[a].href;
 			if(url){
 				this.printLink(url);
 			}
