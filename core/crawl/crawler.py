@@ -11,38 +11,21 @@ version.
 """
 
 from __future__ import unicode_literals
-import sys
-import os
-import datetime
-import time
+
 import getopt
-import json
-import re
-from urlparse import urlsplit, urljoin
-from urllib import unquote
-import urllib2
-import threading
-import subprocess
-from random import choice
-import string
 import ssl
+import string
+import threading
+import urllib2
+from random import choice
+from urllib import unquote
 
-
-from core.lib.exception import *
-from core.lib.cookie import Cookie
 from core.lib.database import Database
-
-from lib.shared import *
-from lib.crawl_result import *
-from core.lib.request import Request
 from core.lib.http_get import HttpGet
+from core.lib.request import Request
 from core.lib.shell import CommandExecutor
-
 from crawler_thread import CrawlerThread
-
-from core.lib.utils import *
-from core.constants import *
-
+from lib.crawl_result import *
 from lib.utils import *
 
 
@@ -64,24 +47,21 @@ class Crawler:
 			"http_auth": None,
 			"use_urllib_onerror": True,
 			"group_qs": False,
-			"process_timeout": 300, # when lots of element(~25000) are added dynamically it can take some time..
+			"process_timeout": 300,  # when lots of element(~25000) are added dynamically it can take some time..
 			"set_referer": True,
 			"scope": CRAWLSCOPE_DOMAIN,
 			"mode": CRAWLMODE_AGGRESSIVE,
 			"max_depth": 100,
 			"max_post_depth": 10,
 			"override_timeout_functions": True,
-			'crawl_forms': True# only if mode == CRAWLMODE_AGGRESSIVE
+			'crawl_forms': True  # only if mode == CRAWLMODE_AGGRESSIVE
 		}
 
+		self._main(argv)
 
-		self.main(argv)
-
-
-
-	def usage(self):
+	def _usage(self):
 		infos = get_program_infos()
-		print ("htcap crawler ver " + infos['version'] + "\n"
+		print("htcap crawler ver " + infos['version'] + "\n"
 			   "usage: htcap [options] url outfile\n"
 			   "Options: \n"
 			   "  -h               this help\n"
@@ -89,13 +69,13 @@ class Crawler:
 			   "  -q               do not display progress informations\n"
 			   "  -v               be verbose\n"
 			   "  -m MODE          set crawl mode:\n"
-			   "                      - "+CRAWLMODE_PASSIVE+": do not intract with the page\n"
-			   "                      - "+CRAWLMODE_ACTIVE+": trigger events\n"
-			   "                      - "+CRAWLMODE_AGGRESSIVE+": also fill input values and crawl forms (default)\n"
+			   "                      - " + CRAWLMODE_PASSIVE +": do not intract with the page\n"
+			   "                      - " + CRAWLMODE_ACTIVE +": trigger events\n"
+			   "                      - " + CRAWLMODE_AGGRESSIVE + ": also fill input values and crawl forms (default)\n"
 			   "  -s SCOPE         set crawl scope\n"
-			   "                      - "+CRAWLSCOPE_DOMAIN+": limit crawling to current domain (default)\n"
-			   "                      - "+CRAWLSCOPE_DIRECTORY+": limit crawling to current directory (and subdirecotries) \n"
-			   "                      - "+CRAWLSCOPE_URL+": do not crawl, just analyze a single page\n"
+			   "                      - " + CRAWLSCOPE_DOMAIN + ": limit crawling to current domain (default)\n"
+			   "                      - " + CRAWLSCOPE_DIRECTORY + ": limit crawling to current directory (and subdirecotries) \n"
+			   "                      - " + CRAWLSCOPE_URL + ": do not crawl, just analyze a single page\n"
 			   "  -D               maximum crawl depth (default: " + str(Shared.options['max_depth']) + ")\n"
 			   "  -P               maximum crawl depth for consecutive forms (default: " + str(Shared.options['max_post_depth']) + ")\n"
 			   "  -F               even if in aggressive mode, do not crawl forms\n"
@@ -118,122 +98,9 @@ class Crawler:
 			   "  -I               ignore robots.txt\n"
 			   "  -O               dont't override timeout functions (setTimeout, setInterval)\n"
 			   "  -K               keep elements in the DOM (prevent removal)\n"
-			   )
+		      )
 
-
-
-	# def get_phantomjs_cmd(self):
-	# 	standard_paths = [os.getcwd()]
-	# 	envpath = os.environ['PATH'].split(os.pathsep)
-	# 	exe_name = "phantomjs"
-
-	# 	if sys.platform != "win32":
-	# 		# force check to standard paths in case $PATH is not set (ie crontab)
-	# 		standard_paths.extend(["/usr/bin", "/usr/local/bin", "/usr/share/bin"])
-	# 	else:
-	# 		exe_name = "%s.exe" % exe_name
-
-	# 	exe_paths = ["%s%s%s" % (p, os.sep, exe_name) for p in standard_paths + envpath]
-
-	# 	for exe in exe_paths:
-	# 		if os.path.isfile(exe):
-	# 			return [exe, "--ignore-ssl-errors=yes", "--web-security=false", "--ssl-protocol=any", "--debug=false"]
-
-	# 	return None
-
-
-
-	def generate_filename(self, name, out_file_overwrite):
-		fname = generate_filename(name, None, out_file_overwrite)
-		if out_file_overwrite:
-			if os.path.exists(fname):
-				os.remove(fname)
-
-		return fname
-
-
-
-	def kill_threads(self, threads):
-		for th in threads:
-			if th.isAlive(): th.exit = True
-		# start notify() chain
-		Shared.th_condition.acquire()
-		Shared.th_condition.notifyAll()
-		Shared.th_condition.release()
-
-
-
-	def parse_cookie_string(self, string):
-
-		cookies = []
-		try:
-			cookies = json.loads(string)
-		except ValueError:
-			tok = re.split("; *", string)
-			for t in tok:
-				k, v = t.split("=", 1)
-				cookies.append({"name":k.strip(), "value":unquote(v.strip())})
-		except Exception as e:
-			raise
-
-		return cookies
-
-
-
-	def check_startrequest(self, request):
-
-		h = HttpGet(request, Shared.options['process_timeout'], 2, Shared.options['useragent'], Shared.options['proxy'])
-		try:
-			h.get_requests()
-		except NotHtmlException:
-			print "\nError: Document is not html"
-			sys.exit(1)
-		except Exception as e:
-			print "\nError: unable to open url: %s" % e
-			sys.exit(1)
-
-
-
-	def get_requests_from_robots(self, request):
-		purl = urlsplit(request.url)
-		url = "%s://%s/robots.txt" % (purl.scheme, purl.netloc)
-
-		getreq = Request(REQTYPE_LINK, "GET", url)
-		try:
-			# request, timeout, retries=None, useragent=None, proxy=None):
-			httpget = HttpGet(getreq, 10, 1, "Googlebot", Shared.options['proxy'])
-			lines = httpget.get_file().split("\n")
-		except urllib2.HTTPError:
-			return []
-		except:
-			raise
-
-		requests = []
-		for line in lines:
-			directive = ""
-			url = None
-			try:
-				directive, url = re.sub("\#.*","",line).split(":",1)
-			except:
-				continue # ignore errors
-
-			if re.match("(dis)?allow", directive.strip(), re.I):
-				req = Request(REQTYPE_LINK, "GET", url.strip(), parent=request)
-				requests.append(req)
-
-
-		return adjust_requests(requests) if requests else []
-
-
-
-	def randstr(self, length):
-		all_chars = string.digits + string.letters + string.punctuation
-		random_string = ''.join(choice(all_chars) for _ in range(length))
-		return random_string
-
-
-
-	def main_loop(self, threads, start_requests, database, display_progress = True, verbose = False):
+	def _main_loop(self, threads, start_requests, database, display_progress=True, verbose=False):
 		pending = len(start_requests)
 		crawled = 0
 
@@ -250,7 +117,7 @@ class Crawler:
 					running_threads = [t for t in threads if t.status == THSTAT_RUNNING]
 					if len(running_threads) == 0:
 						if display_progress or verbose:
-							print ""
+							print("")
 						break
 
 				if len(req_to_crawl) > 0:
@@ -269,31 +136,31 @@ class Crawler:
 						crawled += 1
 						pending -= 1
 						if verbose:
-							print "crawl result for: %s " % result.request
+							print("crawl result for: %s " % result.request)
 							if len(result.request.user_output) > 0:
-								print "  user: %s" % json.dumps(result.request.user_output)
+								print("  user: %s" % json.dumps(result.request.user_output))
 							if result.errors:
-								print "* crawler errors: %s" % ", ".join(result.errors)
+								print("* crawler errors: %s" % ", ".join(result.errors))
 
 						database.save_crawl_result(result, True)
 						for req in result.found_requests:
 
 							if verbose:
-								print "  new request found %s" % req
+								print("  new request found %s" % req)
 
 							database.save_request(req)
 
 							if request_is_crawlable(req) and req not in Shared.requests and req not in req_to_crawl:
 								if request_depth(req) > Shared.options['max_depth'] or request_post_depth(req) > Shared.options['max_post_depth']:
 									if verbose:
-										print "  * cannot crawl: %s : crawl depth limit reached" % req
+										print("  * cannot crawl: %s : crawl depth limit reached" % req)
 									result = CrawlResult(req, errors=[ERROR_CRAWLDEPTH])
 									database.save_crawl_result(result, False)
 									continue
 
 								if req.redirects > Shared.options['max_redirects']:
 									if verbose:
-										print "  * cannot crawl: %s : too many redirects" % req
+										print("  * cannot crawl: %s : too many redirects" % req)
 									result = CrawlResult(req, errors=[ERROR_MAXREDIRECTS])
 									database.save_crawl_result(result, False)
 									continue
@@ -307,62 +174,46 @@ class Crawler:
 				Shared.main_condition.release()
 
 		except KeyboardInterrupt:
-			print "\nTerminated by user"
+			print("\nTerminated by user")
 			try:
 				Shared.main_condition.release()
 				Shared.th_condition.release()
 			except:
 				pass
 
-
-	def check_user_script_syntax(self, probe_cmd, user_script):
-		try:
-			exe = CommandExecutor(probe_cmd + ["-u", user_script, "-v"] , False)
-			out = exe.execute(5)
-			if out:
-				print "\n* USER_SCRIPT error: %s" % out
-				sys.exit(1)
-			stdoutw(". ")
-		except KeyboardInterrupt:
-			print "\nAborted"
-			sys.exit(0)
-
-
-	def init_crawl(self, start_req, check_starturl, get_robots_txt):
+	def _init_crawl(self, start_req, check_starturl, get_robots_txt):
 		start_requests = [start_req]
 		try:
 			if check_starturl:
-				self.check_startrequest(start_req)
+				self._check_starting_request(start_req)
 				stdoutw(". ")
 
 			if get_robots_txt:
-				rrequests = self.get_requests_from_robots(start_req)
+				rrequests = self._get_requests_from_robots(start_req)
 				stdoutw(". ")
 				for req in rrequests:
 					if request_is_crawlable(req) and not req in start_requests:
 						start_requests.append(req)
 		except KeyboardInterrupt:
-			print "\nAborted"
+			print("\nAborted")
 			sys.exit(0)
 
 		return start_requests
 
-
-	def main(self, argv):
+	def _main(self, argv):
 		Shared.options = self.defaults
 		Shared.th_condition = threading.Condition()
 		Shared.main_condition = threading.Condition()
 
-
 		probe_cmd = get_phantomjs_cmd()
 		if not probe_cmd:
-			print "Error: unable to find phantomjs executable"
+			print("Error: unable to find phantomjs executable")
 			sys.exit(1)
 
 		start_cookies = []
 		start_referer = None
 
-		probe_options = ["-R", self.randstr(20)]
+		probe_options = ["-R", self._generate_random_string(20)]
 		threads = []
 		num_threads = self.defaults['num_threads']
 
@@ -380,18 +231,16 @@ class Crawler:
 		try:
 			opts, args = getopt.getopt(argv, 'hc:t:jn:x:A:p:d:BGR:U:wD:s:m:C:qr:SIHFP:Ovu:')
 		except getopt.GetoptError as err:
-			print str(err)
+			print(str(err))
 			sys.exit(1)
-
 
 		if len(args) < 2:
-			self.usage()
+			self._usage()
 			sys.exit(1)
-
 
 		for o, v in opts:
 			if o == '-h':
-				self.usage()
+				self._usage()
 				sys.exit(0)
 			elif o == '-c':
 				cookie_string = v
@@ -400,7 +249,7 @@ class Crawler:
 					with open(v) as cf:
 						cookie_string = cf.read()
 				except Exception as e:
-					print "error reading cookie file"
+					print("error reading cookie file")
 					sys.exit(1)
 			elif o == '-r':
 				start_referer = v
@@ -413,16 +262,17 @@ class Crawler:
 			elif o == '-A':
 				http_auth = v
 			elif o == '-p':
-				if v == "tor": v = "socks5:127.0.0.1:9150"
-				proxy =  v.split(":")
+				if v == "tor":
+					v = "socks5:127.0.0.1:9150"
+				proxy = v.split(":")
 				if proxy[0] not in ("http", "socks5"):
-					print "only http and socks5 proxies are supported"
+					print("only http and socks5 proxies are supported")
 					sys.exit(1)
-				Shared.options['proxy'] = {"proto":proxy[0], "host":proxy[1], "port":proxy[2]}
+				Shared.options['proxy'] = {"proto": proxy[0], "host": proxy[1], "port": proxy[2]}
 			elif o == '-d':
 				for ad in v.split(","):
 					# convert *.domain.com to *.\.domain\.com
-					pattern = re.escape(ad).replace("\\*\\.","((.*\\.)|)")
+					pattern = re.escape(ad).replace("\\*\\.", "((.*\\.)|)")
 					Shared.allowed_domains.add(pattern)
 			elif o == '-x':
 				for eu in v.split(","):
@@ -437,14 +287,14 @@ class Crawler:
 				Shared.options['useragent'] = v
 			elif o == "-s":
 				if not v in (CRAWLSCOPE_DOMAIN, CRAWLSCOPE_DIRECTORY, CRAWLSCOPE_URL):
-					self.usage()
-					print "* ERROR: wrong scope set '%s'" % v
+					self._usage()
+					print("* ERROR: wrong scope set '%s'" % v)
 					sys.exit(1)
 				Shared.options['scope'] = v
 			elif o == "-m":
 				if not v in (CRAWLMODE_PASSIVE, CRAWLMODE_ACTIVE, CRAWLMODE_AGGRESSIVE):
-					self.usage()
-					print "* ERROR: wrong mode set '%s'" % v
+					self._usage()
+					print("* ERROR: wrong mode set '%s'" % v)
 					sys.exit(1)
 				Shared.options['mode'] = v
 			elif o == "-S":
@@ -467,31 +317,29 @@ class Crawler:
 				if os.path.isfile(v):
 					user_script = os.path.abspath(v)
 				else:
-					print "error: unable to open USER_SCRIPT"
+					print("error: unable to open USER_SCRIPT")
 					sys.exit(1)
 
-
 		if Shared.options['scope'] != CRAWLSCOPE_DOMAIN and len(Shared.allowed_domains) > 0:
-			print "* Warinig: option -d is valid only if scope is %s" % CRAWLSCOPE_DOMAIN
+			print("* Warning: option -d is valid only if scope is %s" % CRAWLSCOPE_DOMAIN)
 
 		if cookie_string:
 			try:
-				start_cookies = self.parse_cookie_string(cookie_string)
+				start_cookies = self._parse_cookie_string(cookie_string)
 			except Exception as e:
-				print "error decoding cookie string"
+				print("error decoding cookie string")
 				sys.exit(1)
 
 		if Shared.options['mode'] != CRAWLMODE_AGGRESSIVE:
-			probe_options.append("-f") # dont fill values
+			probe_options.append("-f")  # don't fill values
 		if Shared.options['mode'] == CRAWLMODE_PASSIVE:
-			probe_options.append("-t") # dont trigger events
+			probe_options.append("-t")  # don't trigger events
 
 		if Shared.options['proxy']:
 			probe_cmd.append("--proxy-type=%s" % Shared.options['proxy']['proto'])
 			probe_cmd.append("--proxy=%s:%s" % (Shared.options['proxy']['host'], Shared.options['proxy']['port']))
 
 		probe_cmd.append(self.base_dir + 'probe/analyze.js')
-
 
 		if len(Shared.excluded_urls) > 0:
 			probe_options.extend(("-X", ",".join(Shared.excluded_urls)))
@@ -510,44 +358,42 @@ class Crawler:
 
 		Shared.probe_cmd = probe_cmd + probe_options
 
-
 		Shared.starturl = normalize_url(args[0])
 		out_file = args[1]
 
 		purl = urlsplit(Shared.starturl)
 		Shared.allowed_domains.add(purl.hostname)
 
-
 		for sc in start_cookies:
 			Shared.start_cookies.append(Cookie(sc, Shared.starturl))
-
 
 		start_req = Request(REQTYPE_LINK, "GET", Shared.starturl, set_cookie=Shared.start_cookies, http_auth=http_auth, referer=start_referer)
 
 		if not hasattr(ssl, "SSLContext"):
-			print "* WARNING: SSLContext is not supported with this version of python, consider to upgrade to >= 2.7.9 in case of SSL errors"
+			print(
+				"* WARNING: SSLContext is not supported with this version of python, consider to upgrade to >= 2.7.9 in case of SSL errors")
 
 		stdoutw("Initializing . ")
 
 		if user_script and initial_checks:
-			self.check_user_script_syntax(probe_cmd, user_script)
+			self._check_user_script_syntax(probe_cmd, user_script)
 
-		start_requests = self.init_crawl(start_req, initial_checks, get_robots_txt)
+		start_requests = self._init_crawl(start_req, initial_checks, get_robots_txt)
 
 		database = None
-		file_name = self.generate_filename(out_file, out_file_overwrite)
+		file_name = self._generate_filename(out_file, out_file_overwrite)
 		try:
 			database = self._init_db(file_name)
 		except Exception as e:
-			print str(e)
+			print(str(e))
 			sys.exit(1)
 
 		database.save_crawl_info(
-			htcap_version = get_program_infos()['version'],
-			target = Shared.starturl,
-			start_date = self.crawl_start_time,
-			commandline = cmd_to_str(argv),
-			user_agent = Shared.options['useragent']
+			htcap_version=get_program_infos()['version'],
+			target=Shared.starturl,
+			start_date=self.crawl_start_time,
+			commandline=cmd_to_str(argv),
+			user_agent=Shared.options['useragent']
 		)
 
 		database.connect()
@@ -557,22 +403,22 @@ class Crawler:
 		database.commit()
 		database.close()
 
-		print "done"
-		print "Database %s initialized, crawl started with %d threads" % (file_name, num_threads)
+		print("done")
+		print("Database %s initialized, crawl started with %d threads" % (file_name, num_threads))
 
 		for n in range(0, num_threads):
 			thread = CrawlerThread()
 			threads.append(thread)
 			thread.start()
 
+		self._main_loop(threads, start_requests, database, display_progress, verbose)
 
-		self.main_loop(threads, start_requests, database, display_progress, verbose)
-
-		self.kill_threads(threads)
+		self._kill_threads(threads)
 
 		self.crawl_end_time = int(time.time())
 
-		print "Crawl finished, %d pages analyzed in %d minutes" % (Shared.requests_index, (self.crawl_end_time - self.crawl_start_time) / 60)
+		print("Crawl finished, %d pages analyzed in %d minutes" % (
+			Shared.requests_index, (self.crawl_end_time - self.crawl_start_time) / 60))
 
 		database.save_crawl_info(end_date=self.crawl_end_time)
 
@@ -586,3 +432,100 @@ class Crawler:
 		database = Database(db_name)
 		database.create()
 		return database
+
+	@staticmethod
+	def _check_user_script_syntax(probe_cmd, user_script):
+		try:
+			exe = CommandExecutor(probe_cmd + ["-u", user_script, "-v"], False)
+			out = exe.execute(5)
+			if out:
+				print("\n* USER_SCRIPT error: %s" % out)
+				sys.exit(1)
+			stdoutw(". ")
+		except KeyboardInterrupt:
+			print("\nAborted")
+			sys.exit(0)
+
+	@staticmethod
+	def _generate_filename(name, out_file_overwrite):
+		fname = generate_filename(name, None, out_file_overwrite)
+		if out_file_overwrite:
+			if os.path.exists(fname):
+				os.remove(fname)
+
+		return fname
+
+	@staticmethod
+	def _kill_threads(threads):
+		for th in threads:
+			if th.isAlive():
+				th.exit = True
+		# start notify() chain
+		Shared.th_condition.acquire()
+		Shared.th_condition.notifyAll()
+		Shared.th_condition.release()
+
+	@staticmethod
+	def _parse_cookie_string(cookie_string):
+
+		cookies = []
+		try:
+			cookies = json.loads(cookie_string)
+		except ValueError:
+			tok = re.split("; *", cookie_string)
+			for t in tok:
+				k, v = t.split("=", 1)
+				cookies.append({"name": k.strip(), "value": unquote(v.strip())})
+		except Exception as e:
+			raise
+
+		return cookies
+
+	@staticmethod
+	def _check_starting_request(request):
+
+		h = HttpGet(request, Shared.options['process_timeout'], 2, Shared.options['useragent'], Shared.options['proxy'])
+		try:
+			h.get_requests()
+		except NotHtmlException:
+			print("\nError: Document is not html")
+			sys.exit(1)
+		except Exception as e:
+			print("\nError: unable to open url: %s" % e)
+			sys.exit(1)
+
+	@staticmethod
+	def _get_requests_from_robots(request):
+		purl = urlsplit(request.url)
+		url = "%s://%s/robots.txt" % (purl.scheme, purl.netloc)
+
+		getreq = Request(REQTYPE_LINK, "GET", url)
+		try:
+			# request, timeout, retries=None, useragent=None, proxy=None):
+			httpget = HttpGet(getreq, 10, 1, "Googlebot", Shared.options['proxy'])
+			lines = httpget.get_file().split("\n")
+		except urllib2.HTTPError:
+			return []
+		except:
+			raise
+
+		requests = []
+		for line in lines:
+			directive = ""
+			url = None
+			try:
+				directive, url = re.sub("\#.*", "", line).split(":", 1)
+			except:
+				continue  # ignore errors
+
+			if re.match("(dis)?allow", directive.strip(), re.I):
+				req = Request(REQTYPE_LINK, "GET", url.strip(), parent=request)
+				requests.append(req)
+
+		return adjust_requests(requests) if requests else []
+
+	@staticmethod
+	def _generate_random_string(length):
+		all_chars = string.digits + string.letters + string.punctuation
+		random_string = ''.join(choice(all_chars) for _ in range(length))
+		return random_string
