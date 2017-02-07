@@ -16,15 +16,13 @@ from core.lib.request import Request
 
 
 class Database:
-	def __init__(self, dbname, report_name=""):
+	def __init__(self, dbname):
 		"""
 		constructor
 
 		:param dbname: name of the database
-		:param report_name: the name of the report - NEVER USED
 		"""
 		self.dbname = dbname
-		self.report_name = report_name
 		self.conn = None
 
 	def connect(self):

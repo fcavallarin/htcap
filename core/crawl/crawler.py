@@ -45,6 +45,7 @@ from core.constants import *
 
 from lib.utils import *
 
+
 class Crawler:
 
 	def __init__(self, argv):
@@ -176,21 +177,6 @@ class Crawler:
 			raise
 
 		return cookies
-
-
-
-	def init_db(self, dbname, report_name):
-		infos = {
-			"target": Shared.starturl,
-			"scan_date": -1,
-			"urls_scanned": -1,
-			"scan_time": -1,
-			'command_line': " ".join(sys.argv)
-		}
-
-		database = Database(dbname, report_name, infos)
-		database.create()
-		return database
 
 
 
@@ -549,9 +535,9 @@ class Crawler:
 		start_requests = self.init_crawl(start_req, initial_checks, get_robots_txt)
 
 		database = None
-		fname = self.generate_filename(out_file, out_file_overwrite)
+		file_name = self.generate_filename(out_file, out_file_overwrite)
 		try:
-			database = self.init_db(fname, out_file)
+			database = self._init_db(file_name)
 		except Exception as e:
 			print str(e)
 			sys.exit(1)
@@ -572,7 +558,7 @@ class Crawler:
 		database.close()
 
 		print "done"
-		print "Database %s initialized, crawl started with %d threads" % (fname, num_threads)
+		print "Database %s initialized, crawl started with %d threads" % (file_name, num_threads)
 
 		for n in range(0, num_threads):
 			thread = CrawlerThread()
@@ -590,4 +576,13 @@ class Crawler:
 
 		database.save_crawl_info(end_date=self.crawl_end_time)
 
-
+	@staticmethod
+	def _init_db(db_name):
+		"""
+		Private - Initialize a new database
+		:param db_name:
+		:return: created database
+		"""
+		database = Database(db_name)
+		database.create()
+		return database
