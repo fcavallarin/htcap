@@ -27,74 +27,6 @@ class Database:
 		self.report_name = report_name
 		self.conn = None
 
-		self.qry_create_crawl_info = """
-			CREATE TABLE crawl_info (
-				htcap_version TEXT,
-				target TEXT,
-				start_date INTEGER,
-				end_date INTEGER,
-				commandline TEXT,
-				user_agent TEXT
-			)
-		"""
-
-		self.qry_create_request = """
-			CREATE TABLE request (
-				id INTEGER PRIMARY KEY AUTOINCREMENT, 
-				id_parent INTEGER,
-				type TEXT,
-				method TEXT,
-				url TEXT,
-				referer TEXT,
-				redirects INTEGER,
-				data  TEXT NOT NULL DEFAULT '',
-				cookies  TEXT NOT NULL DEFAULT '[]',
-				http_auth  TEXT,
-				out_of_scope INTEGER NOT NULL DEFAULT 0,
-				trigger TEXT,
-				crawled INTEGER NOT NULL DEFAULT 0,
-				crawler_errors TEXT,
-				html TEXT,
-				user_output TEXT
-			)
-		"""
-
-		self.qry_create_request_index = """
-			CREATE INDEX request_index ON request (type, method, url, http_auth, data, trigger)
-		"""
-
-		self.qry_create_request_child = """
-			CREATE TABLE request_child (
-				id INTEGER PRIMARY KEY AUTOINCREMENT, 
-				id_request INTEGER NOT NULL,
-				id_child INTEGER NOT NULL
-			)
-		"""
-
-		self.qry_create_request_child_index = """
-			CREATE INDEX request_child_index ON request_child (id_request, id_child)
-		"""
-
-		self.qry_create_assessment = """
-			CREATE TABLE assessment(
-				id INTEGER PRIMARY KEY AUTOINCREMENT,
-				scanner TEXT,
-				start_date INTEGER,
-				end_date INTEGER
-			)
-		"""
-
-		self.qry_create_vulnerability = """
-			CREATE TABLE vulnerability(
-				id INTEGER PRIMARY KEY AUTOINCREMENT,
-				id_assessment INTEGER,
-				id_request INTEGER,
-				type TEXT,
-				description TEXT,
-				error TEXT
-			)
-		"""
-
 	def connect(self):
 		"""
 		open connection
@@ -104,7 +36,7 @@ class Database:
 
 	def close(self):
 		"""
-		close the connection
+		close connection
 		"""
 		self.conn.close()
 
@@ -113,7 +45,7 @@ class Database:
 		send a "BEGIN TRANSACTION" command
 		"""
 		self.conn.isolation_level = None
-		self.conn.execute("BEGIN TRANSACTION")
+		self.conn.execute(self._BEGIN_TRANSACTION_QUERY)
 
 	def commit(self):
 		"""
@@ -129,13 +61,13 @@ class Database:
 			self.connect()
 
 			cur = self.conn.cursor()
-			cur.execute(self.qry_create_crawl_info)
-			cur.execute(self.qry_create_request)
-			cur.execute(self.qry_create_request_index)
-			cur.execute(self.qry_create_request_child)
-			cur.execute(self.qry_create_request_child_index)
-			cur.execute(self.qry_create_assessment)
-			cur.execute(self.qry_create_vulnerability)
+			cur.execute(self._CREATE_CRAWL_INFO_TABLE_QUERY)
+			cur.execute(self._CREATE_REQUEST_TABLE_QUERY)
+			cur.execute(self._CREATE_REQUEST_INDEX_QUERY)
+			cur.execute(self._CREATE_REQUEST_CHILD_TABLE_QUERY)
+			cur.execute(self._CREATE_REQUEST_CHILD_INDEX_QUERY)
+			cur.execute(self._CREATE_ASSESSMENT_TABLE_QUERY)
+			cur.execute(self._CREATE_VULNERABILITY_TABLE_QUERY)
 
 			cur.execute("INSERT INTO crawl_info VALUES (NULL, NULL, NULL, NULL, NULL, NULL)")
 
@@ -373,3 +305,73 @@ class Database:
 
 		except Exception as e:
 			print(str(e))
+
+	_CREATE_CRAWL_INFO_TABLE_QUERY = """
+			CREATE TABLE crawl_info (
+				htcap_version TEXT,
+				target TEXT,
+				start_date INTEGER,
+				end_date INTEGER,
+				commandline TEXT,
+				user_agent TEXT
+			)
+		"""
+
+	_CREATE_REQUEST_TABLE_QUERY = """
+			CREATE TABLE request (
+				id INTEGER PRIMARY KEY AUTOINCREMENT,
+				id_parent INTEGER,
+				type TEXT,
+				method TEXT,
+				url TEXT,
+				referer TEXT,
+				redirects INTEGER,
+				data  TEXT NOT NULL DEFAULT '',
+				cookies  TEXT NOT NULL DEFAULT '[]',
+				http_auth  TEXT,
+				out_of_scope INTEGER NOT NULL DEFAULT 0,
+				trigger TEXT,
+				crawled INTEGER NOT NULL DEFAULT 0,
+				crawler_errors TEXT,
+				html TEXT,
+				user_output TEXT
+			)
+		"""
+
+	_CREATE_REQUEST_INDEX_QUERY = """
+			CREATE INDEX request_index ON request (type, method, url, http_auth, data, trigger)
+		"""
+
+	_CREATE_REQUEST_CHILD_TABLE_QUERY = """
+			CREATE TABLE request_child (
+				id INTEGER PRIMARY KEY AUTOINCREMENT,
+				id_request INTEGER NOT NULL,
+				id_child INTEGER NOT NULL
+			)
+		"""
+
+	_CREATE_REQUEST_CHILD_INDEX_QUERY = """
+			CREATE INDEX request_child_index ON request_child (id_request, id_child)
+		"""
+
+	_CREATE_ASSESSMENT_TABLE_QUERY = """
+			CREATE TABLE assessment(
+				id INTEGER PRIMARY KEY AUTOINCREMENT,
+				scanner TEXT,
+				start_date INTEGER,
+				end_date INTEGER
+			)
+		"""
+
+	_CREATE_VULNERABILITY_TABLE_QUERY = """
+			CREATE TABLE vulnerability(
+				id INTEGER PRIMARY KEY AUTOINCREMENT,
+				id_assessment INTEGER,
+				id_request INTEGER,
+				type TEXT,
+				description TEXT,
+				error TEXT
+			)
+		"""
+
+	_BEGIN_TRANSACTION_QUERY = """BEGIN TRANSACTION"""
