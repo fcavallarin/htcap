@@ -56,7 +56,7 @@ class Crawler:
 			"useragent": 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/53.0.2785.143 Safari/537.36',
 			"num_threads": 10,
 			"max_redirects": 10,
-			"out_file_overwrite": False,
+			"output_mode": CRAWLOUTPUT_RENAME,
 			"proxy": None,
 			"http_auth": None,
 			"use_urllib_onerror": True,
@@ -84,7 +84,7 @@ class Crawler:
 usage: htcap crawl [options] url outfile
 Options:
   -h              this help
-  -d OUTPUT_MODE  set output mode in case the given outfile already exist:
+  -o OUTPUT_MODE  set output mode in case the given outfile already exist:
                     - {crawl_output_rename}: rename the current outfile (default)
                     - {crawl_output_overwrite}: overwrite the existing outfile
                     - {crawl_output_resume}: use the same file and complete the existing data set
@@ -264,7 +264,7 @@ Options:
 		threads = []
 		num_threads = self.defaults['num_threads']
 
-		out_file_overwrite = self.defaults['out_file_overwrite']
+		output_mode = self.defaults['output_mode']
 		cookie_string = None
 		display_progress = True
 		verbose = False
@@ -281,13 +281,15 @@ Options:
 
 		# retrieving user arguments
 		try:
-			opts, args = getopt.getopt(argv, 'hc:t:jn:x:A:p:d:BGR:U:wD:s:m:C:qr:SIHFP:Ovu:')
+			opts, args = getopt.getopt(argv, 'ho:qvm:s:DPFHd:c:C:r:x:p:n:A:U:t:u:SGNRIOK')
 		except getopt.GetoptError as err:
 			print(str(err))
+			self._usage()
 			sys.exit(1)
 
 		if len(args) < 2:  # if no start url and file name
 			self._usage()
+			print('* Error: missing url and/or outfile')
 			sys.exit(1)
 
 		for o, v in opts:
@@ -301,7 +303,7 @@ Options:
 					with open(v) as cf:
 						cookie_string = cf.read()
 				except Exception as e:
-					print("error reading cookie file")
+					print("* Error reading cookie file")
 					sys.exit(1)
 			elif o == '-r':  # start referrer
 				start_referer = v
@@ -318,7 +320,7 @@ Options:
 					v = "socks5:127.0.0.1:9150"
 				proxy = v.split(":")
 				if proxy[0] not in ("http", "socks5"):
-					print("only http and socks5 proxies are supported")
+					print("* Error: only http and socks5 proxies are supported")
 					sys.exit(1)
 				Shared.options['proxy'] = {"proto": proxy[0], "host": proxy[1], "port": proxy[2]}
 			elif o == '-d':  # allowed domains
@@ -331,8 +333,12 @@ Options:
 					Shared.excluded_urls.add(eu)
 			elif o == "-G":
 				Shared.options['group_qs'] = True
-			elif o == "-w":  # overwriting existing db
-				out_file_overwrite = True
+			elif o == "-o":  # output file mode
+				if v not in (CRAWLOUTPUT_OVERWRITE, CRAWLOUTPUT_RENAME, CRAWLOUTPUT_RESUME):
+					self._usage()
+					print("* Error: wrong output mode set '%s'\n" % v)
+					sys.exit(1)
+				output_mode = v
 			elif o == "-R":  # redirects limit
 				Shared.options['max_redirects'] = int(v)
 			elif o == "-U":  # user agent
@@ -418,7 +424,7 @@ Options:
 		start_requests = self._check_and_retrieve_starting_requests(start_req, initial_checks, get_robots_txt)
 
 		# generate filename
-		file_name = self._generate_filename(out_file, out_file_overwrite)
+		file_name = self._generate_filename(out_file, output_mode)
 
 		# initialize db
 		try:
