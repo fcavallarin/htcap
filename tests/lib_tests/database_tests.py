@@ -34,6 +34,11 @@ class DatabaseTest(DatabaseTestCase):
 		self.assertEqual(db.dbname, 'my_db')
 		self.assertEqual(db.conn, None)
 
+	def test___str__(self):
+		db = Database('my_db')
+
+		self.assertEqual(str(db), 'my_db')
+
 	def test_connect(self):
 		sqlite3_mock = MagicMock()
 		row_factory_mock = PropertyMock(return_value=None)
@@ -73,7 +78,7 @@ class DatabaseTest(DatabaseTestCase):
 		self.connection_mock.commit.assert_called_once()
 
 	def test_create_success(self):
-		self.db.create()
+		self.db.initialize()
 
 		self.connect_method_mock.assert_called_once()
 		self.assertEqual(self.cursor_mock.execute.call_count, 8)

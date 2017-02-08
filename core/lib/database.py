@@ -25,6 +25,9 @@ class Database:
 		self.dbname = dbname
 		self.conn = None
 
+	def __str__(self):
+		return self.dbname
+
 	def connect(self):
 		"""
 		open connection
@@ -51,29 +54,27 @@ class Database:
 		"""
 		self.conn.commit()
 
-	def create(self):
+	def initialize(self):
 		"""
 		connect, create the base structure then close connection
 		"""
-		try:
-			self.connect()
 
-			cur = self.conn.cursor()
-			cur.execute(_CREATE_CRAWL_INFO_TABLE_QUERY)
-			cur.execute(_CREATE_REQUEST_TABLE_QUERY)
-			cur.execute(_CREATE_REQUEST_INDEX_QUERY)
-			cur.execute(_CREATE_REQUEST_CHILD_TABLE_QUERY)
-			cur.execute(_CREATE_REQUEST_CHILD_INDEX_QUERY)
-			cur.execute(_CREATE_ASSESSMENT_TABLE_QUERY)
-			cur.execute(_CREATE_VULNERABILITY_TABLE_QUERY)
+		self.connect()
 
-			cur.execute("INSERT INTO crawl_info VALUES (NULL, NULL, NULL, NULL, NULL, NULL)")
+		cur = self.conn.cursor()
+		cur.execute(_CREATE_CRAWL_INFO_TABLE_QUERY)
+		cur.execute(_CREATE_REQUEST_TABLE_QUERY)
+		cur.execute(_CREATE_REQUEST_INDEX_QUERY)
+		cur.execute(_CREATE_REQUEST_CHILD_TABLE_QUERY)
+		cur.execute(_CREATE_REQUEST_CHILD_INDEX_QUERY)
+		cur.execute(_CREATE_ASSESSMENT_TABLE_QUERY)
+		cur.execute(_CREATE_VULNERABILITY_TABLE_QUERY)
 
-			self.commit()
-			self.close()
+		cur.execute("INSERT INTO crawl_info VALUES (NULL, NULL, NULL, NULL, NULL, NULL)")
 
-		except Exception as e:
-			print(str(e))
+		self.commit()
+		self.close()
+
 
 	def save_crawl_info(
 			self,

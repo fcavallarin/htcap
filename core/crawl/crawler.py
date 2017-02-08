@@ -400,7 +400,7 @@ Options:
 
 		# retrieve start url and output file arguments
 		Shared.starturl = normalize_url(args[0])
-		out_file = args[1]
+		outfile_name = args[1]
 
 		# add start url domain to allowed domains
 		purl = urlsplit(Shared.starturl)
@@ -423,12 +423,9 @@ Options:
 		# retrieve starting requests
 		start_requests = self._check_and_retrieve_starting_requests(start_req, initial_checks, get_robots_txt)
 
-		# generate filename
-		file_name = self._generate_filename(out_file, output_mode)
-
-		# initialize db
+		# get database
 		try:
-			database = self._init_db(file_name)
+			database = self._get_database(outfile_name, output_mode)
 		except Exception as e:
 			print(str(e))
 			sys.exit(1)
@@ -452,7 +449,7 @@ Options:
 		print("done")
 
 		# starting crawling threads
-		print("Database %s initialized, crawl starting with %d threads" % (file_name, num_threads))
+		print("Database %s initialized, crawl starting with %d threads" % (database, num_threads))
 
 		for n in range(0, num_threads):
 			thread = CrawlerThread()
@@ -511,16 +508,6 @@ Options:
 		if not Shared.options['override_timeout_functions']:
 			self._probe["options"].append("-O")
 
-	@staticmethod
-	def _init_db(db_name):
-		"""
-		Private - Initialize a new database
-		:param db_name:
-		:return: created database
-		"""
-		database = Database(db_name)
-		database.create()
-		return database
 
 	@staticmethod
 	def _check_user_script_syntax(probe_cmd, user_script):
@@ -535,14 +522,7 @@ Options:
 			print("\nAborted")
 			sys.exit(0)
 
-	@staticmethod
-	def _generate_filename(name, out_file_overwrite):
-		fname = generate_filename(name, None, out_file_overwrite)
-		if out_file_overwrite:
-			if os.path.exists(fname):
-				os.remove(fname)
 
-		return fname
 
 	@staticmethod
 	def _kill_threads(threads):
@@ -628,3 +608,25 @@ Options:
 		all_chars = string.digits + string.letters + string.punctuation
 		random_string = ''.join(choice(all_chars) for _ in range(length))
 		return random_string
+
+	@staticmethod
+	def _get_database(outfile_name, output_mode):
+		"""
+		return either an existing database or a new one depending of the given output mode
+		:param outfile_name:
+		:param output_mode:
+		:return:
+		"""
+		file_name = outfile_name
+		if output_mode == CRAWLOUTPUT_RENAME:
+			file_name = generate_filename(outfile_name, out_file_overwrite=False)
+
+		elif output_mode == CRAWLOUTPUT_OVERWRITE and os.path.exists(file_name):
+			os.remove(file_name)
+
+		database = Database(file_name)
+
+		if output_mode != CRAWLOUTPUT_RESUME:
+			database.initialize()
+
+		return database
