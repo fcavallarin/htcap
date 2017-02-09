@@ -331,7 +331,7 @@ class Database:
 		:return: list of request
 		"""
 		requests = []
-		query = "SELECT * FROM request WHERE crawled=0"
+		query = "SELECT * FROM request WHERE crawled=0 AND out_of_scope=0"
 
 		self.connect()
 		cur = self.conn.cursor()

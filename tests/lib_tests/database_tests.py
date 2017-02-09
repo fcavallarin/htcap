@@ -344,7 +344,7 @@ class DatabaseTest(DatabaseTestCase):
 
 		self.connect_method_mock.assert_called_once()
 		self.cursor_mock.execute.assert_called_once_with(
-			"SELECT * FROM request WHERE crawled=0"
+			"SELECT * FROM request WHERE crawled=0 AND out_of_scope=0"
 		)
 		request_mock.assert_called_once_with(
 			"my type", "METHOD", "some url", data="some data", db_id=42,

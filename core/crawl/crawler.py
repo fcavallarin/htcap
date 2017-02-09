@@ -89,9 +89,9 @@ Options:
   -o OUTPUT_MODE  set output mode in case the given outfile already exist:
                     - {crawl_output_rename}: rename the current outfile (default)
                     - {crawl_output_overwrite}: overwrite the existing outfile
-                    - {crawl_output_resume}: use the same file and the previous crawl data
-                              it will follow any "not crawled" url in the scope
-                              from the previous crawl as a new starting url
+                    - {crawl_output_resume}: use the same file and last crawl data
+                              it will follow any "not crawled" url from the last crawl
+                              as a starting url
                     - {crawl_output_complete}: use the same file and complete the existing data set
                                 it will not follow any previously found urls
   -m MODE         set crawl mode:
