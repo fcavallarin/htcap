@@ -438,6 +438,14 @@ Options:
 			user_agent=Shared.options['useragent']
 		)
 
+		if output_mode == CRAWLOUTPUT_RESUME:
+			try:
+				Shared.requests = database.get_seen_request()
+				Shared.requests_index = len(Shared.requests)
+			except Exception as e:
+				print(str(e))
+				sys.exit(1)
+
 		# save starting request to db
 		database.connect()
 		database.begin()
@@ -508,7 +516,6 @@ Options:
 		if not Shared.options['override_timeout_functions']:
 			self._probe["options"].append("-O")
 
-
 	@staticmethod
 	def _check_user_script_syntax(probe_cmd, user_script):
 		try:
@@ -521,8 +528,6 @@ Options:
 		except KeyboardInterrupt:
 			print("\nAborted")
 			sys.exit(0)
-
-
 
 	@staticmethod
 	def _kill_threads(threads):

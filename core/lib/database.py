@@ -305,6 +305,27 @@ class Database:
 		except Exception as e:
 			print(str(e))
 
+	def get_seen_request(self):
+		"""
+		connect, retrieve existing already seen requests then close the connection
+		:return: list of request
+		"""
+		requests = []
+		query = "SELECT * FROM request WHERE crawled=1"
+
+		self.connect()
+		cur = self.conn.cursor()
+		cur.execute(query)
+		for request in cur.fetchall():
+			req = Request(
+				request['type'], request['method'], request['url'], referer=request['referer'], data=request['data'],
+				json_cookies=request['cookies'], db_id=request['id'], parent_db_id=request['id_parent']
+			)
+			requests.append(req)
+		self.close()
+
+		return requests
+
 
 _CREATE_CRAWL_INFO_TABLE_QUERY = """
 		CREATE TABLE crawl_info (

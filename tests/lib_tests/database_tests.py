@@ -1,10 +1,9 @@
 import unittest
 import sqlite3
 
-from mock import MagicMock, PropertyMock, call
+from mock import MagicMock, PropertyMock, call, patch
 
 from core.lib.database import Database
-from core.lib.request import Request
 
 
 class DatabaseTestCase(unittest.TestCase):
@@ -244,7 +243,8 @@ class DatabaseTest(DatabaseTestCase):
 		self.close_method_mock.assert_called_once()
 		self.assertEqual(results, [])
 
-	def test_get_requests_with_result(self):
+	@patch('core.lib.database.Request')
+	def test_get_requests_with_result(self, request_mock):
 		self.cursor_mock.fetchall.return_value = [
 			{
 				"id": 42, "id_parent": 53,
@@ -253,14 +253,9 @@ class DatabaseTest(DatabaseTestCase):
 			}
 		]
 
-		request_constructor_mock = MagicMock(return_value=None)
-		Request.__str__ = MagicMock(return_value="")
-		Request.__repr__ = MagicMock(return_value="")
-		Request.__init__ = request_constructor_mock
-
 		self.db.get_requests("xhr,an_other_type")
 
-		request_constructor_mock.assert_called_once_with(
+		request_mock.assert_called_once_with(
 			"my type", "METHOD", "some url", data="some data", db_id=42,
 			json_cookies="some cookies", parent_db_id=53,
 			referer="from here"
@@ -312,3 +307,26 @@ class DatabaseTest(DatabaseTestCase):
 		)
 		self.commit_method_mock.assert_called_once()
 		self.close_method_mock.assert_called_once()
+
+	@patch('core.lib.database.Request')
+	def test_get_seen_request(self, request_mock):
+		self.cursor_mock.fetchall.return_value = [
+			{
+				"id": 42, "id_parent": 53,
+				"type": "my type", "method": "METHOD", "url": "some url",
+				"referer": "from here", "data": "some data", "cookies": "some cookies"
+			}
+		]
+		results = self.db.get_seen_request()
+
+		self.connect_method_mock.assert_called_once()
+		self.cursor_mock.execute.assert_called_once_with(
+			"SELECT * FROM request WHERE crawled=1"
+		)
+		request_mock.assert_called_once_with(
+			"my type", "METHOD", "some url", data="some data", db_id=42,
+			json_cookies="some cookies", parent_db_id=53,
+			referer="from here"
+		)
+		self.close_method_mock.assert_called_once()
+		self.assertEqual(len(results), 1)
