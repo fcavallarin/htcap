@@ -309,7 +309,7 @@ class DatabaseTest(DatabaseTestCase):
 		self.close_method_mock.assert_called_once()
 
 	@patch('core.lib.database.Request')
-	def test_get_seen_request(self, request_mock):
+	def test_get_crawled_request(self, request_mock):
 		self.cursor_mock.fetchall.return_value = [
 			{
 				"id": 42, "id_parent": 53,
@@ -317,11 +317,34 @@ class DatabaseTest(DatabaseTestCase):
 				"referer": "from here", "data": "some data", "cookies": "some cookies"
 			}
 		]
-		results = self.db.get_seen_request()
+		results = self.db.get_crawled_request()
 
 		self.connect_method_mock.assert_called_once()
 		self.cursor_mock.execute.assert_called_once_with(
 			"SELECT * FROM request WHERE crawled=1"
+		)
+		request_mock.assert_called_once_with(
+			"my type", "METHOD", "some url", data="some data", db_id=42,
+			json_cookies="some cookies", parent_db_id=53,
+			referer="from here"
+		)
+		self.close_method_mock.assert_called_once()
+		self.assertEqual(len(results), 1)
+
+	@patch('core.lib.database.Request')
+	def test_get_not_crawled_request(self, request_mock):
+		self.cursor_mock.fetchall.return_value = [
+			{
+				"id": 42, "id_parent": 53,
+				"type": "my type", "method": "METHOD", "url": "some url",
+				"referer": "from here", "data": "some data", "cookies": "some cookies"
+			}
+		]
+		results = self.db.get_not_crawled_request()
+
+		self.connect_method_mock.assert_called_once()
+		self.cursor_mock.execute.assert_called_once_with(
+			"SELECT * FROM request WHERE crawled=0"
 		)
 		request_mock.assert_called_once_with(
 			"my type", "METHOD", "some url", data="some data", db_id=42,

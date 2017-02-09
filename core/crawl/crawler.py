@@ -84,12 +84,16 @@ class Crawler:
 usage: htcap crawl [options] url outfile
 Options:
   -h              this help
+  -q              do not display progress information
+  -v              be verbose
   -o OUTPUT_MODE  set output mode in case the given outfile already exist:
                     - {crawl_output_rename}: rename the current outfile (default)
                     - {crawl_output_overwrite}: overwrite the existing outfile
-                    - {crawl_output_resume}: use the same file and complete the existing data set
-  -q              do not display progress information
-  -v              be verbose
+                    - {crawl_output_resume}: use the same file and the previous crawl data
+                              it will follow any "not crawled" url in the scope
+                              from the previous crawl as a new starting url
+                    - {crawl_output_complete}: use the same file and complete the existing data set
+                                it will not follow any previously found urls
   -m MODE         set crawl mode:
                     - {crawl_mode_passive}: do not interact with the page
                     - {crawl_mode_active}: trigger events
@@ -116,8 +120,8 @@ Options:
   -S              skip initial checks
   -G              group query_string parameters with the same name ('[]' ending excluded)
   -N              don't normalize URL path (keep ../../)
-  -R              maximum number of redirects to follow (default {max_redirects})
-  -I              ignore robots.txt
+  -R REDIRECTS    maximum number of redirects to follow (default {max_redirects})
+  -I              ignore robots.txt (otherwise it will try to read the robots.txt related to the start url provided)
   -O              don't override timeout functions (setTimeout, setInterval)
   -K              keep elements in the DOM (prevent removal)
 """.format(
@@ -125,6 +129,7 @@ Options:
 			crawl_output_rename=CRAWLOUTPUT_RENAME,
 			crawl_output_overwrite=CRAWLOUTPUT_OVERWRITE,
 			crawl_output_resume=CRAWLOUTPUT_RESUME,
+			crawl_output_complete=CRAWLOUTPUT_COMPLETE,
 			crawl_mode_passive=CRAWLMODE_PASSIVE,
 			crawl_mode_active=CRAWLMODE_ACTIVE,
 			crawl_mode_aggressive=CRAWLMODE_AGGRESSIVE,
@@ -219,32 +224,6 @@ Options:
 			except:
 				pass
 
-	def _check_and_retrieve_starting_requests(self, start_req, check_starturl, get_robots_txt):
-		"""
-		check starting request and retrieve robots.txt request
-		:param start_req:
-		:param check_starturl:
-		:param get_robots_txt:
-		:return:
-		"""
-		start_requests = [start_req]
-		try:
-			if check_starturl:
-				self._check_request(start_req)
-				stdoutw(". ")
-
-			if get_robots_txt:
-				rrequests = self._get_requests_from_robots(start_req)
-				stdoutw(". ")
-				for req in rrequests:
-					if request_is_crawlable(req) and not req in start_requests:
-						start_requests.append(req)
-		except KeyboardInterrupt:
-			print("\nAborted")
-			sys.exit(0)
-
-		return start_requests
-
 	def _main(self, argv):
 		"""
 		instantiate crawler, probe and start the crawling loop
@@ -281,7 +260,7 @@ Options:
 
 		# retrieving user arguments
 		try:
-			opts, args = getopt.getopt(argv, 'ho:qvm:s:D:P:FHd:c:C:r:x:p:n:A:U:t:u:SGNRIOK')
+			opts, args = getopt.getopt(argv, 'ho:qvm:s:D:P:FHd:c:C:r:x:p:n:A:U:t:u:SGNR:IOK')
 		except getopt.GetoptError as err:
 			print(str(err))
 			self._usage()
@@ -334,7 +313,7 @@ Options:
 			elif o == "-G":
 				Shared.options['group_qs'] = True
 			elif o == "-o":  # output file mode
-				if v not in (CRAWLOUTPUT_OVERWRITE, CRAWLOUTPUT_RENAME, CRAWLOUTPUT_RESUME):
+				if v not in (CRAWLOUTPUT_OVERWRITE, CRAWLOUTPUT_RENAME, CRAWLOUTPUT_RESUME, CRAWLOUTPUT_COMPLETE):
 					self._usage()
 					print("* Error: wrong output mode set '%s'\n" % v)
 					sys.exit(1)
@@ -406,9 +385,6 @@ Options:
 		purl = urlsplit(Shared.starturl)
 		Shared.allowed_domains.add(purl.hostname)
 
-		# create the start request object
-		start_req = Request(REQTYPE_LINK, "GET", Shared.starturl, set_cookie=Shared.start_cookies, http_auth=http_auth, referer=start_referer)
-
 		# warn about ssl context in python 2
 		if not hasattr(ssl, "SSLContext"):
 			print(
@@ -419,9 +395,6 @@ Options:
 		# validate user script
 		if user_script and initial_checks:
 			self._check_user_script_syntax(self._probe["cmd"], user_script)
-
-		# retrieve starting requests
-		start_requests = self._check_and_retrieve_starting_requests(start_req, initial_checks, get_robots_txt)
 
 		# get database
 		try:
@@ -438,13 +411,51 @@ Options:
 			user_agent=Shared.options['useragent']
 		)
 
-		if output_mode == CRAWLOUTPUT_RESUME:
+		start_requests = []
+
+		# create the start request object from provided arguments
+		start_request_from_args = Request(
+			REQTYPE_LINK, "GET", Shared.starturl, set_cookie=Shared.start_cookies,
+			http_auth=http_auth, referer=start_referer)
+
+		# check starting url
+		if initial_checks:
 			try:
-				Shared.requests = database.get_seen_request()
+				self._check_request(start_request_from_args)
+				stdoutw(". ")
+			except KeyboardInterrupt:
+				print("\nAborted")
+				sys.exit(0)
+
+		if output_mode in (CRAWLOUTPUT_RESUME, CRAWLOUTPUT_COMPLETE):
+			try:
+				# feeding the "done" request list from the db
+				Shared.requests.extend(database.get_crawled_request())
 				Shared.requests_index = len(Shared.requests)
+
+				# if resume, add requests from db
+				if output_mode == CRAWLOUTPUT_RESUME:
+					start_requests.extend(database.get_not_crawled_request())
+
+				# if request from args is neither in past or future requests
+				if start_request_from_args not in Shared.requests or start_request_from_args not in start_requests:
+					start_requests.append(start_request_from_args)
 			except Exception as e:
 				print(str(e))
 				sys.exit(1)
+		else:
+			start_requests.append(start_request_from_args)
+
+		# retrieving robots.txt content
+		if get_robots_txt:
+			try:
+				start_requests.extend(
+					[req for req in self._get_requests_from_robots() if
+					 req not in start_requests or req not in Shared.requests]
+				)
+			except KeyboardInterrupt:
+				print("\nAborted")
+				sys.exit(0)
 
 		# save starting request to db
 		database.connect()
@@ -573,14 +584,13 @@ Options:
 			sys.exit(1)
 
 	@staticmethod
-	def _get_requests_from_robots(request):
+	def _get_requests_from_robots():
 		"""
 		read robots.txt file (if any) and create a list of request based on it's content
 
-		:param request: start url request
 		:return: list of request
 		"""
-		purl = urlsplit(request.url)
+		purl = urlsplit(Shared.starturl)
 		url = "%s://%s/robots.txt" % (purl.scheme, purl.netloc)
 
 		getreq = Request(REQTYPE_LINK, "GET", url)
@@ -604,7 +614,8 @@ Options:
 
 			if re.match("(dis)?allow", directive.strip(), re.I):
 				req = Request(REQTYPE_LINK, "GET", url.strip(), parent=request)
-				requests.append(req)
+				if request_is_crawlable(req):
+					requests.append(req)
 
 		return adjust_requests(requests) if requests else []
 
@@ -631,7 +642,7 @@ Options:
 
 		database = Database(file_name)
 
-		if output_mode != CRAWLOUTPUT_RESUME or not os.path.exists(file_name):
+		if output_mode not in (CRAWLOUTPUT_RESUME, CRAWLOUTPUT_COMPLETE) or not os.path.exists(file_name):
 			database.initialize()
 
 		return database

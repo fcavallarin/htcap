@@ -75,7 +75,6 @@ class Database:
 		self.commit()
 		self.close()
 
-
 	def save_crawl_info(
 			self,
 			htcap_version=None, target=None, start_date=None, end_date=None, commandline=None, user_agent=None):
@@ -305,13 +304,34 @@ class Database:
 		except Exception as e:
 			print(str(e))
 
-	def get_seen_request(self):
+	def get_crawled_request(self):
 		"""
-		connect, retrieve existing already seen requests then close the connection
+		connect, retrieve existing already crawled requests then close the connection
 		:return: list of request
 		"""
 		requests = []
 		query = "SELECT * FROM request WHERE crawled=1"
+
+		self.connect()
+		cur = self.conn.cursor()
+		cur.execute(query)
+		for request in cur.fetchall():
+			req = Request(
+				request['type'], request['method'], request['url'], referer=request['referer'], data=request['data'],
+				json_cookies=request['cookies'], db_id=request['id'], parent_db_id=request['id_parent']
+			)
+			requests.append(req)
+		self.close()
+
+		return requests
+
+	def get_not_crawled_request(self):
+		"""
+		connect, retrieve existing never crawled requests then close the connection
+		:return: list of request
+		"""
+		requests = []
+		query = "SELECT * FROM request WHERE crawled=0"
 
 		self.connect()
 		cur = self.conn.cursor()

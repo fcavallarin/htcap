@@ -33,8 +33,8 @@ class CrawlerTest(unittest.TestCase):
 
 	@patch('core.crawl.crawler.Database')
 	@patch('core.crawl.crawler.os.path.exists', return_value=True)
-	def test__get_database_resume_outfile(self, os_path_exists_mock, database_mock):
-		db = Crawler._get_database('my_out_file', CRAWLOUTPUT_RESUME)
+	def test__get_database_complete_outfile(self, os_path_exists_mock, database_mock):
+		db = Crawler._get_database('my_out_file', CRAWLOUTPUT_COMPLETE)
 
 		database_mock.assert_called_once_with('my_out_file')
 		os_path_exists_mock.assert_called_once_with('my_out_file')
