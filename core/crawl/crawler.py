@@ -450,7 +450,7 @@ Options:
 		if get_robots_txt:
 			try:
 				start_requests.extend(
-					[req for req in self._get_requests_from_robots() if
+					[req for req in self._get_requests_from_robots(start_request_from_args) if
 					 req not in start_requests or req not in Shared.requests]
 				)
 			except KeyboardInterrupt:
@@ -584,19 +584,19 @@ Options:
 			sys.exit(1)
 
 	@staticmethod
-	def _get_requests_from_robots():
+	def _get_requests_from_robots(start_request):
 		"""
 		read robots.txt file (if any) and create a list of request based on it's content
 
 		:return: list of request
 		"""
-		purl = urlsplit(Shared.starturl)
+		purl = urlsplit(start_request.url)
 		url = "%s://%s/robots.txt" % (purl.scheme, purl.netloc)
 
 		getreq = Request(REQTYPE_LINK, "GET", url)
 		try:
 			# request, timeout, retries=None, useragent=None, proxy=None):
-			httpget = HttpGet(getreq, 10, 1, "Googlebot", Shared.options['proxy'])
+			httpget = HttpGet(getreq, 10000, 1, "Googlebot", Shared.options['proxy'])
 			lines = httpget.get_file().split("\n")
 		except urllib2.HTTPError:
 			return []
@@ -613,7 +613,7 @@ Options:
 				continue  # ignore errors
 
 			if re.match("(dis)?allow", directive.strip(), re.I):
-				req = Request(REQTYPE_LINK, "GET", url.strip(), parent=request)
+				req = Request(REQTYPE_LINK, "GET", url.strip(), parent=start_request)
 				if request_is_crawlable(req):
 					requests.append(req)
 
