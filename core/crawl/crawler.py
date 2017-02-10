@@ -93,7 +93,7 @@ Options:
                               it will follow any "not crawled" url from the last crawl
                               as a starting url
                     - {crawl_output_complete}: use the same file and complete the existing data set
-                                it will not follow any previously found urls
+                                it will not follow any previously found urls (only the one provided in arguments)
   -m MODE         set crawl mode:
                     - {crawl_mode_passive}: do not interact with the page
                     - {crawl_mode_active}: trigger events
@@ -418,6 +418,16 @@ Options:
 			REQTYPE_LINK, "GET", Shared.starturl, set_cookie=Shared.start_cookies,
 			http_auth=http_auth, referer=start_referer)
 
+		def _is_not_in_past_requests(request):
+			"""
+			check if the given request is present in Shared.requests or start_requests
+			"""
+			is_in_request = True
+			for r in Shared.requests + start_requests:
+				if r == request:
+					is_in_request = False
+			return is_in_request
+
 		# check starting url
 		if initial_checks:
 			try:
@@ -429,6 +439,13 @@ Options:
 
 		if output_mode in (CRAWLOUTPUT_RESUME, CRAWLOUTPUT_COMPLETE):
 			try:
+				# make the start url given in arguments crawlable again
+				database.connect()
+				database.save_request(start_request_from_args)
+				database.make_request_crawlable(start_request_from_args)
+				database.commit()
+				database.close()
+
 				# feeding the "done" request list from the db
 				Shared.requests.extend(database.get_crawled_request())
 				Shared.requests_index = len(Shared.requests)
@@ -438,7 +455,7 @@ Options:
 					start_requests.extend(database.get_not_crawled_request())
 
 				# if request from args is neither in past or future requests
-				if start_request_from_args not in Shared.requests or start_request_from_args not in start_requests:
+				if _is_not_in_past_requests(start_request_from_args):
 					start_requests.append(start_request_from_args)
 			except Exception as e:
 				print(str(e))
@@ -450,8 +467,7 @@ Options:
 		if get_robots_txt:
 			try:
 				start_requests.extend(
-					[req for req in self._get_requests_from_robots(start_request_from_args) if
-					 req not in start_requests or req not in Shared.requests]
+					filter(_is_not_in_past_requests, self._get_requests_from_robots(start_request_from_args))
 				)
 			except KeyboardInterrupt:
 				print("\nAborted")
@@ -465,7 +481,10 @@ Options:
 		database.commit()
 		database.close()
 
-		print("done")
+		print(
+			"\nDone: {} starting url(s) and {} url(s) already crawled"
+				.format(len(start_requests), len(Shared.requests))
+		)
 
 		# starting crawling threads
 		print("Database %s initialized, crawl starting with %d threads" % (database, num_threads))
@@ -596,7 +615,7 @@ Options:
 		getreq = Request(REQTYPE_LINK, "GET", url)
 		try:
 			# request, timeout, retries=None, useragent=None, proxy=None):
-			httpget = HttpGet(getreq, 10000, 1, "Googlebot", Shared.options['proxy'])
+			httpget = HttpGet(getreq, 10, 1, "Googlebot", Shared.options['proxy'])
 			lines = httpget.get_file().split("\n")
 		except urllib2.HTTPError:
 			return []

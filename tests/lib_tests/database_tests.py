@@ -186,6 +186,7 @@ class DatabaseTest(DatabaseTestCase):
 
 		self.db.save_request(request)
 
+		self.assertEqual(request.db_id, 53)
 		self.assertEqual(self.cursor_mock.execute.call_count, 2)
 		self.assertEqual(
 			self.cursor_mock.execute.call_args_list[0],
@@ -231,6 +232,18 @@ class DatabaseTest(DatabaseTestCase):
 			"UPDATE request SET crawled=?, crawler_errors=?, html=?, user_output=? WHERE id=?",
 			(1, '["some", "errors"]', "<html></html>", '["some", "outputs"]', 42)
 		)
+
+	def test_make_request_crawlable(self):
+		request = MagicMock()
+		request.db_id = 42
+
+		self.db.make_request_crawlable(request)
+
+		self.cursor_mock.execute.assert_called_once_with(
+			"UPDATE request SET crawled=0, out_of_scope=0 WHERE id=:id",
+			{"id": 42}
+		)
+
 
 	def test_get_requests_without_result(self):
 		results = self.db.get_requests()
