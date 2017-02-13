@@ -1,10 +1,9 @@
 import unittest
 import sqlite3
 
-from mock import MagicMock, PropertyMock, call
+from mock import MagicMock, PropertyMock, call, patch
 
 from core.lib.database import Database
-from core.lib.request import Request
 
 
 class DatabaseTestCase(unittest.TestCase):
@@ -33,6 +32,11 @@ class DatabaseTest(DatabaseTestCase):
 
 		self.assertEqual(db.dbname, 'my_db')
 		self.assertEqual(db.conn, None)
+
+	def test___str__(self):
+		db = Database('my_db')
+
+		self.assertEqual(str(db), 'my_db')
 
 	def test_connect(self):
 		sqlite3_mock = MagicMock()
@@ -73,7 +77,7 @@ class DatabaseTest(DatabaseTestCase):
 		self.connection_mock.commit.assert_called_once()
 
 	def test_create_success(self):
-		self.db.create()
+		self.db.initialize()
 
 		self.connect_method_mock.assert_called_once()
 		self.assertEqual(self.cursor_mock.execute.call_count, 8)
@@ -182,6 +186,7 @@ class DatabaseTest(DatabaseTestCase):
 
 		self.db.save_request(request)
 
+		self.assertEqual(request.db_id, 53)
 		self.assertEqual(self.cursor_mock.execute.call_count, 2)
 		self.assertEqual(
 			self.cursor_mock.execute.call_args_list[0],
@@ -228,6 +233,18 @@ class DatabaseTest(DatabaseTestCase):
 			(1, '["some", "errors"]', "<html></html>", '["some", "outputs"]', 42)
 		)
 
+	def test_make_request_crawlable(self):
+		request = MagicMock()
+		request.db_id = 42
+
+		self.db.make_request_crawlable(request)
+
+		self.cursor_mock.execute.assert_called_once_with(
+			"UPDATE request SET crawled=0, out_of_scope=0 WHERE id=:id",
+			{"id": 42}
+		)
+
+
 	def test_get_requests_without_result(self):
 		results = self.db.get_requests()
 
@@ -239,7 +256,8 @@ class DatabaseTest(DatabaseTestCase):
 		self.close_method_mock.assert_called_once()
 		self.assertEqual(results, [])
 
-	def test_get_requests_with_result(self):
+	@patch('core.lib.database.Request')
+	def test_get_requests_with_result(self, request_mock):
 		self.cursor_mock.fetchall.return_value = [
 			{
 				"id": 42, "id_parent": 53,
@@ -248,14 +266,9 @@ class DatabaseTest(DatabaseTestCase):
 			}
 		]
 
-		request_constructor_mock = MagicMock(return_value=None)
-		Request.__str__ = MagicMock(return_value="")
-		Request.__repr__ = MagicMock(return_value="")
-		Request.__init__ = request_constructor_mock
-
 		self.db.get_requests("xhr,an_other_type")
 
-		request_constructor_mock.assert_called_once_with(
+		request_mock.assert_called_once_with(
 			"my type", "METHOD", "some url", data="some data", db_id=42,
 			json_cookies="some cookies", parent_db_id=53,
 			referer="from here"
@@ -307,3 +320,49 @@ class DatabaseTest(DatabaseTestCase):
 		)
 		self.commit_method_mock.assert_called_once()
 		self.close_method_mock.assert_called_once()
+
+	@patch('core.lib.database.Request')
+	def test_get_crawled_request(self, request_mock):
+		self.cursor_mock.fetchall.return_value = [
+			{
+				"id": 42, "id_parent": 53,
+				"type": "my type", "method": "METHOD", "url": "some url",
+				"referer": "from here", "data": "some data", "cookies": "some cookies"
+			}
+		]
+		results = self.db.get_crawled_request()
+
+		self.connect_method_mock.assert_called_once()
+		self.cursor_mock.execute.assert_called_once_with(
+			"SELECT * FROM request WHERE crawled=1"
+		)
+		request_mock.assert_called_once_with(
+			"my type", "METHOD", "some url", data="some data", db_id=42,
+			json_cookies="some cookies", parent_db_id=53,
+			referer="from here"
+		)
+		self.close_method_mock.assert_called_once()
+		self.assertEqual(len(results), 1)
+
+	@patch('core.lib.database.Request')
+	def test_get_not_crawled_request(self, request_mock):
+		self.cursor_mock.fetchall.return_value = [
+			{
+				"id": 42, "id_parent": 53,
+				"type": "my type", "method": "METHOD", "url": "some url",
+				"referer": "from here", "data": "some data", "cookies": "some cookies"
+			}
+		]
+		results = self.db.get_not_crawled_request()
+
+		self.connect_method_mock.assert_called_once()
+		self.cursor_mock.execute.assert_called_once_with(
+			"SELECT * FROM request WHERE crawled=0 AND out_of_scope=0"
+		)
+		request_mock.assert_called_once_with(
+			"my type", "METHOD", "some url", data="some data", db_id=42,
+			json_cookies="some cookies", parent_db_id=53,
+			referer="from here"
+		)
+		self.close_method_mock.assert_called_once()
+		self.assertEqual(len(results), 1)

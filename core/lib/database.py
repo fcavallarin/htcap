@@ -25,6 +25,9 @@ class Database:
 		self.dbname = dbname
 		self.conn = None
 
+	def __str__(self):
+		return self.dbname
+
 	def connect(self):
 		"""
 		open connection
@@ -51,29 +54,26 @@ class Database:
 		"""
 		self.conn.commit()
 
-	def create(self):
+	def initialize(self):
 		"""
 		connect, create the base structure then close connection
 		"""
-		try:
-			self.connect()
 
-			cur = self.conn.cursor()
-			cur.execute(_CREATE_CRAWL_INFO_TABLE_QUERY)
-			cur.execute(_CREATE_REQUEST_TABLE_QUERY)
-			cur.execute(_CREATE_REQUEST_INDEX_QUERY)
-			cur.execute(_CREATE_REQUEST_CHILD_TABLE_QUERY)
-			cur.execute(_CREATE_REQUEST_CHILD_INDEX_QUERY)
-			cur.execute(_CREATE_ASSESSMENT_TABLE_QUERY)
-			cur.execute(_CREATE_VULNERABILITY_TABLE_QUERY)
+		self.connect()
 
-			cur.execute("INSERT INTO crawl_info VALUES (NULL, NULL, NULL, NULL, NULL, NULL)")
+		cur = self.conn.cursor()
+		cur.execute(_CREATE_CRAWL_INFO_TABLE_QUERY)
+		cur.execute(_CREATE_REQUEST_TABLE_QUERY)
+		cur.execute(_CREATE_REQUEST_INDEX_QUERY)
+		cur.execute(_CREATE_REQUEST_CHILD_TABLE_QUERY)
+		cur.execute(_CREATE_REQUEST_CHILD_INDEX_QUERY)
+		cur.execute(_CREATE_ASSESSMENT_TABLE_QUERY)
+		cur.execute(_CREATE_VULNERABILITY_TABLE_QUERY)
 
-			self.commit()
-			self.close()
+		cur.execute("INSERT INTO crawl_info VALUES (NULL, NULL, NULL, NULL, NULL, NULL)")
 
-		except Exception as e:
-			print(str(e))
+		self.commit()
+		self.close()
 
 	def save_crawl_info(
 			self,
@@ -137,7 +137,7 @@ class Database:
 		:param request: request to be saved
 		"""
 
-		values = (
+		insert_values = (
 			request.parent_db_id,
 			request.type,
 			request.method,
@@ -152,10 +152,10 @@ class Database:
 			request.html if request.html else "",
 			json.dumps(request.user_output) if len(request.user_output) > 0 else ""
 		)
-		qry = "INSERT INTO request (id_parent, type, method, url, referer, redirects, data, cookies, http_auth, out_of_scope, trigger, html, user_output) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)"
+		insert_query = "INSERT INTO request (id_parent, type, method, url, referer, redirects, data, cookies, http_auth, out_of_scope, trigger, html, user_output) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)"
 
 		# ignore referrer and cookies.. correct?
-		values_select = (
+		select_values = (
 			request.type,
 			request.method,
 			request.url,
@@ -166,21 +166,23 @@ class Database:
 
 		# include trigger in query to save the same request with different triggers
 		# (normally requests are compared using type,method,url and data only) 
-		qry_select = "SELECT * FROM request WHERE type=? AND method=? AND url=? AND http_auth=? AND data=? AND trigger=?"
+		select_query = "SELECT * FROM request WHERE type=? AND method=? AND url=? AND http_auth=? AND data=? AND trigger=?"
 
 		try:
 			cur = self.conn.cursor()
-			cur.execute(qry_select, values_select)
+			cur.execute(select_query, select_values)
 			existing_req = cur.fetchone()
 
-			if not existing_req:
-				cur.execute(qry, values)
-				cur.execute("SELECT last_insert_rowid() AS id")
-				request.db_id = cur.fetchone()['id']
-				req_id = request.db_id
+			if not existing_req:  # if no existing request
+				cur.execute(insert_query, insert_values)  # insert the new request
+				cur.execute("SELECT last_insert_rowid() AS id")  # retrieve its id
+				request.db_id = cur.fetchone()['id']  # complete the request with the db_id
 			else:
-				req_id = existing_req['id']
+				request.db_id = existing_req['id']  # set the db_id for the request
 
+			req_id = request.db_id
+
+			# set the parent-child relationships
 			if request.parent_db_id:
 				qry_child = "INSERT INTO request_child (id_request, id_child) VALUES (?,?)"
 				cur.execute(qry_child, (request.parent_db_id, req_id))
@@ -195,8 +197,6 @@ class Database:
 		:param result: result to save
 		:param crawled: (boolean) have been crawled
 		"""
-		if result.request.db_id == 0:  # start url has id=0
-			return
 		qry = "UPDATE request SET crawled=?, crawler_errors=?, html=?, user_output=? WHERE id=?"
 		values = (
 			1 if crawled else 0,
@@ -211,6 +211,20 @@ class Database:
 			cur.execute(qry, values)
 		except Exception as e:
 			print(str(e))
+
+	def make_request_crawlable(self, request):
+		"""
+		update the scope and crawled status
+
+		:param request:
+		"""
+		qry = "UPDATE request SET crawled=0, out_of_scope=0 WHERE id=:id"
+		values = {"id": request.db_id}
+
+		cur = self.conn.cursor()
+		cur.execute(qry, values)
+
+
 
 	def get_requests(self, types="xhr"):
 		"""
@@ -303,6 +317,48 @@ class Database:
 
 		except Exception as e:
 			print(str(e))
+
+	def get_crawled_request(self):
+		"""
+		connect, retrieve existing already crawled requests then close the connection
+		:return: list of request
+		"""
+		requests = []
+		query = "SELECT * FROM request WHERE crawled=1"
+
+		self.connect()
+		cur = self.conn.cursor()
+		cur.execute(query)
+		for request in cur.fetchall():
+			req = Request(
+				request['type'], request['method'], request['url'], referer=request['referer'], data=request['data'],
+				json_cookies=request['cookies'], db_id=request['id'], parent_db_id=request['id_parent']
+			)
+			requests.append(req)
+		self.close()
+
+		return requests
+
+	def get_not_crawled_request(self):
+		"""
+		connect, retrieve existing never crawled requests then close the connection
+		:return: list of request
+		"""
+		requests = []
+		query = "SELECT * FROM request WHERE crawled=0 AND out_of_scope=0"
+
+		self.connect()
+		cur = self.conn.cursor()
+		cur.execute(query)
+		for request in cur.fetchall():
+			req = Request(
+				request['type'], request['method'], request['url'], referer=request['referer'], data=request['data'],
+				json_cookies=request['cookies'], db_id=request['id'], parent_db_id=request['id_parent']
+			)
+			requests.append(req)
+		self.close()
+
+		return requests
 
 
 _CREATE_CRAWL_INFO_TABLE_QUERY = """
