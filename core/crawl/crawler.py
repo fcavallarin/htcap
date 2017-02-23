@@ -661,7 +661,7 @@ Options:
 
 		database = Database(file_name)
 
-		if not os.path.exists(file_name):
+		if not os.path.exists(file_name) or (os.path.exists(file_name) and os.path.getsize(file_name) <= 0):
 			database.initialize()
 
 		return database
