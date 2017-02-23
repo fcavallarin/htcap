@@ -224,8 +224,6 @@ class Database:
 		cur = self.conn.cursor()
 		cur.execute(qry, values)
 
-
-
 	def get_requests(self, types="xhr"):
 		"""
 		return a list of request matching the given types

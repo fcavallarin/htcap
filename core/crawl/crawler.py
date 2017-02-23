@@ -661,7 +661,7 @@ Options:
 
 		database = Database(file_name)
 
-		if output_mode not in (CRAWLOUTPUT_RESUME, CRAWLOUTPUT_COMPLETE) or not os.path.exists(file_name):
+		if not os.path.exists(file_name):
 			database.initialize()
 
 		return database
