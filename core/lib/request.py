@@ -226,7 +226,8 @@ class Request(object):
 			data = remove_tokens(data)
 			odata = remove_tokens(odata)
 
-		return (self.method, self.url, self.http_auth, data) == (other.method, other.url, other.http_auth, odata)
+		return (self.method, self.url, self.type, self.http_auth, data) == (
+			other.method, other.url, other.type, other.http_auth, odata)
 
 
 
