@@ -18,26 +18,33 @@ class CrawlerTest(unittest.TestCase):
 
 	@patch('core.crawl.crawler.Database')
 	@patch('core.crawl.crawler.os.path.exists', return_value=True)
+	@patch('core.crawl.crawler.os.path.getsize', return_value=0)
 	@patch('core.crawl.crawler.os.remove')
 	def test__get_database_overwrite_outfile(
 			self,
 			os_remove_mock,
+			os_path_getsize_mock,
 			os_path_exists_mock,
 			database_mock):
 		db = Crawler._get_database('my_out_file', CRAWLOUTPUT_OVERWRITE)
 
-		os_path_exists_mock.assert_called_once_with('my_out_file')
+		os_path_getsize_mock.assert_called_with('my_out_file')
+		os_path_exists_mock.assert_called_with('my_out_file')
+		self.assertEqual(os_path_exists_mock.call_count, 3)
 		os_remove_mock.assert_called_once_with('my_out_file')
 		database_mock.assert_called_once_with('my_out_file')
 		db.initialize.assert_called_once()
 
 	@patch('core.crawl.crawler.Database')
 	@patch('core.crawl.crawler.os.path.exists', return_value=True)
-	def test__get_database_complete_outfile(self, os_path_exists_mock, database_mock):
+	@patch('core.crawl.crawler.os.path.getsize', return_value=2)
+	def test__get_database_complete_outfile(self, os_path_getsize_mock, os_path_exists_mock, database_mock):
 		db = Crawler._get_database('my_out_file', CRAWLOUTPUT_COMPLETE)
 
 		database_mock.assert_called_once_with('my_out_file')
-		os_path_exists_mock.assert_called_once_with('my_out_file')
+		os_path_getsize_mock.assert_called_with('my_out_file')
+		os_path_exists_mock.assert_called_with('my_out_file')
+		self.assertEqual(os_path_exists_mock.call_count, 2)
 		self.assertEqual(db.initialize.call_count, 0)
 
 	@patch('core.crawl.crawler.Database')
