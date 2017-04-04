@@ -15,6 +15,11 @@ version.
 	is inserted into page window scope (only its instance is referred by window.__PROBE__)
 */
 function initProbe(options, inputValues, userEvents){
+	/**
+	 * Name for the message corresponding of the event to trigger the schedule of the next event in queue
+	 * @type {string}
+	 */
+	var scheduleNextEventMessageName = "schedule-next-event-for-trigger";
 
 	function Probe(options, inputValues, userEvents){
 		var _this = this;
@@ -28,6 +33,14 @@ function initProbe(options, inputValues, userEvents){
 		this.winOpen = [];
 		this.resources = [];
 		this.eventsMap = [];
+
+		/**
+		 * the queue containing all the awaiting events to be triggered
+		 * @type {Array}
+		 * @private
+		 */
+		this._toBeTriggeredEventsQueue = [];
+		window.addEventListener("message", this._triggerEventFromQueueHandler.bind(this), true);
 
 		this.triggeredEvents = [];
 		this.websockets = [];
@@ -539,33 +552,74 @@ function initProbe(options, inputValues, userEvents){
 	};
 
 
-	Probe.prototype.trigger = function(el,evname){
+	Probe.prototype.trigger = function (element, eventName) {
 		/* 	workaround for a phantomjs bug on linux (so maybe not a phantom bug but some linux libs??).
-			if you trigger click on input type=color evertything freezes... maybe due to some
+		 if you trigger click on input type=color everything freezes... maybe due to some
 			color picker that pops up ...
 		*/
-		if (el.tagName === "INPUT" && el.type.toLowerCase() === 'color' && evname === 'click') {
+		if (element.tagName === "INPUT" && element.type.toLowerCase() === 'color' && eventName === 'click') {
 			return;
 		}
 
-		var ueRet = this.triggerUserEvent("onTriggerEvent", [el, evname]);
-		if(ueRet === false) return;
-
-
-		if ('createEvent' in document) {
-			var evt = document.createEvent('HTMLEvents');
-			evt.initEvent(evname, true, false);
-			el.dispatchEvent(evt);
-		} else {
-			evname = 'on' + evname;
-			if (evname in el && typeof el[evname] === "function") {
-				el[evname]();
-			}
-		}
-
-		this.triggerUserEvent("onEventTriggered", [el, evname])
+		this._triggerEventWhenReady(element, eventName);
 	};
 
+	/**
+	 * Place the given event in a queue and trigger it when the event loop is empty/ready
+	 * more info on {@link https://developer.mozilla.org/en-US/docs/Web/JavaScript/EventLoop MDN}
+	 * @private
+	 * @param {Element} element - element on which the event have to be triggered
+	 * @param {String} eventName - name of the event to trigger
+	 */
+	Probe.prototype._triggerEventWhenReady = function (element, eventName) {
+
+		this._toBeTriggeredEventsQueue.push([element, eventName]);
+
+		window.postMessage(scheduleNextEventMessageName, "*");
+
+	};
+
+	/**
+	 * Trigger the first event in the `_toBeTriggeredEventsQueue`
+	 * @private
+	 */
+	Probe.prototype._triggerEventFromQueue = function () {
+
+		if (this._toBeTriggeredEventsQueue.length > 0) {
+			var event = this._toBeTriggeredEventsQueue.shift();
+			var ueRet = this.triggerUserEvent("onTriggerEvent", event);
+			if (ueRet !== false) {
+				var element = event[0], eventName = event[1];
+				if ('createEvent' in document) {
+					var evt = document.createEvent('HTMLEvents');
+					evt.initEvent(eventName, true, false);
+					element.dispatchEvent(evt);
+				} else {
+					eventName = 'on' + eventName;
+					if (eventName in element && typeof element[eventName] === "function") {
+						element[eventName]();
+					}
+				}
+
+				this.triggerUserEvent("onEventTriggered", event);
+			}
+
+			window.postMessage(scheduleNextEventMessageName, "*");
+
+		}
+	};
+	/**
+	 * callback for the eventMessage listener
+	 * @param message - the eventMessage triggered
+	 * @private
+	 */
+	Probe.prototype._triggerEventFromQueueHandler = function (message) {
+		// if it's our message
+		if (message.source === window && message.data === scheduleNextEventMessageName) {
+			message.stopPropagation();
+			this._triggerEventFromQueue();
+		}
+	};
 
 
 	Probe.prototype.isEventTriggerable = function(event){
@@ -836,15 +890,14 @@ function initProbe(options, inputValues, userEvents){
 
 		var threadId = window.lastThreadId++;
 
-
 		if (elements.length === 0) {
 			if (typeof callback === 'function') callback();
 			return;
 		}
 
 
-		//console.log(threadId + " layer: "+counter+" initializzing " + _this.describeElement(rootNode))
-		// map propety events and fill input values
+		//console.log(threadId + " layer: "+counter+" initializing " + _this.describeElement(rootNode))
+		// map property events and fill input values
 		this.initializeElement(rootNode);
 
 		if(options.searchUrls){
