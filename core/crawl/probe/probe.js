@@ -66,18 +66,17 @@ function initProbe(options, inputValues, userEvents){
 			} catch(e){}  // @
 		}
 
-	};
-
+	}
 
 	Probe.prototype.objectInArray  = function(arr, el, ignoreProperties){
 		ignoreProperties = ignoreProperties || [];
-		if(arr.length == 0) return false;
-		if(typeof arr[0] != 'object')
+		if (arr.length === 0) return false;
+		if (typeof arr[0] !== 'object')
 			return arr.indexOf(el) > -1;
 		for(var a = 0 ;a < arr.length; a++){
 			var found = true;
 			for(var k in arr[a]){
-				if(arr[a][k] != el[k] && ignoreProperties.indexOf(k) == -1){
+				if (arr[a][k] !== el[k] && ignoreProperties.indexOf(k) === -1) {
 					found = false;
 				}
 			}
@@ -101,13 +100,13 @@ function initProbe(options, inputValues, userEvents){
 	Probe.prototype.compareObjects = function(obj1, obj2){
 		var p;
 		for(p in obj1)
-			if(obj1[p] != obj2[p]) return false;
+			if (obj1[p] !== obj2[p]) return false;
 
 		for(p in obj2)
-			if(obj2[p] != obj1[p]) return false;
+			if (obj2[p] !== obj1[p]) return false;
 
 		return true;
-	}
+	};
 
 
 	/*
@@ -133,7 +132,7 @@ function initProbe(options, inputValues, userEvents){
 		var pars = anchor.search.substr(1).split(/(?:&amp;|&)+/);
 
 		for(var a = pars.length - 1; a >= 0; a--){
-			if(pars[a].split("=")[0] == par)
+			if (pars[a].split("=")[0] === par)
 				pars.splice(a,1);
 		}
 
@@ -154,7 +153,7 @@ function initProbe(options, inputValues, userEvents){
 		var p = child.parentNode;
 		var depth = 1;
 		while(p){
-			if(p == parent){
+			if (p === parent) {
 				return depth;
 			}
 			p = p.parentNode;
@@ -162,25 +161,25 @@ function initProbe(options, inputValues, userEvents){
 		}
 
 		return -1;
-	}
+	};
 
 
 	// do NOT use MutationObserver to get added elements .. it is asynchronous and the callback is fired only when DOM is refreshed (graphically)
 	Probe.prototype.takeDOMSnapshot = function(){
 		this.DOMSnapshot = Array.prototype.slice.call( document.getElementsByTagName("*"), 0 );
-	}
+	};
 
 
 	Probe.prototype.getAddedElements = function(){
-		var elements = []
-		var rootElements = []
+		var elements = [];
+		var rootElements = [];
 		var ueRet = null;
 		var newDom = Array.prototype.slice.call( document.getElementsByTagName("*"), 0 );
 
 		console.log('get added elements start dom len: ' + this.DOMSnapshot.length + ' new dom len: ' + newDom.length);
 		// get all added elements
 		for(var a = 0;a < newDom.length;a++){
-			if(this.DOMSnapshot.indexOf(newDom[a]) == -1) {
+			if (this.DOMSnapshot.indexOf(newDom[a]) === -1) {
 				// set __new flag on added elements to avoid checking for elments.indexOf
 				// that is very very slow
 				newDom[a].__new = true;
@@ -188,7 +187,7 @@ function initProbe(options, inputValues, userEvents){
 			}
 		}
 
-		console.log("elements get... (tot "+elements.length+") searching for root nodes")
+		console.log("elements get... (tot " + elements.length + ") searching for root nodes");
 
 		for(var a = 0; a < elements.length; a++){
 			var p = elements[a];
@@ -201,7 +200,7 @@ function initProbe(options, inputValues, userEvents){
 				}
 				p = p.parentNode;
 			}
-			if(root && rootElements.indexOf(root) == -1){
+			if (root && rootElements.indexOf(root) === -1) {
 				rootElements.push(root);
 			}
 		}
@@ -216,7 +215,7 @@ function initProbe(options, inputValues, userEvents){
 
 		console.log("root elements found: " + rootElements.length);
 		return rootElements;
-	}
+	};
 
 
 
@@ -226,7 +225,7 @@ function initProbe(options, inputValues, userEvents){
 		var out = [];
 		var children = node.querySelectorAll(":scope > *");
 
-		if(children.length == 0){
+		if (children.length === 0) {
 			return out;
 		}
 
@@ -238,7 +237,7 @@ function initProbe(options, inputValues, userEvents){
 		}
 
 		return out;
-	}
+	};
 
 
 
@@ -254,11 +253,11 @@ function initProbe(options, inputValues, userEvents){
 
 		//this.username = null; // todo
 		//this.password = null;
-	}
+	};
 
 	// returns a unique string represntation of the request. used for comparision
 	Probe.prototype.Request.prototype.key = function(){
-		var key = "" + this.type + this.method + this.url + (this.data ? this.data : "") + (this.trigger ? this.trigger : "")
+		var key = "" + this.type + this.method + this.url + (this.data ? this.data : "") + (this.trigger ? this.trigger : "");
 		return key;
 	};
 
@@ -274,7 +273,7 @@ function initProbe(options, inputValues, userEvents){
 		if(req.trigger) obj.trigger = {element: this.describeElement(req.trigger.element), event:req.trigger.event};
 
 		return JSON.stringify(obj);
-	}
+	};
 
 
 
@@ -282,33 +281,33 @@ function initProbe(options, inputValues, userEvents){
 
 	Probe.prototype.print = function(str){
 		window.__callPhantom({cmd:'print', argument: str});
-	}
+	};
 
 	Probe.prototype.log = function(str){
 		window.__callPhantom({cmd:'log', argument: str});
-	}
+	};
 
 	Probe.prototype.render = function(file){
 		return window.__callPhantom({cmd:'render', argument: file});
-	}
+	};
 
 	Probe.prototype.fread = function(file){
 		return window.__callPhantom({cmd:'fread', file: file});
-	}
+	};
 
 	Probe.prototype.fwrite = function(file, content, mode){
 		return window.__callPhantom({cmd:'fwrite', file: file, content:content, mode:mode || 'w'});
-	}
+	};
 
 	Probe.prototype.printRequest = function(req){
 		var k = req.key();
-		if(this.printedRequests.indexOf(k) == -1){
+		if (this.printedRequests.indexOf(k) === -1) {
 			//var trigger = this.describeElement(this.curElement.element) + "." + this.curElement.event + "()";
 			var json = '["request",' + this.requestToJson(req) + "],";
 			this.print(json);
 			this.printedRequests.push(k);
 		}
-	}
+	};
 
 	Probe.prototype.printRequestQueue = function(){
 
@@ -316,10 +315,10 @@ function initProbe(options, inputValues, userEvents){
 			this.printRequest(this.requestsPrintQueue[a]);
 		}
 		this.requestsPrintQueue = [];
-	}
+	};
 
 	Probe.prototype.printJSONP = function(node){
-		if(node.nodeName.toLowerCase() != "script") return;
+		if (node.nodeName.toLowerCase() !== "script") return;
 		var src = node.getAttribute("src");
 		if(!src) return;
 
@@ -373,7 +372,7 @@ function initProbe(options, inputValues, userEvents){
 
 	Probe.prototype.addRequestToPrintQueue = function(req){
 		this.requestsPrintQueue.push(req);
-	}
+	};
 
 
 
@@ -381,20 +380,20 @@ function initProbe(options, inputValues, userEvents){
 		var alldone = true;
 		for(var a = 0; a < xhrs.length; a++){
 			//console.log("-->"+xhrs[a].readyState + " "+ xhrs[a].__request.url)
-			if(xhrs[a].readyState != 4 && ! xhrs[a].__skipped) alldone = false;
+			if (xhrs[a].readyState !== 4 && !xhrs[a].__skipped) alldone = false;
 		}
 		//if(alldone)
 		//	console.log("-----------------> alla ajax completed")
 		return alldone;
-	}
+	};
 
 	Probe.prototype.waitAjax = function(callback, chainLimit){
 		var _this = this;
 		var xhrs = this.pendingAjax.slice();
 		this.pendingAjax = [];
 		var timeout = this.options.ajaxTimeout;
-		var chainLimit = typeof chainLimit != 'undefined' ? chainLimit : this.options.maximumAjaxChain;
-		console.log("Waiting for ajaxs: "+chainLimit)
+		var chainLimit = typeof chainLimit !== 'undefined' ? chainLimit : this.options.maximumAjaxChain;
+		console.log("Waiting for ajaxs: " + chainLimit);
 		var t = setInterval(function(){
 			if((timeout <= 0) || _this.isAjaxCompleted(xhrs)){
 				clearInterval(t);
@@ -409,9 +408,9 @@ function initProbe(options, inputValues, userEvents){
 			}
 			timeout -= 10;
 		}, 0);
-		console.log("Wait ajax return, "+chainLimit)
+		console.log("Wait ajax return, " + chainLimit);
 		return xhrs.length > 0;
-	}
+	};
 
 
 
@@ -433,7 +432,7 @@ function initProbe(options, inputValues, userEvents){
 				}
 			}
 			return ret;
-		}
+		};
 
 		// needed for example by angularjs
 		var triggerChange =  function(){
@@ -443,15 +442,15 @@ function initProbe(options, inputValues, userEvents){
 			// _this.trigger(el, 'blur');
 			// _this.trigger(el, 'keyup');
 			// _this.trigger(el, 'keydown');
-		}
+		};
 
-		if(el.nodeName.toLowerCase() == 'textarea'){
+		if (el.nodeName.toLowerCase() === 'textarea') {
 			el.value = setv(el.name);
 			triggerChange();
 			return true;
 		}
 
-		if(el.nodeName.toLowerCase() == 'select'){
+		if (el.nodeName.toLowerCase() === 'select') {
 			var opts = el.getElementsByTagName('option');
 			if(opts.length > 1){ // avoid to set the first (already selected) options
 				// @TODO .. qui seleziono l'ultimo val.. ma devo controllare che non fosse "selected"
@@ -545,7 +544,7 @@ function initProbe(options, inputValues, userEvents){
 			if you trigger click on input type=color evertything freezes... maybe due to some
 			color picker that pops up ...
 		*/
-		if(el.tagName == "INPUT" && el.type.toLowerCase()=='color' && evname=='click'){
+		if (el.tagName === "INPUT" && el.type.toLowerCase() === 'color' && evname === 'click') {
 			return;
 		}
 
@@ -559,7 +558,7 @@ function initProbe(options, inputValues, userEvents){
 			el.dispatchEvent(evt);
 		} else {
 			evname = 'on' + evname;
-			if( evname in el && typeof el[evname] == "function"){
+			if (evname in el && typeof el[evname] === "function") {
 				el[evname]();
 			}
 		}
@@ -571,7 +570,7 @@ function initProbe(options, inputValues, userEvents){
 
 	Probe.prototype.isEventTriggerable = function(event){
 
-		return ['load','unload','beforeunload'].indexOf(event) == -1;
+		return ['load', 'unload', 'beforeunload'].indexOf(event) === -1;
 
 	};
 
@@ -582,7 +581,7 @@ function initProbe(options, inputValues, userEvents){
 		if(this.options.triggerAllMappedEvents){
 			map = this.eventsMap;
 			for(var a = 0; a < map.length; a++){
-				if(map[a].element == element){
+				if (map[a].element === element) {
 					events = map[a].events.slice();
 					break;
 				}
@@ -619,7 +618,7 @@ function initProbe(options, inputValues, userEvents){
 
 		this.curElement = {};
 
-	}
+	};
 
 
 
@@ -641,18 +640,18 @@ function initProbe(options, inputValues, userEvents){
 	Probe.prototype.describeElement = function(el){
 		if(!el)
 			return "[]";
-		var tagName = (el == document ? "DOCUMENT" : (el == window ? "WINDOW" :el.tagName));
+		var tagName = (el === document ? "DOCUMENT" : (el === window ? "WINDOW" : el.tagName));
 		var text = null;
 		if(el.textContent){
-			text =  el.textContent.trim().replace(/\s/," ").substring(0,10)
+			text = el.textContent.trim().replace(/\s/, " ").substring(0, 10);
 			if(text.indexOf(" ") > -1) text = "'" + text + "'";
 		}
 
 
-		var className = el.className ? (el.className.indexOf(" ") != -1 ? "'" + el.className + "'" : el.className) : "";
+		var className = el.className ? (el.className.indexOf(" ") !== -1 ? "'" + el.className + "'" : el.className) : "";
 		var descr = "[" +
 				(tagName ? tagName +  " " : "") +
-				(el.name && typeof el.name == 'string' ? el.name + " " : "") +
+			(el.name && typeof el.name === 'string' ? el.name + " " : "") +
 				(className ? "." + className + " " : "")+
 				(el.id ? "#" + el.id + " " : "") +
 				(el.src ? "src=" + el.src + " " : "") +
@@ -687,7 +686,7 @@ function initProbe(options, inputValues, userEvents){
 		if(options.fillValues){
 			this.fillInputValues(element);
 		}
-	}
+	};
 
 
 
@@ -696,11 +695,11 @@ function initProbe(options, inputValues, userEvents){
 		var links = element.getElementsByTagName("a");
 		var forms = element.getElementsByTagName("form");
 
-		if(element.tagName == "A"){
+		if (element.tagName === "A") {
 			links = Array.prototype.slice.call(links, 0).concat(element);
 		}
 
-		if(element.tagName == "FORM"){
+		if (element.tagName === "FORM") {
 			forms = Array.prototype.slice.call(forms, 0).concat(element);
 		}
 
@@ -739,7 +738,7 @@ function initProbe(options, inputValues, userEvents){
 		for(var a = 0; a < inputs.length; a++){
 			if(!inputs[a].name) continue;
 			par = encodeURIComponent(inputs[a].name) + "=" + encodeURIComponent(inputs[a].value);
-			if(inputs[a].tagName == "INPUT" && inputs[a].type != null){
+			if (inputs[a].tagName === "INPUT" && inputs[a].type !== null) {
 
 				switch(inputs[a].type.toLowerCase()){
 					case "button":
@@ -761,7 +760,7 @@ function initProbe(options, inputValues, userEvents){
 
 		formObj.data = formObj.data.join("&");
 
-		if(formObj.method == "GET"){
+		if (formObj.method === "GET") {
 			var url = this.replaceUrlQuery(formObj.url, formObj.data);
 			req = new this.Request("form", "GET", url);
 		} else {
@@ -778,7 +777,7 @@ function initProbe(options, inputValues, userEvents){
 	Probe.prototype.addEventToMap = function(element, event){
 
 		for(var a = 0; a < this.eventsMap.length; a++){
-			if(this.eventsMap[a].element == element){
+			if (this.eventsMap[a].element === element) {
 				this.eventsMap[a].events.push(event);
 				return;
 			}
@@ -791,7 +790,7 @@ function initProbe(options, inputValues, userEvents){
 
 
 	Probe.prototype.addUserEvent = function(name, fnc){
-		if(!(name in this.userEvents) || typeof fnc != 'function'){
+		if (!(name in this.userEvents) || typeof fnc !== 'function') {
 			return false;
 		}
 		this.userEvents[name].push(fnc);
@@ -802,7 +801,7 @@ function initProbe(options, inputValues, userEvents){
 
 	Probe.prototype.triggerUserEvent = function(name, params){
 		params = params || [];
-		if(!(name in this.userEvents) || typeof this.userEvents[name] != 'function'){
+		if (!(name in this.userEvents) || typeof this.userEvents[name] !== 'function') {
 			return true;
 		}
 		params.splice(0, 0, this.userInterface);
@@ -824,7 +823,7 @@ function initProbe(options, inputValues, userEvents){
 	window.lastThreadId = 0;
 	Probe.prototype.analyzeDOM = function(rootNode, counter, callback){
 		var _this = this;
-		var elements = [rootNode == document ? document.documentElement : rootNode].concat(this.getDOMTreeAsArray(rootNode));
+		var elements = [rootNode === document ? document.documentElement : rootNode].concat(this.getDOMTreeAsArray(rootNode));
 
 		var index = 0, lastIndex = -1;
 		var ajaxCompleted = false;
@@ -838,8 +837,8 @@ function initProbe(options, inputValues, userEvents){
 		var threadId = window.lastThreadId++;
 
 
-		if(elements.length == 0){
-			if(typeof callback == 'function') callback();
+		if (elements.length === 0) {
+			if (typeof callback === 'function') callback();
 			return;
 		}
 
@@ -917,7 +916,7 @@ function initProbe(options, inputValues, userEvents){
 					if(!recursionReturned) return;
 					recursionReturned = false;
 
-					if(meIndex == me.length - 1){
+					if (meIndex === me.length - 1) {
 						waitingRecursion = false;
 					} else {
 						meIndex++;
@@ -927,10 +926,10 @@ function initProbe(options, inputValues, userEvents){
 				}
 
 
-				if(index == elements.length - 1){
+				if (index === elements.length - 1) {
 					clearInterval(to);
 					//console.log("-------END")
-					if(typeof callback == 'function') callback();
+					if (typeof callback === 'function') callback();
 					return;
 				}
 
@@ -944,4 +943,4 @@ function initProbe(options, inputValues, userEvents){
 
 
 	window.__PROBE__ = new Probe(options, inputValues, userEvents);
-};
+}
