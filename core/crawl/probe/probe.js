@@ -15,6 +15,7 @@ version.
 	is inserted into page window scope (only its instance is referred by window.__PROBE__)
 */
 function initProbe(options, inputValues, userEvents){
+
 	/**
 	 * Name for the message corresponding of the event to trigger the schedule of the next event in queue
 	 * @type {string}
@@ -40,6 +41,9 @@ function initProbe(options, inputValues, userEvents){
 		 * @private
 		 */
 		this._toBeTriggeredEventsQueue = [];
+		this.isEventWaitingForTriggering = false;
+		this.isEventRunningFromTriggering = false;
+		// listening for messageEvent to trigger waiting events
 		window.addEventListener("message", this._triggerEventFromQueueHandler.bind(this), true);
 
 		this.triggeredEvents = [];
@@ -560,7 +564,9 @@ function initProbe(options, inputValues, userEvents){
 		if (element.tagName === "INPUT" && element.type.toLowerCase() === 'color' && eventName === 'click') {
 			return;
 		}
-
+		// trigger the given event only when there is some space in the event stack to avoid collision
+		// and give time to thing to resolve properly (since we trigger user driven event,
+		// it is important to give time to the analysed page to breath between calls)
 		this._triggerEventWhenReady(element, eventName);
 	};
 
@@ -574,6 +580,7 @@ function initProbe(options, inputValues, userEvents){
 	Probe.prototype._triggerEventWhenReady = function (element, eventName) {
 
 		this._toBeTriggeredEventsQueue.push([element, eventName]);
+		this.isEventWaitingForTriggering = true;
 
 		window.postMessage(scheduleNextEventMessageName, "*");
 
@@ -603,9 +610,18 @@ function initProbe(options, inputValues, userEvents){
 
 				this.triggerUserEvent("onEventTriggered", event);
 			}
+			// pushing the next event to the next event loop
+			setTimeout(function () {
+					this.isEventRunningFromTriggering = false;
 
-			window.postMessage(scheduleNextEventMessageName, "*");
+					window.postMessage(scheduleNextEventMessageName, "*");
+				}.bind(this)
+			);
 
+		} else {
+			// nothing left to do, turning flags off
+			this.isEventWaitingForTriggering = false;
+			this.isEventRunningFromTriggering = false;
 		}
 	};
 	/**
@@ -617,7 +633,11 @@ function initProbe(options, inputValues, userEvents){
 		// if it's our message
 		if (message.source === window && message.data === scheduleNextEventMessageName) {
 			message.stopPropagation();
-			this._triggerEventFromQueue();
+			// if there's not currently running events
+			if (!this.isEventRunningFromTriggering) {
+				this.isEventRunningFromTriggering = true;
+				this._triggerEventFromQueue();
+			}
 		}
 	};
 
@@ -909,8 +929,9 @@ function initProbe(options, inputValues, userEvents){
 		var to = setInterval(function(){
 			//console.log(threadId+" waitingRecursion: "+waitingRecursion+" ajaxCompleted: "+ajaxCompleted+ " recursionReturned:"+recursionReturned)
 
-			if(lastIndex < index && !waitingRecursion){
-				//console.log(threadId + " analysing "+_this.describeElement(elements[index]))
+			// if there is still works to be done and nothing is waiting
+			if (lastIndex < index && !waitingRecursion && !_this.isEventWaitingForTriggering) {
+				// console.log(threadId + " analysing " + _this.describeElement(elements[index]))
 
 				/*
 					here the element may have been detached, moved,  ecc
@@ -933,7 +954,8 @@ function initProbe(options, inputValues, userEvents){
 				lastIndex = index;
 			}
 
-			if(ajaxCompleted || waitingRecursion){
+			// if no event is waiting or running and there is ajax completed or we wait for recursion
+			if (!_this.isEventWaitingForTriggering && !_this.isEventRunningFromTriggering && (ajaxCompleted || waitingRecursion)) {
 
 				if(ajaxCompleted){
 					ajaxCompleted = false;
@@ -980,9 +1002,13 @@ function initProbe(options, inputValues, userEvents){
 
 
 				if (index === elements.length - 1) {
-					clearInterval(to);
-					//console.log("-------END")
-					if (typeof callback === 'function') callback();
+
+					// setting the "finish" step to the next event loop to leave some time to the last process/event to finish
+					setTimeout(function () {
+						clearInterval(to);
+						// console.log("-------END");
+						if (typeof callback === 'function') callback();
+					});
 					return;
 				}
 
