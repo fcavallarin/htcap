@@ -392,12 +392,11 @@ function initProbe(options, inputValues, userEvents){
 	};
 
 
-
-	Probe.prototype.isAjaxCompleted = function(xhrs){
+	Probe.prototype.isAjaxCompleted = function (xhrList) {
 		var alldone = true;
-		for(var a = 0; a < xhrs.length; a++){
-			//console.log("-->"+xhrs[a].readyState + " "+ xhrs[a].__request.url)
-			if (xhrs[a].readyState !== 4 && !xhrs[a].__skipped) alldone = false;
+		for (var a = 0; a < xhrList.length; a++) {
+			//console.log("-->"+xhrList[a].readyState + " "+ xhrList[a].__request.url)
+			if (xhrList[a].readyState !== 4 && !xhrList[a].__skipped) alldone = false;
 		}
 		//if(alldone)
 		//	console.log("-----------------> alla ajax completed")
@@ -406,27 +405,27 @@ function initProbe(options, inputValues, userEvents){
 
 	Probe.prototype.waitAjax = function(callback, chainLimit){
 		var _this = this;
-		var xhrs = this.pendingAjax.slice();
+		var xhrList = this.pendingAjax.slice();
 		this.pendingAjax = [];
 		var timeout = this.options.ajaxTimeout;
 		var chainLimit = typeof chainLimit !== 'undefined' ? chainLimit : this.options.maximumAjaxChain;
 		console.log("Waiting for ajaxs: " + chainLimit);
 		var t = setInterval(function(){
-			if((timeout <= 0) || _this.isAjaxCompleted(xhrs)){
+			if ((timeout <= 0) || _this.isAjaxCompleted(xhrList)) {
 				clearInterval(t);
 				setTimeout(function(){
 					if(chainLimit > 0 && _this.pendingAjax.length > 0){
 						_this.waitAjax(callback, chainLimit - 1);
 					} else {
-						callback(xhrs.length > 0);
+						callback(xhrList.length > 0);
 					}
-				}, 100, true);
+				}, 100);
 				return;
 			}
 			timeout -= 10;
 		}, 0);
 		console.log("Wait ajax return, " + chainLimit);
-		return xhrs.length > 0;
+		return xhrList.length > 0;
 	};
 
 
@@ -900,13 +899,13 @@ function initProbe(options, inputValues, userEvents){
 		var elements = [rootNode === document ? document.documentElement : rootNode].concat(this.getDOMTreeAsArray(rootNode));
 
 		var index = 0, lastIndex = -1;
-		var ajaxCompleted = false;
-		var recursionReturned = false;
-		var waitingRecursion = false;
+		var isAjaxCompleted = false;
+		var isAjaxTriggered = true;
+		var hasXHRs = false;
+		var isRecursionReturned = false;
+		var isWaitingRecursion = false;
 		var me = [];
 		var meIndex = 0, lastMeIndex = -1;
-		var xhrs = false;
-		var ajaxTriggered = true;
 
 		var threadId = window.lastThreadId++;
 
@@ -927,10 +926,9 @@ function initProbe(options, inputValues, userEvents){
 
 
 		var to = setInterval(function(){
-			//console.log(threadId+" waitingRecursion: "+waitingRecursion+" ajaxCompleted: "+ajaxCompleted+ " recursionReturned:"+recursionReturned)
-
+			//console.log(threadId+" isWaitingRecursion: "+isWaitingRecursion+" isAjaxCompleted: "+isAjaxCompleted+ " isRecursionReturned:"+isRecursionReturned)
 			// if there is still works to be done and nothing is waiting
-			if (lastIndex < index && !waitingRecursion && !_this.isEventWaitingForTriggering) {
+			if (lastIndex < index && !isWaitingRecursion && !_this.isEventWaitingForTriggering) {
 				// console.log(threadId + " analysing " + _this.describeElement(elements[index]))
 
 				/*
@@ -944,55 +942,60 @@ function initProbe(options, inputValues, userEvents){
 				}
 
 				if(_this.pendingAjax.length > 0){
-					xhrs = _this.waitAjax(function(){ajaxCompleted = true; ajaxTriggered = true});
+					hasXHRs = _this.waitAjax(function () {
+						isAjaxCompleted = true;
+						isAjaxTriggered = true;
+					});
 				} else {
-					xhrs = false;
-					ajaxCompleted = true;
-					ajaxTriggered = false;
+					hasXHRs = false;
+					isAjaxCompleted = true;
+					isAjaxTriggered = false;
 				}
 
 				lastIndex = index;
 			}
 
 			// if no event is waiting or running and there is ajax completed or we wait for recursion
-			if (!_this.isEventWaitingForTriggering && !_this.isEventRunningFromTriggering && (ajaxCompleted || waitingRecursion)) {
+			if (!_this.isEventWaitingForTriggering && !_this.isEventRunningFromTriggering && (isAjaxCompleted || isWaitingRecursion)) {
 
-				if(ajaxCompleted){
-					ajaxCompleted = false;
+				if (isAjaxCompleted) {
+					isAjaxCompleted = false;
 
 					_this.printRequestQueue();
-					if(ajaxTriggered){
+					if (isAjaxTriggered) {
 						_this.triggerUserEvent("onAllXhrsCompleted");
 					}
 
 					if(counter < _this.options.maximumRecursion){
 						// getAddedElement is slow and can take time if the DOM is big (~25000 nodes)
 						// so use it only if ajax
-						me = ajaxTriggered ? _this.getAddedElements() : [];
+						me = isAjaxTriggered ? _this.getAddedElements() : [];
 
 						meIndex = 0;
 						lastMeIndex = -1;
 						// if ajax has been triggered and some elements are modified then recurse thru modified elements
-						waitingRecursion = (me.length > 0 && xhrs);
+						isWaitingRecursion = (me.length > 0 && hasXHRs);
 
 					} else {
 						console.log(">>>>RECURSON LIMIT REACHED :" + counter);
 					}
 				}
 
-				if(waitingRecursion){
+				if (isWaitingRecursion) {
 
 					if(lastMeIndex < meIndex){
 						//console.log(threadId + " added " + _this.describeElement(me[meIndex]))
-						_this.analyzeDOM(me[meIndex], counter + 1, function(){recursionReturned = true});
+						_this.analyzeDOM(me[meIndex], counter + 1, function () {
+							isRecursionReturned = true;
+						});
 						lastMeIndex = meIndex;
 					}
 
-					if(!recursionReturned) return;
-					recursionReturned = false;
+					if (!isRecursionReturned) return;
+					isRecursionReturned = false;
 
 					if (meIndex === me.length - 1) {
-						waitingRecursion = false;
+						isWaitingRecursion = false;
 					} else {
 						meIndex++;
 						return;
