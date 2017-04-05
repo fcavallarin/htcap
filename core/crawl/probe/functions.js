@@ -225,24 +225,23 @@ function parseArgsToOptions(args){
 	}
 };
 
-function onNavigationRequested(url, type, willNavigate, main) {
+function onNavigationRequested(url, type) {
 
-	// @todo: detection on window.location is broken .. it fals on multiple calls
-	if(page.navigationLocked == true){
-		page.evaluate(function(url, type, main){
-			if(type == "LinkClicked")
+	if (page.navigationLocked === true) {
+		page.evaluate(function (url, type) {
+			if (type === "LinkClicked")
 				return;
 
-			if(type == 'Other' && main == false){
+			if (type === 'Other') {
 				window.__PROBE__.printLink(url);
 			}
 
-		},url, type, main);
+		}, url, type);
 	}
 
 
 	// allow the navigation if only the hash is changed
-	if(page.navigationLocked == true && compareUrls(url, site)){
+	if (page.navigationLocked === true && compareUrls(url, site)) {
 		page.navigationLocked = false;
 		page.evaluate(function(url){
 			document.location.href=url;
