@@ -232,7 +232,7 @@ function onNavigationRequested(url, type) {
 			if (type === "LinkClicked")
 				return;
 
-			if (type === 'Other') {
+			if (type === 'Other' && url !== "about:blank") {
 				window.__PROBE__.printLink(url);
 			}
 

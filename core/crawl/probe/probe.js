@@ -14,7 +14,7 @@ version.
 	this function is passed to page.evaluate. doing so it is possible to avoid that the Probe object
 	is inserted into page window scope (only its instance is referred by window.__PROBE__)
 */
-function initProbe(options, inputValues, userEvents){
+function initProbe(options, inputValues, userCustomScript) {
 
 	/**
 	 * Name for the message corresponding of the event to trigger the schedule of the next event in queue
@@ -22,7 +22,7 @@ function initProbe(options, inputValues, userEvents){
 	 */
 	var scheduleNextEventMessageName = "schedule-next-event-for-trigger";
 
-	function Probe(options, inputValues, userEvents){
+	function Probe(options, inputValues, userCustomScript) {
 		var _this = this;
 
 		this.options = options;
@@ -77,9 +77,9 @@ function initProbe(options, inputValues, userEvents){
 			}
 		};
 		this.userEvents = {};
-		if(userEvents){
+		if (userCustomScript) {
 			try{
-				eval("this.userEvents=" + userEvents.trim() + ";");
+				eval("this.userEvents=" + userCustomScript.trim() + ";");
 			} catch(e){}  // @
 		}
 
@@ -405,8 +405,8 @@ function initProbe(options, inputValues, userEvents){
 
 	Probe.prototype.waitAjax = function(callback, chainLimit){
 		var _this = this;
-		var xhrList = this.pendingAjax.slice();
-		this.pendingAjax = [];
+		var xhrList = this.pendingAjax.slice();	// get a copy of the pending XHRs
+		this.pendingAjax = []; // clean-up the list
 		var timeout = this.options.ajaxTimeout;
 		var chainLimit = typeof chainLimit !== 'undefined' ? chainLimit : this.options.maximumAjaxChain;
 		console.log("Waiting for ajaxs: " + chainLimit);
@@ -564,7 +564,7 @@ function initProbe(options, inputValues, userEvents){
 			return;
 		}
 		// trigger the given event only when there is some space in the event stack to avoid collision
-		// and give time to thing to resolve properly (since we trigger user driven event,
+		// and give time to things to resolve properly (since we trigger user driven event,
 		// it is important to give time to the analysed page to breath between calls)
 		this._triggerEventWhenReady(element, eventName);
 	};
@@ -592,10 +592,20 @@ function initProbe(options, inputValues, userEvents){
 	Probe.prototype._triggerEventFromQueue = function () {
 
 		if (this._toBeTriggeredEventsQueue.length > 0) {
+
+			// retrieving the next element/event pair
 			var event = this._toBeTriggeredEventsQueue.shift();
+
 			var ueRet = this.triggerUserEvent("onTriggerEvent", event);
+
+
 			if (ueRet !== false) {
 				var element = event[0], eventName = event[1];
+
+				// setting the current element
+				this.curElement = {element: element, event: eventName};
+
+				// Triggering the event
 				if ('createEvent' in document) {
 					var evt = document.createEvent('HTMLEvents');
 					evt.initEvent(eventName, true, false);
@@ -609,11 +619,16 @@ function initProbe(options, inputValues, userEvents){
 
 				this.triggerUserEvent("onEventTriggered", event);
 			}
-			// pushing the next event to the next event loop
-			setTimeout(function () {
-					this.isEventRunningFromTriggering = false;
 
-					window.postMessage(scheduleNextEventMessageName, "*");
+			// pushing the next event to the next event loop
+			window.__originalSetTimeout(function () {
+				this.isEventRunningFromTriggering = false;
+
+				// cleaning the current element
+				this.curElement = {};
+
+				// requesting the next event
+				window.postMessage(scheduleNextEventMessageName, "*");
 				}.bind(this)
 			);
 
@@ -632,7 +647,7 @@ function initProbe(options, inputValues, userEvents){
 		// if it's our message
 		if (message.source === window && message.data === scheduleNextEventMessageName) {
 			message.stopPropagation();
-			// if there's not currently running events
+			// if there's not currently running events (avoiding multiple simultaneous call)
 			if (!this.isEventRunningFromTriggering) {
 				this.isEventRunningFromTriggering = true;
 				this._triggerEventFromQueue();
@@ -682,15 +697,10 @@ function initProbe(options, inputValues, userEvents){
 			if(!this.isEventTriggerable(event) || this.objectInArray(this.triggeredEvents, teObj))
 				continue;
 
-			this.curElement.element = teObj.e;
-			this.curElement.event = teObj.ev;
 			this.triggeredEvents.push(teObj);
 			this.trigger(teObj.e, teObj.ev);
 
 		}
-
-		this.curElement = {};
-
 	};
 
 
@@ -886,142 +896,146 @@ function initProbe(options, inputValues, userEvents){
 	Probe.prototype.startAnalysis = function(){
 
 		console.log("page initialized ");
-		this.analyzeDOM(document, 0, function(){ window.__callPhantom({cmd:'end'}) });
+		this._analyzeDOM(document, 0, function () {
+			window.__callPhantom({cmd: 'end'})
+		});
 
 	};
 
 
+	/**
+	 * analyze the given node DOM
+	 * @param {Node} node - the node to analyze
+	 * @param {number} counter - counter representing the level of recursion
+	 * @param {function=} callback - callback called when finish
+	 * @private
+	 */
+	Probe.prototype._analyzeDOM = function (node, counter, callback) {
 
+		var elements = [node === document ? document.documentElement : node].concat(this.getDOMTreeAsArray(node));
 
-	window.lastThreadId = 0;
-	Probe.prototype.analyzeDOM = function(rootNode, counter, callback){
-		var _this = this;
-		var elements = [rootNode === document ? document.documentElement : rootNode].concat(this.getDOMTreeAsArray(rootNode));
+		var isAjaxCompleted = false,
+			isAjaxTriggered = true,
+			hasXHRs = false,
+			isRecursionReturned = false,
+			isWaitingRecursion = false;
 
-		var index = 0, lastIndex = -1;
-		var isAjaxCompleted = false;
-		var isAjaxTriggered = true;
-		var hasXHRs = false;
-		var isRecursionReturned = false;
-		var isWaitingRecursion = false;
-		var me = [];
-		var meIndex = 0, lastMeIndex = -1;
+		var modifiedElementList = [];
 
-		var threadId = window.lastThreadId++;
-
+		// if no element in the given node
 		if (elements.length === 0) {
 			if (typeof callback === 'function') callback();
 			return;
 		}
 
 
-		//console.log(threadId + " layer: "+counter+" initializing " + _this.describeElement(rootNode))
+		//console.log(counter + " layer: "+counter+" initializing " + this.describeElement(node))
 		// map property events and fill input values
-		this.initializeElement(rootNode);
+		this.initializeElement(node);
 
 		if(options.searchUrls){
-			this.getUrls(rootNode);
+			this.getUrls(node);
 		}
 
 
+		// starting analyse loop
 		var to = window.__originalSetInterval(function () {
-			//console.log(threadId+" isWaitingRecursion: "+isWaitingRecursion+" isAjaxCompleted: "+isAjaxCompleted+ " isRecursionReturned:"+isRecursionReturned)
+			//console.log(counter+" isWaitingRecursion: "+isWaitingRecursion+" isAjaxCompleted: "+isAjaxCompleted+ " isRecursionReturned:"+isRecursionReturned)
+			console.log(counter + "#  elements.length: " + elements.length + "\trecursion: " + isWaitingRecursion + "\treturned: " + isRecursionReturned + "\tajax: " + this.pendingAjax.length + "\tcompleted: " + isAjaxCompleted + "\ttriggered: " + isAjaxTriggered + "\tevents: " + (this.isEventWaitingForTriggering) + " " + ( this.isEventRunningFromTriggering))
+
+
+			// if any event are waiting or running, do nothing
+			if (this.isEventWaitingForTriggering || this.isEventRunningFromTriggering || isWaitingRecursion) return;
+
+
 			// if there is still works to be done and nothing is waiting
-			if (lastIndex < index && !isWaitingRecursion && !_this.isEventWaitingForTriggering) {
-				// console.log(threadId + " analysing " + _this.describeElement(elements[index]))
+			// if(lastIndex < index && !waitingRecursion){
+			if (elements.length > 0) {
+				// console.log(counter + " analysing " + this.describeElement(elements[index]))
 
-				/*
-					here the element may have been detached, moved,  ecc
-					try to find a logic to handle this
-				*/
+				// TODO: here the element may have been detached, moved, etc ; try to find a logic to handle this.
 
-				_this.takeDOMSnapshot();
-				if(_this.options.triggerEvents){
-					_this.triggerElementEvents(elements[index]);
+				this.takeDOMSnapshot();
+
+				if (this.options.triggerEvents) {
+					this.triggerElementEvents(elements.shift());
 				}
 
-				if(_this.pendingAjax.length > 0){
-					hasXHRs = _this.waitAjax(function () {
-						isAjaxCompleted = true;
-						isAjaxTriggered = true;
-					});
-				} else {
-					hasXHRs = false;
-					isAjaxCompleted = true;
-					isAjaxTriggered = false;
-				}
-
-				lastIndex = index;
 			}
 
-			// if no event is waiting or running and there is ajax completed or we wait for recursion
-			if (!_this.isEventWaitingForTriggering && !_this.isEventRunningFromTriggering && (isAjaxCompleted || isWaitingRecursion)) {
 
-				if (isAjaxCompleted) {
-					isAjaxCompleted = false;
+			// treating pending XHR request
+			if (this.pendingAjax.length > 0) {
+				hasXHRs = this.waitAjax(function () {
+					isAjaxCompleted = true;
+					isAjaxTriggered = true;
+				});
+			} else {
+				hasXHRs = false;
+				isAjaxCompleted = true;
+				isAjaxTriggered = false;
+			}
 
-					_this.printRequestQueue();
-					if (isAjaxTriggered) {
-						_this.triggerUserEvent("onAllXhrsCompleted");
-					}
+			// treating completed ajax
+			if (isAjaxCompleted) {
+				isAjaxCompleted = false;
 
-					if(counter < _this.options.maximumRecursion){
-						// getAddedElement is slow and can take time if the DOM is big (~25000 nodes)
-						// so use it only if ajax
-						me = isAjaxTriggered ? _this.getAddedElements() : [];
-
-						meIndex = 0;
-						lastMeIndex = -1;
-						// if ajax has been triggered and some elements are modified then recurse thru modified elements
-						isWaitingRecursion = (me.length > 0 && hasXHRs);
-
-					} else {
-						console.log(">>>>RECURSON LIMIT REACHED :" + counter);
-					}
+				this.printRequestQueue();
+				if (isAjaxTriggered) {
+					this.triggerUserEvent("onAllXhrsCompleted");
 				}
 
-				if (isWaitingRecursion) {
+				if (counter < this.options.maximumRecursion) {
+					// getAddedElement is slow and can take time if the DOM is big (~25000 nodes)
+					// so use it only if ajax
+					modifiedElementList = isAjaxTriggered ? this.getAddedElements() : [];
 
-					if(lastMeIndex < meIndex){
-						//console.log(threadId + " added " + _this.describeElement(me[meIndex]))
-						_this.analyzeDOM(me[meIndex], counter + 1, function () {
-							isRecursionReturned = true;
-						});
-						lastMeIndex = meIndex;
-					}
+					// if ajax has been triggered and some elements are modified then recurse through the modified elements
+					isWaitingRecursion = (modifiedElementList.length > 0 && hasXHRs);
 
-					if (!isRecursionReturned) return;
-					isRecursionReturned = false;
-
-					if (meIndex === me.length - 1) {
-						isWaitingRecursion = false;
-					} else {
-						meIndex++;
-						return;
-					}
-
+				} else {
+					console.log(">>>>RECURSION LIMIT REACHED :" + counter);
 				}
+			}
 
+			if (isWaitingRecursion) {
 
-				if (index === elements.length - 1) {
-
-					// setting the "finish" step to the next event loop to leave some time to the last process/event to finish
-					setTimeout(function () {
-						clearInterval(to);
-						// console.log("-------END");
-						if (typeof callback === 'function') callback();
+				if (modifiedElementList.length > 0) {
+					this._analyzeDOM(modifiedElementList.shift(), counter + 1, function () {
+						isRecursionReturned = true;
 					});
+				}
+
+				if (!isRecursionReturned) return;
+
+				isRecursionReturned = false;
+
+				if (modifiedElementList.length <= 0) {
+					isWaitingRecursion = false;
+				} else {
 					return;
 				}
 
-				index++;
+			}
+
+			console.log(counter + "## elements.length: " + elements.length + "\trecursion: " + isWaitingRecursion + "\treturned: " + isRecursionReturned + "\tajax: " + this.pendingAjax.length + "\tcompleted: " + isAjaxCompleted + "\ttriggered: " + isAjaxTriggered + "\tevents: " + (this.isEventWaitingForTriggering) + " " + ( this.isEventRunningFromTriggering))
+
+			if (elements.length === 0) {
+				console.log("call END");
+
+					// setting the "finish" step to the next event loop to leave some time to the last process/event to finish
+				window.__originalSetTimeout(function () {
+						clearInterval(to);
+					console.log("-------END");
+						if (typeof callback === 'function') callback();
+				});
+				return;
 
 			}
 
-		}, 0);
+		}.bind(this), 0);
 	};
 
 
-
-	window.__PROBE__ = new Probe(options, inputValues, userEvents);
+	window.__PROBE__ = new Probe(options, inputValues, userCustomScript);
 }
