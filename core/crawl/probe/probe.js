@@ -410,10 +410,10 @@ function initProbe(options, inputValues, userEvents){
 		var timeout = this.options.ajaxTimeout;
 		var chainLimit = typeof chainLimit !== 'undefined' ? chainLimit : this.options.maximumAjaxChain;
 		console.log("Waiting for ajaxs: " + chainLimit);
-		var t = setInterval(function(){
+		var t = window.__originalSetInterval(function(){
 			if ((timeout <= 0) || _this.isAjaxCompleted(xhrList)) {
 				clearInterval(t);
-				setTimeout(function(){
+				window.__originalSetTimeout(function () {
 					if(chainLimit > 0 && _this.pendingAjax.length > 0){
 						_this.waitAjax(callback, chainLimit - 1);
 					} else {
@@ -924,8 +924,7 @@ function initProbe(options, inputValues, userEvents){
 		}
 
 
-
-		var to = setInterval(function(){
+		var to = window.__originalSetInterval(function () {
 			//console.log(threadId+" isWaitingRecursion: "+isWaitingRecursion+" isAjaxCompleted: "+isAjaxCompleted+ " isRecursionReturned:"+isRecursionReturned)
 			// if there is still works to be done and nothing is waiting
 			if (lastIndex < index && !isWaitingRecursion && !_this.isEventWaitingForTriggering) {
