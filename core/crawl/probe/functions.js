@@ -505,8 +505,7 @@ function startProbe(random, injectScript) {
 		HTMLFormElement.prototype.__originalSubmit = HTMLFormElement.prototype.submit;
 		HTMLFormElement.prototype.submit = function(){
 			//console.log("=-->"+this.action)
-			var req = window.__PROBE__.getFormAsRequest(this);
-			window.__PROBE__.printRequest(req);
+			window.__PROBE__.getFormAsRequest(this).print();
 			return this.__originalSubmit();
 		}
 
@@ -521,16 +520,6 @@ function startProbe(random, injectScript) {
 		window.__PROBE__.triggerUserEvent("onInit");
 	}, options);
 
-	// if(injectScript){
-	// 	page.evaluate(function(code){
-	// 		try{
-	// 			eval("window.__PROBE__.userEvents=" + code.trim() + ";");
-	// 		} catch(e){
-	// 			window.__PROBE__.print(e);
-	// 		}
-	// 		window.__PROBE__.triggerUserEvent("onInit");
-	// 	},injectScript);
-	// }
 };
 
 

@@ -20,10 +20,17 @@ function initProbe(options, inputValues, userCustomScript) {
 	 * Name for the message corresponding of the event to trigger the schedule of the next event in queue
 	 * @type {string}
 	 */
-	var scheduleNextEventMessageName = "schedule-next-event-for-trigger";
+	var scheduleNextEventMessageName = "htcap-schedule-next-event-for-trigger";
 
+	/**
+	 *
+	 * @param options
+	 * @param inputValues
+	 * @param userCustomScript
+	 * @constructor
+	 */
 	function Probe(options, inputValues, userCustomScript) {
-		var _this = this;
+		var currentProbe = this;
 
 		this.options = options;
 
@@ -31,8 +38,6 @@ function initProbe(options, inputValues, userCustomScript) {
 		this.sentAjax = [];
 
 		this.curElement = {};
-		this.winOpen = [];
-		this.resources = [];
 		this.eventsMap = [];
 
 		/**
@@ -49,7 +54,6 @@ function initProbe(options, inputValues, userCustomScript) {
 		this.triggeredEvents = [];
 		this.websockets = [];
 		this.html = "";
-		this.printedRequests = [];
 		this.DOMSnapshot = [];
 		this.pendingAjax = [];
 		this.inputValues = inputValues;
@@ -58,22 +62,22 @@ function initProbe(options, inputValues, userCustomScript) {
 			id: options.id,
 			vars: {},
 			log: function(str){
-				_this.log(str);
+				_log(str);
 			},
 			print: function(str){
-				_this.printUserOutput(str)
+				_printUserOutput(str)
 			},
 			fread: function(file){
-				return _this.fread(file);
+				return _fread(file);
 			},
 			fwrite: function(file, content, mode){
-				return _this.fwrite(file, content, mode);
+				return _fwrite(file, content, mode);
 			},
 			render: function(file){
-				return _this.render(file);
+				return _render(file);
 			},
 			triggerEvent: function(element, eventName){
-				_this.trigger(element, eventName);
+				currentProbe._trigger(element, eventName);
 			}
 		};
 		this.userEvents = {};
@@ -85,7 +89,16 @@ function initProbe(options, inputValues, userCustomScript) {
 
 	}
 
-	Probe.prototype.objectInArray  = function(arr, el, ignoreProperties){
+	/**
+	 *
+	 * @param arr
+	 * @param el
+	 * @param ignoreProperties
+	 * @returns {boolean}
+	 * @private
+	 * @static
+	 */
+	function _objectInArray(arr, el, ignoreProperties) {
 		ignoreProperties = ignoreProperties || [];
 		if (arr.length === 0) return false;
 		if (typeof arr[0] !== 'object')
@@ -100,47 +113,23 @@ function initProbe(options, inputValues, userCustomScript) {
 			if(found) return true;
 		}
 		return false;
-	};
+	}
 
-
-
-	Probe.prototype.arrayUnique = function(arr, ignoreProperties){
-		var ret = [];
-
-		for(var a = 0; a < arr.length ; a++){
-			if(!this.objectInArray(ret, arr[a], ignoreProperties))
-				ret.push(arr[a]);
-		}
-		return ret;
-	};
-
-	Probe.prototype.compareObjects = function(obj1, obj2){
-		var p;
-		for(p in obj1)
-			if (obj1[p] !== obj2[p]) return false;
-
-		for(p in obj2)
-			if (obj2[p] !== obj1[p]) return false;
-
-		return true;
-	};
-
-
-	/*
-		anchor.protocol; // => "http:"
-		anchor.host;     // => "example.com:3000"
-		anchor.hostname; // => "example.com"
-		anchor.port;     // => "3000"
-		anchor.pathname; // => "/pathname/"
-		anchor.hash;     // => "#hash"
-		anchor.search;   // => "?search=test"
-	*/
-
-	Probe.prototype.replaceUrlQuery = function(url, qs){
+	function _replaceUrlQuery(url, qs) {
 		var anchor = document.createElement("a");
 		anchor.href = url;
+		/*
+		 Example of content:
+		 anchor.protocol; // => "http:"
+		 anchor.host;     // => "example.com:3000"
+		 anchor.hostname; // => "example.com"
+		 anchor.port;     // => "3000"
+		 anchor.pathname; // => "/pathname/"
+		 anchor.hash;     // => "#hash"
+		 anchor.search;   // => "?search=test"
+		 */
 		return anchor.protocol + "//" + anchor.host + anchor.pathname + (qs ? "?" + qs : "") + anchor.hash;
-	};
+	}
 
 	Probe.prototype.removeUrlParameter = function(url , par){
 		var anchor = document.createElement("a");
@@ -153,10 +142,8 @@ function initProbe(options, inputValues, userCustomScript) {
 				pars.splice(a,1);
 		}
 
-
 		return anchor.protocol + "//" + anchor.host + anchor.pathname + (pars.length > 0 ? "?" + pars.join("&") : "") + anchor.hash;
 	};
-
 
 	Probe.prototype.getAbsoluteUrl = function(url){
 		var anchor = document.createElement('a');
@@ -164,40 +151,34 @@ function initProbe(options, inputValues, userCustomScript) {
 		return anchor.href;
 	};
 
+	/**
+	 * return a snapshot of the current DOM
+	 * NOTE: do NOT use MutationObserver to get added elements .. it is asynchronous and the callback is fired only when DOM is refreshed (graphically)
+	 * @returns {Array}
+	 * @private
+	 */
+	function _getDOMSnapshot() {
+		return Array.prototype.slice.call(document.getElementsByTagName("*"), 0);
+	}
 
-
-	Probe.prototype.isChildOf = function(child, parent){
-		var p = child.parentNode;
-		var depth = 1;
-		while(p){
-			if (p === parent) {
-				return depth;
-			}
-			p = p.parentNode;
-			depth++;
-		}
-
-		return -1;
-	};
-
-
-	// do NOT use MutationObserver to get added elements .. it is asynchronous and the callback is fired only when DOM is refreshed (graphically)
-	Probe.prototype.takeDOMSnapshot = function(){
-		this.DOMSnapshot = Array.prototype.slice.call( document.getElementsByTagName("*"), 0 );
-	};
-
-
-	Probe.prototype.getAddedElements = function(){
+	/**
+	 * Get an array of all the DOM elements added to the DOM
+	 * @param DOMSnapshot - the initial DOM to compare with
+	 * @returns {Array}
+	 * @private
+	 * @static
+	 */
+	function _getAddedElements(DOMSnapshot) {
 		var a,
 			elements = [],
 			rootElements = [];
 
 		var newDom = Array.prototype.slice.call( document.getElementsByTagName("*"), 0 );
 
-		console.log('get added elements start dom len: ' + this.DOMSnapshot.length + ' new dom len: ' + newDom.length);
+		console.log('get added elements start dom len: ' + DOMSnapshot.length + ' new dom len: ' + newDom.length);
 		// get all added elements
 		for (a = 0; a < newDom.length; a++) {
-			if (this.DOMSnapshot.indexOf(newDom[a]) === -1) {
+			if (DOMSnapshot.indexOf(newDom[a]) === -1) {
 				// set __new flag on added elements to avoid checking for elements.indexOf
 				// that is very very slow
 				newDom[a].__new = true;
@@ -227,38 +208,32 @@ function initProbe(options, inputValues, userCustomScript) {
 			delete elements[a].__new;
 		}
 
-		if(rootElements.length > 0){
-			this.triggerUserEvent("onDomModified", [rootElements, elements]);
-		}
-
 		console.log("root elements found: " + rootElements.length);
 		return rootElements;
-	};
+	}
 
 
-
-
-	/* DO NOT include node as first element.. this is a requirement */
-	Probe.prototype.getDOMTreeAsArray = function (node) {
-		var out = [];
-		var children = node.querySelectorAll(":scope > *");
-
-		if (children.length === 0) {
-			return out;
-		}
+	/**
+	 * convert a DOM tree to an array
+	 *
+	 * WARNING: DO NOT include node as first element. this is a requirement
+	 *
+	 * @param node
+	 * @returns {Array} array of the given DOM node
+	 * @private
+	 * @static
+	 */
+	function _getDOMTreeAsArray(node) {
+		var out = [],
+			children = node.querySelectorAll(":scope > *");
 
 		for(var a = 0; a < children.length; a++){
-			//if(children[a].style.display != 'none')
-				out.push(children[a]);
-
-			out = out.concat(this.getDOMTreeAsArray(children[a]));
+			var child = children[a];
+			out.push(child);
+			out = out.concat(_getDOMTreeAsArray(child));
 		}
-
 		return out;
-	};
-
-
-
+	}
 
 	// class Request
 
@@ -268,6 +243,7 @@ function initProbe(options, inputValues, userCustomScript) {
 		this.url = url;
 		this.data = data || null;
 		this.trigger = trigger || null;
+		this.isPrinted = false;
 
 		//this.username = null; // todo
 		//this.password = null;
@@ -279,59 +255,58 @@ function initProbe(options, inputValues, userCustomScript) {
 	};
 
 
-	Probe.prototype.requestToJson = function(req){
+	Probe.prototype.Request.prototype.toJSONString = function () {
 		var obj ={
-			type: req.type,
-			method: req.method,
-			url: req.url,
-			data: req.data || null
+			type: this.type,
+			method: this.method,
+			url: this.url,
+			data: this.data || null
 		};
 
-		if(req.trigger) obj.trigger = {element: this.describeElement(req.trigger.element), event:req.trigger.event};
+		if (this.trigger) {
+			obj.trigger = {element: _elementToString(this.trigger.element), event: this.trigger.event};
+		}
 
 		return JSON.stringify(obj);
 	};
 
-
+	Probe.prototype.Request.prototype.print = function () {
+		if (!this.isPrinted) {
+			_print('["request",' + this.toJSONString() + "],");
+		}
+	};
 
 	// END OF class Request..
 
-	Probe.prototype.print = function(str){
+	function _print(str) {
 		window.__callPhantom({cmd:'print', argument: str});
-	};
+	}
 
-	Probe.prototype.log = function(str){
+	function _log(str) {
 		window.__callPhantom({cmd:'log', argument: str});
-	};
+	}
 
-	Probe.prototype.render = function(file){
-		return window.__callPhantom({cmd:'render', argument: file});
-	};
-
-	Probe.prototype.fread = function(file){
+	function _fread(file) {
 		return window.__callPhantom({cmd:'fread', file: file});
-	};
+	}
 
-	Probe.prototype.fwrite = function(file, content, mode){
+	function _fwrite(file, content, mode) {
 		return window.__callPhantom({cmd:'fwrite', file: file, content:content, mode:mode || 'w'});
-	};
+	}
 
-	Probe.prototype.printRequest = function(req){
-		var k = req.key();
-		if (this.printedRequests.indexOf(k) === -1) {
-			//var trigger = this.describeElement(this.curElement.element) + "." + this.curElement.event + "()";
-			var json = '["request",' + this.requestToJson(req) + "],";
-			this.print(json);
-			this.printedRequests.push(k);
-		}
-	};
+	function _render(file) {
+		return window.__callPhantom({cmd: 'render', argument: file});
+	}
 
 	Probe.prototype.printRequestQueue = function(){
-
 		for(var a = 0; a < this.requestsPrintQueue.length; a++){
-			this.printRequest(this.requestsPrintQueue[a]);
+			this.requestsPrintQueue[a].print();
 		}
 		this.requestsPrintQueue = [];
+	};
+
+	Probe.prototype.addRequestToPrintQueue = function (req) {
+		this.requestsPrintQueue.push(req);
 	};
 
 	Probe.prototype.printJSONP = function(node){
@@ -346,7 +321,7 @@ function initProbe(options, inputValues, userCustomScript) {
 		if(a.search){
 			////this.script_tagsInserted.push(obj);
 			var req  = new this.Request("jsonp", "GET", src, null, this.getTrigger());
-			this.printRequest(req);
+			req.print();
 		}
 	};
 
@@ -363,45 +338,44 @@ function initProbe(options, inputValues, userCustomScript) {
 			req = new this.Request("link", "GET", url);
 		}
 
-		if(req)
-			this.printRequest(req);
+		if (req) {
+			req.print();
+		}
 	};
 
 	Probe.prototype.printWebsocket = function(url){
 		var trigger = this.getTrigger();
-		var req  = new this.Request("websocket", "GET", url, null, trigger);
-		this.printRequest(req);
+		var req = new this.Request("websocket", "GET", url, null, trigger);
+		req.print();
 	};
-
 
 	Probe.prototype.printPageHTML = function(){
 		var html = document.documentElement.innerHTML;
 		var json = '["html",' + JSON.stringify(html) + '],';
-		this.print(json);
+		_print(json);
 	};
 
-
-	Probe.prototype.printUserOutput = function(str){
+	function _printUserOutput(str) {
 		var json = '["user",' + JSON.stringify(str) + '],';
-		this.print(json);
-	};
+		_print(json);
+	}
 
-
-	Probe.prototype.addRequestToPrintQueue = function(req){
-		this.requestsPrintQueue.push(req);
-	};
-
-
-	Probe.prototype.isAjaxCompleted = function (xhrList) {
-		var alldone = true;
+	/**
+	 * @param xhrList
+	 * @returns {boolean}
+	 * @private
+	 * @static
+	 */
+	function _isXHRsInListCompleted(xhrList) {
+		var allDone = true;
 		for (var a = 0; a < xhrList.length; a++) {
 			//console.log("-->"+xhrList[a].readyState + " "+ xhrList[a].__request.url)
-			if (xhrList[a].readyState !== 4 && !xhrList[a].__skipped) alldone = false;
+			if (xhrList[a].readyState !== 4 && !xhrList[a].__skipped) allDone = false;
 		}
-		//if(alldone)
+		//if(allDone)
 		//	console.log("-----------------> alla ajax completed")
-		return alldone;
-	};
+		return allDone;
+	}
 
 	Probe.prototype.waitAjax = function(callback, chainLimit){
 		var xhrList = this.pendingAjax.slice(),	// get a copy of the pending XHRs
@@ -413,7 +387,7 @@ function initProbe(options, inputValues, userCustomScript) {
 		console.log("Waiting for ajaxs: " + chainSizeLimit);
 
 		var t = window.__originalSetInterval(function(){
-			if ((timeout <= 0) || this.isAjaxCompleted(xhrList)) {
+			if ((timeout <= 0) || _isXHRsInListCompleted(xhrList)) {
 				clearInterval(t);
 				window.__originalSetTimeout(function () {
 					if (chainSizeLimit > 0 && this.pendingAjax.length > 0) {
@@ -433,10 +407,13 @@ function initProbe(options, inputValues, userCustomScript) {
 	};
 
 
-
-
-	// returns true if the value has been set
-	Probe.prototype.setVal = function(el){
+	/**
+	 * returns true if the value has been set
+	 * @param el
+	 * @returns {boolean}
+	 * @private
+	 */
+	Probe.prototype._setVal = function (el) {
 		var options = this.options;
 		var _this = this;
 
@@ -457,11 +434,11 @@ function initProbe(options, inputValues, userCustomScript) {
 		// needed for example by angularjs
 		var triggerChange =  function(){
 			// update angular model
-			_this.trigger(el, 'input');
+			_this._trigger(el, 'input');
 
-			// _this.trigger(el, 'blur');
-			// _this.trigger(el, 'keyup');
-			// _this.trigger(el, 'keydown');
+			// _this._trigger(el, 'blur');
+			// _this._trigger(el, 'keyup');
+			// _this._trigger(el, 'keydown');
 		};
 
 		if (el.nodeName.toLowerCase() === 'textarea') {
@@ -544,22 +521,30 @@ function initProbe(options, inputValues, userCustomScript) {
 
 	};
 
-
-
-	Probe.prototype.fillInputValues = function(element){
+	/**
+	 * @param element
+	 * @returns {boolean}
+	 * @private
+	 */
+	Probe.prototype._fillInputValues = function (element) {
 		element = element || document;
 		var ret = false;
 		var els = element.querySelectorAll("input, select, textarea");
 
 		for(var a = 0; a < els.length; a++){
-			if(this.setVal(els[a]))
+			if (this._setVal(els[a]))
 				ret = true;
 		}
 		return ret;
 	};
 
-
-	Probe.prototype.trigger = function (element, eventName) {
+	/**
+	 * add the trigger of the given event on the given element to the trigger queue to be triggered
+	 * @param {Element} element
+	 * @param {String} eventName
+	 * @private
+	 */
+	Probe.prototype._trigger = function (element, eventName) {
 		/* 	workaround for a phantomjs bug on linux (so maybe not a phantom bug but some linux libs??).
 		 if you trigger click on input type=color everything freezes... maybe due to some
 			color picker that pops up ...
@@ -659,14 +644,22 @@ function initProbe(options, inputValues, userCustomScript) {
 		}
 	};
 
+	/**
+	 * @param eventName
+	 * @returns {boolean}
+	 * @private
+	 * @static
+	 */
+	function _isEventTriggerable(eventName) {
+		return ['load', 'unload', 'beforeunload'].indexOf(eventName) === -1;
+	}
 
-	Probe.prototype.isEventTriggerable = function(event){
-
-		return ['load', 'unload', 'beforeunload'].indexOf(event) === -1;
-
-	};
-
-	Probe.prototype.getEventsForElement = function(element){
+	/**
+	 * @param  {Element} element
+	 * @returns {Array}
+	 * @private
+	 */
+	Probe.prototype._getEventsForElement = function (element) {
 		var events = [];
 		var map;
 
@@ -691,24 +684,31 @@ function initProbe(options, inputValues, userCustomScript) {
 	};
 
 
-
-	Probe.prototype.triggerElementEvents = function(element){
-		//console.log("triggering events for " + this.describeElement(element));
-		var events = this.getEventsForElement(element);
+	/**
+	 * Trigger all event for a given element
+	 * @param {Element} element
+	 * @private
+	 */
+	Probe.prototype._triggerElementEvents = function (element) {
+		//console.log("triggering events for " + _elementToString(element));
+		var events = this._getEventsForElement(element);
 		for(var a = 0; a < events.length; a++){
 
 			var teObj = {e:element, ev: events[a]};
-			if(!this.isEventTriggerable(event) || this.objectInArray(this.triggeredEvents, teObj))
+			if (!_isEventTriggerable(event) || _objectInArray(this.triggeredEvents, teObj))
 				continue;
 
 			this.triggeredEvents.push(teObj);
-			this.trigger(teObj.e, teObj.ev);
+			this._trigger(teObj.e, teObj.ev);
 
 		}
 	};
 
 
-
+	/**
+	 * return the last element/event name pair triggered
+	 * @returns {Object}
+	 */
 	Probe.prototype.getTrigger = function(){
 		if(!this.curElement || !this.curElement.element)
 			return null;
@@ -716,43 +716,44 @@ function initProbe(options, inputValues, userCustomScript) {
 		return {element: this.curElement.element, event: this.curElement.event};
 	};
 
-
-
-
-
-
-
-
-
-	Probe.prototype.describeElement = function(el){
-		if(!el)
+	/**
+	 * convert an element to a string
+	 * @param {Element=} element - element to convert
+	 * @returns {string}
+	 * @private
+	 * @static
+	 */
+	function _elementToString(element) {
+		if (!element) {
 			return "[]";
-		var tagName = (el === document ? "DOCUMENT" : (el === window ? "WINDOW" : el.tagName));
-		var text = null;
-		if(el.textContent){
-			text = el.textContent.trim().replace(/\s/, " ").substring(0, 10);
+		}
+		var tagName = (element === document ? "DOCUMENT" : (element === window ? "WINDOW" : element.tagName));
+		var text = undefined;
+		if (element.textContent) {
+			text = element.textContent.trim().replace(/\s/, " ").substring(0, 10);
 			if(text.indexOf(" ") > -1) text = "'" + text + "'";
 		}
 
-		var className = el.className ? (el.className.indexOf(" ") !== -1 ? "'" + el.className + "'" : el.className) : "";
+		var className = element.className ? (element.className.indexOf(" ") !== -1 ? "'" + element.className + "'" : element.className) : "";
 
 		return "[" +
 			(tagName ? tagName + " " : "") +
-			(el.name && typeof el.name === 'string' ? el.name + " " : "") +
+			(element.name && typeof element.name === 'string' ? element.name + " " : "") +
 			(className ? "." + className + " " : "") +
-			(el.id ? "#" + el.id + " " : "") +
-			(el.src ? "src=" + el.src + " " : "") +
-			(el.action ? "action=" + el.action + " " : "") +
-			(el.method ? "method=" + el.method + " " : "") +
-			(el.value ? "v=" + el.value + " " : "") +
+			(element.id ? "#" + element.id + " " : "") +
+			(element.src ? "src=" + element.src + " " : "") +
+			(element.action ? "action=" + element.action + " " : "") +
+			(element.method ? "method=" + element.method + " " : "") +
+			(element.value ? "v=" + element.value + " " : "") +
 			(text ? "txt=" + text : "") +
 			"]";
+	}
 
-	};
-
-
-
-	Probe.prototype.initializeElement = function(element){
+	/**
+	 * @param {Element} element
+	 * @private
+	 */
+	Probe.prototype._initializeElement = function (element) {
 		var options = this.options;
 
 		if(options.mapEvents){
@@ -767,15 +768,17 @@ function initProbe(options, inputValues, userCustomScript) {
 			}
 		}
 
-
 		if(options.fillValues){
-			this.fillInputValues(element);
+			this._fillInputValues(element);
 		}
 	};
 
-
-
-	Probe.prototype.getUrls = function(element){
+	/**
+	 * print out url found in the given element
+	 * @param {Element} element
+	 * @private
+	 */
+	Probe.prototype._printUrlsFromElement = function (element) {
 		var a;
 		var links = element.getElementsByTagName("a");
 		var forms = element.getElementsByTagName("form");
@@ -797,17 +800,18 @@ function initProbe(options, inputValues, userCustomScript) {
 
 		for(a = 0; a < forms.length; a++){
 			var req = this.getFormAsRequest(forms[a]);
-			this.printRequest(req);
+			req.print();
 		}
 	};
 
-
-
+	/**
+	 * get request from the given FORM element
+	 * @param {Element} form
+	 * @returns {Probe.Request}
+	 */
 	Probe.prototype.getFormAsRequest = function(form){
-
-		var formObj = {};
-		var inputs = null;
-		var par;
+		var par, req,
+			formObj = {};
 
 		formObj.method = form.getAttribute("method");
 		if(!formObj.method){
@@ -817,9 +821,11 @@ function initProbe(options, inputValues, userCustomScript) {
 		}
 
 		formObj.url = form.getAttribute("action");
-		if(!formObj.url) formObj.url = document.location.href;
+		if (!formObj.url) {
+			formObj.url = document.location.href;
+		}
 		formObj.data = [];
-		inputs = form.querySelectorAll("input, select, textarea");
+		var inputs = form.querySelectorAll("input, select, textarea");
 		for(var a = 0; a < inputs.length; a++){
 			if(!inputs[a].name) continue;
 			par = encodeURIComponent(inputs[a].name) + "=" + encodeURIComponent(inputs[a].value);
@@ -846,43 +852,35 @@ function initProbe(options, inputValues, userCustomScript) {
 		formObj.data = formObj.data.join("&");
 
 		if (formObj.method === "GET") {
-			var url = this.replaceUrlQuery(formObj.url, formObj.data);
+			var url = _replaceUrlQuery(formObj.url, formObj.data);
 			req = new this.Request("form", "GET", url);
 		} else {
-			var req = new this.Request("form", "POST", formObj.url, formObj.data);
+			req = new this.Request("form", "POST", formObj.url, formObj.data);
 		}
 
-
 		return req;
-
 	};
 
 
-
-	Probe.prototype.addEventToMap = function(element, event){
+	/**
+	 * add the given element/event pair to map
+	 * @param {Element} element
+	 * @param {String} eventName
+	 */
+	Probe.prototype.addEventToMap = function (element, eventName) {
 
 		for(var a = 0; a < this.eventsMap.length; a++){
 			if (this.eventsMap[a].element === element) {
-				this.eventsMap[a].events.push(event);
+				this.eventsMap[a].events.push(eventName);
 				return;
 			}
 		}
+
 		this.eventsMap.push({
 			element: element,
-			events: [event]
+			events: [eventName]
 		});
 	};
-
-
-	Probe.prototype.addUserEvent = function(name, fnc){
-		if (!(name in this.userEvents) || typeof fnc !== 'function') {
-			return false;
-		}
-		this.userEvents[name].push(fnc);
-		return true;
-	};
-
-
 
 	Probe.prototype.triggerUserEvent = function(name, params){
 		params = params || [];
@@ -894,10 +892,12 @@ function initProbe(options, inputValues, userCustomScript) {
 		return !(ret === false) 
 	};
 
-
+	/**
+	 * Start the analysis of the current Document
+	 */
 	Probe.prototype.startAnalysis = function(){
-
 		console.log("page initialized ");
+
 		this._analyzeDOM(document, 0, function () {
 			window.__callPhantom({cmd: 'end'})
 		});
@@ -914,7 +914,7 @@ function initProbe(options, inputValues, userCustomScript) {
 	 */
 	Probe.prototype._analyzeDOM = function (node, counter, callback) {
 
-		var elements = [node === document ? document.documentElement : node].concat(this.getDOMTreeAsArray(node));
+		var elements = [node === document ? document.documentElement : node].concat(_getDOMTreeAsArray(node));
 
 		var isAjaxCompleted = false,
 			isAjaxTriggered = true,
@@ -931,14 +931,13 @@ function initProbe(options, inputValues, userCustomScript) {
 		}
 
 
-		//console.log(counter + " layer: "+counter+" initializing " + this.describeElement(node))
+		//console.log(counter + " layer: "+counter+" initializing " + _elementToString(node))
 		// map property events and fill input values
-		this.initializeElement(node);
+		this._initializeElement(node);
 
 		if(options.searchUrls){
-			this.getUrls(node);
+			this._printUrlsFromElement(node);
 		}
-
 
 		// starting analyse loop
 		var to = window.__originalSetInterval(function () {
@@ -953,14 +952,13 @@ function initProbe(options, inputValues, userCustomScript) {
 			// if there is still works to be done and nothing is waiting
 			// if(lastIndex < index && !waitingRecursion){
 			if (elements.length > 0) {
-				// console.log(counter + " analysing " + this.describeElement(elements[index]))
 
 				// TODO: here the element may have been detached, moved, etc ; try to find a logic to handle this.
 
-				this.takeDOMSnapshot();
+				this.DOMSnapshot = _getDOMSnapshot();
 
 				if (this.options.triggerEvents) {
-					this.triggerElementEvents(elements.shift());
+					this._triggerElementEvents(elements.shift());
 				}
 
 			}
@@ -990,8 +988,11 @@ function initProbe(options, inputValues, userCustomScript) {
 				if (counter < this.options.maximumRecursion) {
 					// getAddedElement is slow and can take time if the DOM is big (~25000 nodes)
 					// so use it only if ajax
-					modifiedElementList = isAjaxTriggered ? this.getAddedElements() : [];
+					modifiedElementList = isAjaxTriggered ? _getAddedElements(this.DOMSnapshot) : [];
 
+					if (modifiedElementList.length > 0) {
+						this.triggerUserEvent("onDomModified", [modifiedElementList, elements]);
+					}
 					// if ajax has been triggered and some elements are modified then recurse through the modified elements
 					isWaitingRecursion = (modifiedElementList.length > 0 && hasXHRs);
 
