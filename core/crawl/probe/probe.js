@@ -188,16 +188,17 @@ function initProbe(options, inputValues, userCustomScript) {
 
 
 	Probe.prototype.getAddedElements = function(){
-		var elements = [];
-		var rootElements = [];
-		var ueRet = null;
+		var a,
+			elements = [],
+			rootElements = [];
+
 		var newDom = Array.prototype.slice.call( document.getElementsByTagName("*"), 0 );
 
 		console.log('get added elements start dom len: ' + this.DOMSnapshot.length + ' new dom len: ' + newDom.length);
 		// get all added elements
-		for(var a = 0;a < newDom.length;a++){
+		for (a = 0; a < newDom.length; a++) {
 			if (this.DOMSnapshot.indexOf(newDom[a]) === -1) {
-				// set __new flag on added elements to avoid checking for elments.indexOf
+				// set __new flag on added elements to avoid checking for elements.indexOf
 				// that is very very slow
 				newDom[a].__new = true;
 				elements.push(newDom[a]);
@@ -206,7 +207,7 @@ function initProbe(options, inputValues, userCustomScript) {
 
 		console.log("elements get... (tot " + elements.length + ") searching for root nodes");
 
-		for(var a = 0; a < elements.length; a++){
+		for (a = 0; a < elements.length; a++) {
 			var p = elements[a];
 			var root = null;
 			// find the farest parent between added elements
@@ -222,7 +223,7 @@ function initProbe(options, inputValues, userCustomScript) {
 			}
 		}
 
-		for(var a = 0; a < elements.length; a++){
+		for (a = 0; a < elements.length; a++) {
 			delete elements[a].__new;
 		}
 
@@ -238,7 +239,7 @@ function initProbe(options, inputValues, userCustomScript) {
 
 
 	/* DO NOT include node as first element.. this is a requirement */
-	Probe.prototype.getDOMTreeAsArray = function(node, tmp){
+	Probe.prototype.getDOMTreeAsArray = function (node) {
 		var out = [];
 		var children = node.querySelectorAll(":scope > *");
 
@@ -272,10 +273,9 @@ function initProbe(options, inputValues, userCustomScript) {
 		//this.password = null;
 	};
 
-	// returns a unique string represntation of the request. used for comparision
+	// returns a unique string representation of the request. used for comparision
 	Probe.prototype.Request.prototype.key = function(){
-		var key = "" + this.type + this.method + this.url + (this.data ? this.data : "") + (this.trigger ? this.trigger : "");
-		return key;
+		return [this.type, this.method, this.url, this.data, this.trigger].join('');
 	};
 
 
@@ -404,27 +404,31 @@ function initProbe(options, inputValues, userCustomScript) {
 	};
 
 	Probe.prototype.waitAjax = function(callback, chainLimit){
-		var _this = this;
-		var xhrList = this.pendingAjax.slice();	// get a copy of the pending XHRs
+		var xhrList = this.pendingAjax.slice(),	// get a copy of the pending XHRs
+			timeout = this.options.ajaxTimeout,
+			chainSizeLimit = chainLimit || this.options.maximumAjaxChain;
+
 		this.pendingAjax = []; // clean-up the list
-		var timeout = this.options.ajaxTimeout;
-		var chainLimit = typeof chainLimit !== 'undefined' ? chainLimit : this.options.maximumAjaxChain;
-		console.log("Waiting for ajaxs: " + chainLimit);
+
+		console.log("Waiting for ajaxs: " + chainSizeLimit);
+
 		var t = window.__originalSetInterval(function(){
-			if ((timeout <= 0) || _this.isAjaxCompleted(xhrList)) {
+			if ((timeout <= 0) || this.isAjaxCompleted(xhrList)) {
 				clearInterval(t);
 				window.__originalSetTimeout(function () {
-					if(chainLimit > 0 && _this.pendingAjax.length > 0){
-						_this.waitAjax(callback, chainLimit - 1);
+					if (chainSizeLimit > 0 && this.pendingAjax.length > 0) {
+						this.waitAjax(callback, chainSizeLimit - 1);
 					} else {
 						callback(xhrList.length > 0);
 					}
-				}, 100);
+				}.bind(this), 100);
 				return;
 			}
 			timeout -= 10;
-		}, 0);
-		console.log("Wait ajax return, " + chainLimit);
+		}.bind(this), 0);
+
+		console.log("Wait ajax return, " + chainSizeLimit);
+
 		return xhrList.length > 0;
 	};
 
@@ -730,21 +734,19 @@ function initProbe(options, inputValues, userCustomScript) {
 			if(text.indexOf(" ") > -1) text = "'" + text + "'";
 		}
 
-
 		var className = el.className ? (el.className.indexOf(" ") !== -1 ? "'" + el.className + "'" : el.className) : "";
-		var descr = "[" +
-				(tagName ? tagName +  " " : "") +
-			(el.name && typeof el.name === 'string' ? el.name + " " : "") +
-				(className ? "." + className + " " : "")+
-				(el.id ? "#" + el.id + " " : "") +
-				(el.src ? "src=" + el.src + " " : "") +
-				(el.action ? "action=" + el.action + " " : "") +
-				(el.method ? "method=" + el.method + " " : "") +
-				(el.value ? "v=" + el.value + " ": "") +
-				(text ? "txt=" + text : "") +
-				"]";
 
-		return descr;
+		return "[" +
+			(tagName ? tagName + " " : "") +
+			(el.name && typeof el.name === 'string' ? el.name + " " : "") +
+			(className ? "." + className + " " : "") +
+			(el.id ? "#" + el.id + " " : "") +
+			(el.src ? "src=" + el.src + " " : "") +
+			(el.action ? "action=" + el.action + " " : "") +
+			(el.method ? "method=" + el.method + " " : "") +
+			(el.value ? "v=" + el.value + " " : "") +
+			(text ? "txt=" + text : "") +
+			"]";
 
 	};
 
@@ -941,7 +943,7 @@ function initProbe(options, inputValues, userCustomScript) {
 		// starting analyse loop
 		var to = window.__originalSetInterval(function () {
 			//console.log(counter+" isWaitingRecursion: "+isWaitingRecursion+" isAjaxCompleted: "+isAjaxCompleted+ " isRecursionReturned:"+isRecursionReturned)
-			console.log(counter + "#  elements.length: " + elements.length + "\trecursion: " + isWaitingRecursion + "\treturned: " + isRecursionReturned + "\tajax: " + this.pendingAjax.length + "\tcompleted: " + isAjaxCompleted + "\ttriggered: " + isAjaxTriggered + "\tevents: " + (this.isEventWaitingForTriggering) + " " + ( this.isEventRunningFromTriggering))
+			console.log(counter + "#  elements.length: " + elements.length + "\trecursion: " + isWaitingRecursion + "\treturned: " + isRecursionReturned + "\tajax: " + this.pendingAjax.length + "\tcompleted: " + isAjaxCompleted + "\ttriggered: " + isAjaxTriggered + "\tevents: " + (this.isEventWaitingForTriggering) + " " + ( this.isEventRunningFromTriggering));
 
 
 			// if any event are waiting or running, do nothing
@@ -1018,7 +1020,7 @@ function initProbe(options, inputValues, userCustomScript) {
 
 			}
 
-			console.log(counter + "## elements.length: " + elements.length + "\trecursion: " + isWaitingRecursion + "\treturned: " + isRecursionReturned + "\tajax: " + this.pendingAjax.length + "\tcompleted: " + isAjaxCompleted + "\ttriggered: " + isAjaxTriggered + "\tevents: " + (this.isEventWaitingForTriggering) + " " + ( this.isEventRunningFromTriggering))
+			console.log(counter + "## elements.length: " + elements.length + "\trecursion: " + isWaitingRecursion + "\treturned: " + isRecursionReturned + "\tajax: " + this.pendingAjax.length + "\tcompleted: " + isAjaxCompleted + "\ttriggered: " + isAjaxTriggered + "\tevents: " + (this.isEventWaitingForTriggering) + " " + ( this.isEventRunningFromTriggering));
 
 			if (elements.length === 0) {
 				console.log("call END");
@@ -1029,8 +1031,6 @@ function initProbe(options, inputValues, userCustomScript) {
 					console.log("-------END");
 						if (typeof callback === 'function') callback();
 				});
-				return;
-
 			}
 
 		}.bind(this), 0);
