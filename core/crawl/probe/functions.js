@@ -378,37 +378,36 @@ function startProbe(random, injectScript) {
 
 		if(options.mapEvents){
 
-			Node.prototype.originaladdEventListener = Node.prototype.addEventListener;
+			Node.prototype.__originalAddEventListener = Node.prototype.addEventListener;
 			Node.prototype.addEventListener = function(event, func, useCapture){
 				if(event != "DOMContentLoaded"){ // is this ok???
 					window.__PROBE__.addEventToMap(this, event);
 				}
-				this.originaladdEventListener(event, func, useCapture);
+				this.__originalAddEventListener(event, func, useCapture);
 			};
 
-			window.addEventListener = (function(originalAddEventListener){
+			window.addEventListener = (function (__originalAddEventListener) {
 				return function(event, func, useCapture){
 					if(event != "load"){ // is this ok???
 						window.__PROBE__.addEventToMap(this, event);
 					}
-					originalAddEventListener.apply(this,[event, func, useCapture]);
+					__originalAddEventListener.apply(this, [event, func, useCapture]);
 				}
 			})(window.addEventListener);
 		}
 
 		if(options.checkAjax){
-			XMLHttpRequest.prototype.originalOpen = XMLHttpRequest.prototype.open;
+			XMLHttpRequest.prototype.__originalOpen = XMLHttpRequest.prototype.open;
 			XMLHttpRequest.prototype.open = function(method, url, async, user, password){
 
 				var _url = window.__PROBE__.removeUrlParameter(url, "_");
 				this.__request = new window.__PROBE__.Request("xhr", method, _url, null, null);
 
-				return this.originalOpen(method, url, async, user, password);
+				return this.__originalOpen(method, url, async, user, password);
 			}
 
 
-
-			XMLHttpRequest.prototype.originalSend = XMLHttpRequest.prototype.send;
+			XMLHttpRequest.prototype.__originalSend = XMLHttpRequest.prototype.send;
 
 			XMLHttpRequest.prototype.send = function(data){
 				this.__request.data = data;
@@ -439,7 +438,7 @@ function startProbe(random, injectScript) {
 
 
 					if(!this.__skipped)
-						return this.originalSend(data);
+						return this.__originalSend(data);
 				}
 
 				return;
@@ -450,22 +449,22 @@ function startProbe(random, injectScript) {
 
 		if(options.checkScriptInsertion){
 
-			Node.prototype.originalappendChild = Node.prototype.appendChild;
+			Node.prototype.__originalAppendChild = Node.prototype.appendChild;
 			Node.prototype.appendChild = function(node){
 				window.__PROBE__.printJSONP(node);
-				return this.originalappendChild(node);
+				return this.__originalAppendChild(node);
 			}
 
-			Node.prototype.originalinsertBefore = Node.prototype.insertBefore;
+			Node.prototype.__originalInsertBefore = Node.prototype.insertBefore;
 			Node.prototype.insertBefore = function(node, element){
 				window.__PROBE__.printJSONP(node);
-				return this.originalinsertBefore(node, element);
+				return this.__originalInsertBefore(node, element);
 			}
 
-			Node.prototype.originalreplaceChild = Node.prototype.replaceChild;
+			Node.prototype.__originalReplaceChild = Node.prototype.replaceChild;
 			Node.prototype.replaceChild = function(node, oldNode){
 				window.__PROBE__.printJSONP(node);
-				return this.originalreplaceChild(node, oldNode);
+				return this.__originalReplaceChild(node, oldNode);
 			}
 		}
 
@@ -497,19 +496,19 @@ function startProbe(random, injectScript) {
 		}
 
 		if(options.preventElementRemoval){
-			//Node.prototype.originalremoveChild = Node.prototype.removeChild;
+			//Node.prototype.__originalRemoveChild = Node.prototype.removeChild;
 			Node.prototype.removeChild = function(node){
 				//console.log(node);
 				return node;
 			}
 		}
 
-		HTMLFormElement.prototype.originalSubmit = HTMLFormElement.prototype.submit;
+		HTMLFormElement.prototype.__originalSubmit = HTMLFormElement.prototype.submit;
 		HTMLFormElement.prototype.submit = function(){
 			//console.log("=-->"+this.action)
 			var req = window.__PROBE__.getFormAsRequest(this);
 			window.__PROBE__.printRequest(req);
-			return this.originalSubmit();
+			return this.__originalSubmit();
 		}
 
 		// prevent window.close
