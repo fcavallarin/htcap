@@ -479,19 +479,19 @@ function startProbe(random, injectScript) {
 
 
 		if(options.overrideTimeoutFunctions){
-			window.setTimeout = (function(setTimeout){
-				return function(func, time, setTime){
-					var t = setTime ? time : 0;
-					return setTimeout(func, t);
-				}
-			})(window.setTimeout);
+			window.__originalSetTimeout = window.setTimeout;
+			window.setTimeout = function () {
+				// Forcing a delay of 0
+				arguments[1] = 0;
+				return window.__originalSetTimeout.apply(this, arguments);
+			};
 
-			window.setInterval = (function(setInterval){
-				return function(func, time, setTime){
-					var t = setTime ? time : 0;
-					return setInterval(func, t);
-				}
-			})(window.setInterval);
+			window.__originalSetInterval = window.setInterval;
+			window.setInterval = function () {
+				// Forcing a delay of 0
+				arguments[1] = 0;
+				return window.__originalSetInterval.apply(this, arguments);
+			};
 
 		}
 
@@ -512,7 +512,8 @@ function startProbe(random, injectScript) {
 		}
 
 		// prevent window.close
-		window.close = function(){ return }
+		window.close = function () {
+		};
 
 		window.open = function(url, name, specs, replace){
 			window.__PROBE__.printLink(url);
