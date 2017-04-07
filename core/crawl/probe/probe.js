@@ -189,18 +189,18 @@ function initProbe(options, inputValues, userCustomScript) {
 	};
 
 	Probe.prototype.printJSONP = function(node){
-		if (node.nodeName.toLowerCase() !== "script") return;
-		var src = node.getAttribute("src");
-		if(!src) return;
 
-		var a = document.createElement("a");
-		a.href = src;
+		if (node.nodeName.toLowerCase() === "script" && node.hasAttribute("src")) {
+			var a = document.createElement("a"),
+				src = node.getAttribute("src");
 
-		// JSONP must have a querystring...
-		if(a.search){
-			////this.script_tagsInserted.push(obj);
-			var req = new this.Request("jsonp", "GET", src, null, this.getLastTriggerPageEvent());
-			req.print();
+			a.href = src;
+
+			// JSONP must have a querystring...
+			if (a.search) {
+				var req = new this.Request("jsonp", "GET", src, null, this.getLastTriggerPageEvent());
+				req.print();
+			}
 		}
 	};
 
@@ -547,20 +547,19 @@ function initProbe(options, inputValues, userCustomScript) {
 	 * @private
 	 */
 	Probe.prototype._trigger = function (pageEvent) {
-		/* 	workaround for a phantomjs bug on linux (so maybe not a phantom bug but some linux libs??).
-		 if you trigger click on input type=color everything freezes... maybe due to some
-			color picker that pops up ...
-		*/
-		if (pageEvent.element.tagName === "INPUT" && pageEvent.element.type.toLowerCase() === 'color' && pageEvent.eventName === 'click') {
-			return;
-		}
-		// trigger the given event only when there is some space in the event stack to avoid collision
-		// and give time to things to resolve properly (since we trigger user driven event,
-		// it is important to give time to the analysed page to breath between calls)
-		this._toBeTriggeredEventsQueue.push(pageEvent);
-		this.isEventWaitingForTriggering = true;
+		// workaround for a phantomjs bug on linux (so maybe not a phantom bug but some linux libs??).
+		// if you trigger click on input type=color everything freezes... maybe due to some
+		// color picker that pops up ...
+		if (!(pageEvent.element.tagName === "INPUT" && pageEvent.element.type.toLowerCase() === 'color' && pageEvent.eventName === 'click')) {
 
-		window.postMessage(scheduleNextEventMessageName, "*");
+			// trigger the given event only when there is some space in the event stack to avoid collision
+			// and give time to things to resolve properly (since we trigger user driven event,
+			// it is important to give time to the analysed page to breath between calls)
+			this._toBeTriggeredEventsQueue.push(pageEvent);
+			this.isEventWaitingForTriggering = true;
+
+			window.postMessage(scheduleNextEventMessageName, "*");
+		}
 	};
 
 	/**

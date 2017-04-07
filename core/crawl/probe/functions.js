@@ -439,8 +439,6 @@ function startProbe(random, injectScript) {
 					if(!this.__skipped)
 						return this.__originalSend(data);
 				}
-
-				return;
 			}
 
 		}
