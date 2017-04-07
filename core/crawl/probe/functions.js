@@ -400,7 +400,7 @@ function startProbe(random, injectScript) {
 			XMLHttpRequest.prototype.open = function(method, url, async, user, password){
 
 				var _url = window.__PROBE__.removeUrlParameter(url, "_");
-				this.__request = new window.__PROBE__.Request("xhr", method, _url, null, null);
+				this.__request = new window.__PROBE__.Request("xhr", method, _url);
 
 				return this.__originalOpen(method, url, async, user, password);
 			}
@@ -419,7 +419,7 @@ function startProbe(random, injectScript) {
 				}
 
 
-				this.__request.trigger = window.__PROBE__.getTrigger();
+				this.__request.triggerer = window.__PROBE__.getLastTriggerPageEvent();
 
 
 				// check if request has already been sent

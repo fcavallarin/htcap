@@ -37,7 +37,7 @@ function initProbe(options, inputValues, userCustomScript) {
 		this.requestsPrintQueue = [];
 		this.sentAjax = [];
 
-		this.curElement = {};
+		this._currentPageEvent = undefined;
 		this.eventsMap = [];
 
 		/**
@@ -77,7 +77,7 @@ function initProbe(options, inputValues, userCustomScript) {
 				return _render(file);
 			},
 			triggerEvent: function(element, eventName){
-				currentProbe._trigger(element, eventName);
+				currentProbe._trigger(new currentProbe.PageEvent(element, eventName));
 			}
 		};
 		this.userEvents = {};
@@ -89,27 +89,40 @@ function initProbe(options, inputValues, userCustomScript) {
 
 	}
 
-	// class Request
-
-	Probe.prototype.Request = function(type, method, url, data, trigger){
+	/**
+	 * Class Request
+	 *
+	 * @param {String}  type
+	 * @param {String} method
+	 * @param {String} url
+	 * @param {Object=} data
+	 * @param {PageEvent=} triggerer - the PageEvent triggered to generate the request
+	 * @constructor
+	 */
+	Probe.prototype.Request = function (type, method, url, data, triggerer) {
 		this.type = type;
 		this.method = method;
 		this.url = url;
 		this.data = data || null;
-		this.trigger = trigger || null;
+		this.triggerer = triggerer;
 		this.isPrinted = false;
 
 		//this.username = null; // todo
 		//this.password = null;
 	};
 
-	// returns a unique string representation of the request. used for comparision
-	Probe.prototype.Request.prototype.key = function(){
-		return [this.type, this.method, this.url, this.data, this.trigger].join('');
-	};
+	Object.defineProperties(Probe.prototype.Request.prototype, {
+		/**
+		 *  returns a unique string representation of the request. used for comparision.
+		 */
+		key: {
+			get: function () {
+				return JSON.stringify(this);
+			}
+		}
+	});
 
-
-	Probe.prototype.Request.prototype.toJSONString = function () {
+	Probe.prototype.Request.prototype.toJSON = function () {
 		var obj ={
 			type: this.type,
 			method: this.method,
@@ -117,20 +130,52 @@ function initProbe(options, inputValues, userCustomScript) {
 			data: this.data || null
 		};
 
-		if (this.trigger) {
-			obj.trigger = {element: _elementToString(this.trigger.element), event: this.trigger.event};
+		if (this.triggerer) {
+			obj.trigger = {element: _elementToString(this.triggerer.element), event: this.triggerer.eventName};
 		}
 
-		return JSON.stringify(obj);
+		return obj;
 	};
 
 	Probe.prototype.Request.prototype.print = function () {
 		if (!this.isPrinted) {
-			_print('["request",' + this.toJSONString() + "],");
+			_print('["request",' + JSON.stringify(this) + "],");
+			this.isPrinted = true;
 		}
 	};
 
 	// END OF class Request..
+
+	/**
+	 * Class PageEvent
+	 * Element's event found in the page
+	 *
+	 * @param {Element} element
+	 * @param {String} eventName
+	 * @constructor
+	 */
+	Probe.prototype.PageEvent = function (element, eventName) {
+		this.element = element;
+		this.eventName = eventName;
+	};
+
+	/**
+	 * Trigger the page event
+	 */
+	Probe.prototype.PageEvent.prototype.trigger = function () {
+
+		if ('createEvent' in document) {
+			var evt = document.createEvent('HTMLEvents');
+			evt.initEvent(this.eventName, true, false);
+			this.element.dispatchEvent(evt);
+		} else {
+			var eventName = 'on' + this.eventName;
+			if (eventName in this.element && typeof this.element[eventName] === "function") {
+				this.element[eventName]();
+			}
+		}
+	};
+
 
 	Probe.prototype.printRequestQueue = function(){
 		for(var a = 0; a < this.requestsPrintQueue.length; a++){
@@ -154,22 +199,22 @@ function initProbe(options, inputValues, userCustomScript) {
 		// JSONP must have a querystring...
 		if(a.search){
 			////this.script_tagsInserted.push(obj);
-			var req  = new this.Request("jsonp", "GET", src, null, this.getTrigger());
+			var req = new this.Request("jsonp", "GET", src, null, this.getLastTriggerPageEvent());
 			req.print();
 		}
 	};
 
 	Probe.prototype.printLink = function(url){
-		var req = null;
+		var req;
 
 		url = url.split("#")[0];
 
 		if(url.match(/^[a-z0-9\-_]+\:/i) && !url.match(/(^https?)|(^ftps?)\:/i)){
 			if(this.options.printUnknownRequests){
-				req = new this.Request("unknown", "GET", url);
+				req = new this.Request("unknown", "GET", url, undefined, this.getLastTriggerPageEvent());
 			}
 		} else {
-			req = new this.Request("link", "GET", url);
+			req = new this.Request("link", "GET", url, undefined, this.getLastTriggerPageEvent());
 		}
 
 		if (req) {
@@ -178,8 +223,7 @@ function initProbe(options, inputValues, userCustomScript) {
 	};
 
 	Probe.prototype.printWebsocket = function(url){
-		var trigger = this.getTrigger();
-		var req = new this.Request("websocket", "GET", url, null, trigger);
+		var req = new this.Request("websocket", "GET", url, null, this.getLastTriggerPageEvent());
 		req.print();
 	};
 
@@ -231,13 +275,10 @@ function initProbe(options, inputValues, userCustomScript) {
 
 	/**
 	 * return the last element/event name pair triggered
-	 * @returns {Object}
+	 * @returns {PageEvent}
 	 */
-	Probe.prototype.getTrigger = function () {
-		if (!this.curElement || !this.curElement.element)
-			return null;
-
-		return {element: this.curElement.element, event: this.curElement.event};
+	Probe.prototype.getLastTriggerPageEvent = function () {
+		return this._currentPageEvent;
 	};
 
 	/**
@@ -388,11 +429,11 @@ function initProbe(options, inputValues, userCustomScript) {
 		// needed for example by angularjs
 		var triggerChange =  function(){
 			// update angular model
-			_this._trigger(el, 'input');
+			_this._trigger(new _this.PageEvent(el, 'input'));
 
-			// _this._trigger(el, 'blur');
-			// _this._trigger(el, 'keyup');
-			// _this._trigger(el, 'keydown');
+			// _this._trigger(new _this.PageEvent(el, 'blur'));
+			// _this._trigger(new _this.PageEvent(el, 'keyup'));
+			// _this._trigger(new _this.PageEvent(el, 'keydown'));
 		};
 
 		if (el.nodeName.toLowerCase() === 'textarea') {
@@ -494,38 +535,32 @@ function initProbe(options, inputValues, userCustomScript) {
 
 	/**
 	 * add the trigger of the given event on the given element to the trigger queue to be triggered
-	 * @param {Element} element
-	 * @param {String} eventName
+	 *
+	 * it place the given event in a queue and trigger it when the event loop is empty/ready
+	 * trigger the given event only when there is some space in the event stack to avoid collision
+	 * and give time to things to resolve properly (since we trigger user driven event,
+	 * it is important to give time to the analysed page to breath between calls)
+	 *
+	 * more info on {@link https://developer.mozilla.org/en-US/docs/Web/JavaScript/EventLoop MDN}
+	 *
+	 * @param {Probe.PageEvent} pageEvent which have to be triggered
 	 * @private
 	 */
-	Probe.prototype._trigger = function (element, eventName) {
+	Probe.prototype._trigger = function (pageEvent) {
 		/* 	workaround for a phantomjs bug on linux (so maybe not a phantom bug but some linux libs??).
 		 if you trigger click on input type=color everything freezes... maybe due to some
 			color picker that pops up ...
 		*/
-		if (element.tagName === "INPUT" && element.type.toLowerCase() === 'color' && eventName === 'click') {
+		if (pageEvent.element.tagName === "INPUT" && pageEvent.element.type.toLowerCase() === 'color' && pageEvent.eventName === 'click') {
 			return;
 		}
 		// trigger the given event only when there is some space in the event stack to avoid collision
 		// and give time to things to resolve properly (since we trigger user driven event,
 		// it is important to give time to the analysed page to breath between calls)
-		this._triggerEventWhenReady(element, eventName);
-	};
-
-	/**
-	 * Place the given event in a queue and trigger it when the event loop is empty/ready
-	 * more info on {@link https://developer.mozilla.org/en-US/docs/Web/JavaScript/EventLoop MDN}
-	 * @private
-	 * @param {Element} element - element on which the event have to be triggered
-	 * @param {String} eventName - name of the event to trigger
-	 */
-	Probe.prototype._triggerEventWhenReady = function (element, eventName) {
-
-		this._toBeTriggeredEventsQueue.push([element, eventName]);
+		this._toBeTriggeredEventsQueue.push(pageEvent);
 		this.isEventWaitingForTriggering = true;
 
 		window.postMessage(scheduleNextEventMessageName, "*");
-
 	};
 
 	/**
@@ -536,31 +571,21 @@ function initProbe(options, inputValues, userCustomScript) {
 
 		if (this._toBeTriggeredEventsQueue.length > 0) {
 
-			// retrieving the next element/event pair
-			var event = this._toBeTriggeredEventsQueue.shift();
+			// retrieving the next pageEvent
+			var pageEvent = this._toBeTriggeredEventsQueue.shift();
 
-			var ueRet = this.triggerUserEvent("onTriggerEvent", event);
+			var ueRet = this.triggerUserEvent("onTriggerEvent", [pageEvent.element, pageEvent.eventName]);
 
 
 			if (ueRet !== false) {
-				var element = event[0], eventName = event[1];
 
 				// setting the current element
-				this.curElement = {element: element, event: eventName};
+				this._currentPageEvent = pageEvent;
 
 				// Triggering the event
-				if ('createEvent' in document) {
-					var evt = document.createEvent('HTMLEvents');
-					evt.initEvent(eventName, true, false);
-					element.dispatchEvent(evt);
-				} else {
-					eventName = 'on' + eventName;
-					if (eventName in element && typeof element[eventName] === "function") {
-						element[eventName]();
-					}
-				}
+				pageEvent.trigger();
 
-				this.triggerUserEvent("onEventTriggered", event);
+				this.triggerUserEvent("onEventTriggered", [pageEvent.element, pageEvent.eventName]);
 			}
 
 			// pushing the next event to the next event loop
@@ -568,7 +593,7 @@ function initProbe(options, inputValues, userCustomScript) {
 				this.isEventRunningFromTriggering = false;
 
 				// cleaning the current element
-				this.curElement = {};
+				this._currentPageEvent = undefined;
 
 				// requesting the next event
 				window.postMessage(scheduleNextEventMessageName, "*");
@@ -635,17 +660,15 @@ function initProbe(options, inputValues, userCustomScript) {
 	 * @private
 	 */
 	Probe.prototype._triggerElementEvents = function (element) {
-		//console.log("triggering events for " + _elementToString(element));
+		// console.log("triggering events for " + _elementToString(element));
 		var events = this._getEventsForElement(element);
 		for(var a = 0; a < events.length; a++){
 
-			var teObj = {e:element, ev: events[a]};
-			if (!_isEventTriggerable(event) || _objectInArray(this.triggeredEvents, teObj))
-				continue;
-
-			this.triggeredEvents.push(teObj);
-			this._trigger(teObj.e, teObj.ev);
-
+			var pageEvent = new this.PageEvent(element, events[a]);
+			if (_isEventTriggerable(events[a]) && !_objectInArray(this.triggeredEvents, pageEvent)) {
+				this.triggeredEvents.push(pageEvent);
+				this._trigger(pageEvent);
+			}
 		}
 	};
 
@@ -746,7 +769,7 @@ function initProbe(options, inputValues, userCustomScript) {
 		// starting analyse loop
 		var to = window.__originalSetInterval(function () {
 			//console.log(counter+" isWaitingRecursion: "+isWaitingRecursion+" isAjaxCompleted: "+isAjaxCompleted+ " isRecursionReturned:"+isRecursionReturned)
-			console.log(counter + "#  elements.length: " + elements.length + "\trecursion: " + isWaitingRecursion + "\treturned: " + isRecursionReturned + "\tajax: " + this.pendingAjax.length + "\tcompleted: " + isAjaxCompleted + "\ttriggered: " + isAjaxTriggered + "\tevents: " + (this.isEventWaitingForTriggering) + " " + ( this.isEventRunningFromTriggering));
+			// console.log(counter + "#  elements.length: " + elements.length + "\trecursion: " + isWaitingRecursion + "\treturned: " + isRecursionReturned + "\tajax: " + this.pendingAjax.length + "\tcompleted: " + isAjaxCompleted + "\ttriggered: " + isAjaxTriggered + "\tevents: " + (this.isEventWaitingForTriggering) + " " + ( this.isEventRunningFromTriggering));
 
 			if (elements.length > 0 && !isWaitingRecursion && !this.isEventWaitingForTriggering) {
 				// console.log(counter + " analysing " + this.describeElement(elements[index]))
@@ -821,7 +844,7 @@ function initProbe(options, inputValues, userCustomScript) {
 
 				}
 
-				console.log(counter + "## elements.length: " + elements.length + "\trecursion: " + isWaitingRecursion + "\treturned: " + isRecursionReturned + "\tajax: " + this.pendingAjax.length + "\tcompleted: " + isAjaxCompleted + "\ttriggered: " + isAjaxTriggered + "\tevents: " + (this.isEventWaitingForTriggering) + " " + ( this.isEventRunningFromTriggering));
+				// console.log(counter + "## elements.length: " + elements.length + "\trecursion: " + isWaitingRecursion + "\treturned: " + isRecursionReturned + "\tajax: " + this.pendingAjax.length + "\tcompleted: " + isAjaxCompleted + "\ttriggered: " + isAjaxTriggered + "\tevents: " + (this.isEventWaitingForTriggering) + " " + ( this.isEventRunningFromTriggering));
 
 				if (elements.length === 0) {
 					console.log("call END");
