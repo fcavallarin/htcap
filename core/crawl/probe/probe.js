@@ -901,7 +901,6 @@ function initProbe(options, inputValues, userCustomScript) {
 		this._analyzeDOM(document, 0, function () {
 			window.__callPhantom({cmd: 'end'})
 		});
-
 	};
 
 
@@ -944,14 +943,8 @@ function initProbe(options, inputValues, userCustomScript) {
 			//console.log(counter+" isWaitingRecursion: "+isWaitingRecursion+" isAjaxCompleted: "+isAjaxCompleted+ " isRecursionReturned:"+isRecursionReturned)
 			console.log(counter + "#  elements.length: " + elements.length + "\trecursion: " + isWaitingRecursion + "\treturned: " + isRecursionReturned + "\tajax: " + this.pendingAjax.length + "\tcompleted: " + isAjaxCompleted + "\ttriggered: " + isAjaxTriggered + "\tevents: " + (this.isEventWaitingForTriggering) + " " + ( this.isEventRunningFromTriggering));
 
-
-			// if any event are waiting or running, do nothing
-			if (this.isEventWaitingForTriggering || this.isEventRunningFromTriggering || isWaitingRecursion) return;
-
-
-			// if there is still works to be done and nothing is waiting
-			// if(lastIndex < index && !waitingRecursion){
-			if (elements.length > 0) {
+			if (elements.length > 0 && !isWaitingRecursion && !this.isEventWaitingForTriggering) {
+				// console.log(counter + " analysing " + this.describeElement(elements[index]))
 
 				// TODO: here the element may have been detached, moved, etc ; try to find a logic to handle this.
 
@@ -961,29 +954,29 @@ function initProbe(options, inputValues, userCustomScript) {
 					this._triggerElementEvents(elements.shift());
 				}
 
-			}
-
-
-			// treating pending XHR request
-			if (this.pendingAjax.length > 0) {
-				hasXHRs = this.waitAjax(function () {
+				// treating pending XHR request
+				if (this.pendingAjax.length > 0) {
+					hasXHRs = this.waitAjax(function () {
+						isAjaxCompleted = true;
+						isAjaxTriggered = true;
+					});
+				} else {
+					hasXHRs = false;
 					isAjaxCompleted = true;
-					isAjaxTriggered = true;
-				});
-			} else {
-				hasXHRs = false;
-				isAjaxCompleted = true;
-				isAjaxTriggered = false;
+					isAjaxTriggered = false;
+				}
 			}
 
-			// treating completed ajax
-			if (isAjaxCompleted) {
-				isAjaxCompleted = false;
+			if (!this.isEventWaitingForTriggering && !this.isEventRunningFromTriggering && (isAjaxCompleted || isWaitingRecursion)) {
 
-				this.printRequestQueue();
-				if (isAjaxTriggered) {
-					this.triggerUserEvent("onAllXhrsCompleted");
-				}
+				// treating completed ajax
+				if (isAjaxCompleted) {
+					isAjaxCompleted = false;
+
+					this.printRequestQueue();
+					if (isAjaxTriggered) {
+						this.triggerUserEvent("onAllXhrsCompleted");
+					}
 
 				if (counter < this.options.maximumRecursion) {
 					// getAddedElement is slow and can take time if the DOM is big (~25000 nodes)
@@ -999,41 +992,42 @@ function initProbe(options, inputValues, userCustomScript) {
 				} else {
 					console.log(">>>>RECURSION LIMIT REACHED :" + counter);
 				}
-			}
+				}
 
-			if (isWaitingRecursion) {
+				if (isWaitingRecursion) {
 
-				if (modifiedElementList.length > 0) {
-					this._analyzeDOM(modifiedElementList.shift(), counter + 1, function () {
-						isRecursionReturned = true;
+					if (modifiedElementList.length > 0) {
+						// DEBUG:
+						console.log('modified');
+						this._analyzeDOM(modifiedElementList.shift(), counter + 1, function () {
+							isRecursionReturned = true;
+						});
+					}
+
+					if (!isRecursionReturned) return;
+
+					isRecursionReturned = false;
+
+					if (modifiedElementList.length <= 0) {
+						isWaitingRecursion = false;
+					} else {
+						return;
+					}
+
+				}
+
+				console.log(counter + "## elements.length: " + elements.length + "\trecursion: " + isWaitingRecursion + "\treturned: " + isRecursionReturned + "\tajax: " + this.pendingAjax.length + "\tcompleted: " + isAjaxCompleted + "\ttriggered: " + isAjaxTriggered + "\tevents: " + (this.isEventWaitingForTriggering) + " " + ( this.isEventRunningFromTriggering));
+
+				if (elements.length === 0) {
+					console.log("call END");
+					// setting the "finish" step to the next event loop to leave some time to the last process/event to finish
+					window.__originalSetTimeout(function () {
+						clearInterval(to);
+						console.log("-------END");
+						if (typeof callback === 'function') callback();
 					});
 				}
-
-				if (!isRecursionReturned) return;
-
-				isRecursionReturned = false;
-
-				if (modifiedElementList.length <= 0) {
-					isWaitingRecursion = false;
-				} else {
-					return;
-				}
-
 			}
-
-			console.log(counter + "## elements.length: " + elements.length + "\trecursion: " + isWaitingRecursion + "\treturned: " + isRecursionReturned + "\tajax: " + this.pendingAjax.length + "\tcompleted: " + isAjaxCompleted + "\ttriggered: " + isAjaxTriggered + "\tevents: " + (this.isEventWaitingForTriggering) + " " + ( this.isEventRunningFromTriggering));
-
-			if (elements.length === 0) {
-				console.log("call END");
-
-					// setting the "finish" step to the next event loop to leave some time to the last process/event to finish
-				window.__originalSetTimeout(function () {
-						clearInterval(to);
-					console.log("-------END");
-						if (typeof callback === 'function') callback();
-				});
-			}
-
 		}.bind(this), 0);
 	};
 
