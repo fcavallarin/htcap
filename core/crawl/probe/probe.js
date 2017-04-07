@@ -32,13 +32,13 @@ function initProbe(options, inputValues, userCustomScript) {
 	function Probe(options, inputValues, userCustomScript) {
 		var currentProbe = this;
 
-		this.options = options;
+		this._options = options;
 
-		this.requestsPrintQueue = [];
+		this._requestsPrintQueue = [];
 		this.sentAjax = [];
 
 		this._currentPageEvent = undefined;
-		this.eventsMap = [];
+		this._eventsMap = [];
 
 		/**
 		 * the queue containing all the awaiting events to be triggered
@@ -178,14 +178,14 @@ function initProbe(options, inputValues, userCustomScript) {
 
 
 	Probe.prototype.printRequestQueue = function(){
-		for(var a = 0; a < this.requestsPrintQueue.length; a++){
-			this.requestsPrintQueue[a].print();
+		for (var a = 0; a < this._requestsPrintQueue.length; a++) {
+			this._requestsPrintQueue[a].print();
 		}
-		this.requestsPrintQueue = [];
+		this._requestsPrintQueue = [];
 	};
 
 	Probe.prototype.addRequestToPrintQueue = function (req) {
-		this.requestsPrintQueue.push(req);
+		this._requestsPrintQueue.push(req);
 	};
 
 	Probe.prototype.printJSONP = function(node){
@@ -210,7 +210,7 @@ function initProbe(options, inputValues, userCustomScript) {
 		url = url.split("#")[0];
 
 		if(url.match(/^[a-z0-9\-_]+\:/i) && !url.match(/(^https?)|(^ftps?)\:/i)){
-			if(this.options.printUnknownRequests){
+			if (this._options.printUnknownRequests) {
 				req = new this.Request("unknown", "GET", url, undefined, this.getLastTriggerPageEvent());
 			}
 		} else {
@@ -236,8 +236,8 @@ function initProbe(options, inputValues, userCustomScript) {
 
 	Probe.prototype.waitAjax = function(callback, chainLimit){
 		var xhrList = this.pendingAjax.slice(),	// get a copy of the pending XHRs
-			timeout = this.options.ajaxTimeout,
-			chainSizeLimit = chainLimit || this.options.maximumAjaxChain;
+			timeout = this._options.ajaxTimeout,
+			chainSizeLimit = chainLimit || this._options.maximumAjaxChain;
 
 		this.pendingAjax = []; // clean-up the list
 
@@ -346,14 +346,14 @@ function initProbe(options, inputValues, userCustomScript) {
 	 */
 	Probe.prototype.addEventToMap = function (element, eventName) {
 
-		for (var a = 0; a < this.eventsMap.length; a++) {
-			if (this.eventsMap[a].element === element) {
-				this.eventsMap[a].events.push(eventName);
+		for (var a = 0; a < this._eventsMap.length; a++) {
+			if (this._eventsMap[a].element === element) {
+				this._eventsMap[a].events.push(eventName);
 				return;
 			}
 		}
 
-		this.eventsMap.push({
+		this._eventsMap.push({
 			element: element,
 			events: [eventName]
 		});
@@ -409,7 +409,7 @@ function initProbe(options, inputValues, userCustomScript) {
 	 * @private
 	 */
 	Probe.prototype._setVal = function (el) {
-		var options = this.options;
+		var options = this._options;
 		var _this = this;
 
 		var ueRet = this.triggerUserEvent("onFillInput", [el]);
@@ -417,12 +417,12 @@ function initProbe(options, inputValues, userCustomScript) {
 
 		var setv = function(name){
 			var ret = _this.getRandomValue('string');
-			for(var a = 0; a < options.inputNameMatchValue.length; a++){
-				var regexp = new RegExp(options.inputNameMatchValue[a].name, "gi");
-				if(name.match(regexp)){
-					ret = _this.getRandomValue(options.inputNameMatchValue[a].value);
+			options.inputNameMatchValue.forEach(function (matchValue) {
+				var regexp = new RegExp(matchValue.name, "gi");
+				if (name.match(regexp)) {
+					ret = _this.getRandomValue(matchValue.value);
 				}
-			}
+			});
 			return ret;
 		};
 
@@ -632,8 +632,8 @@ function initProbe(options, inputValues, userCustomScript) {
 		var events = [];
 		var map;
 
-		if(this.options.triggerAllMappedEvents){
-			map = this.eventsMap;
+		if (this._options.triggerAllMappedEvents) {
+			map = this._eventsMap;
 			for(var a = 0; a < map.length; a++){
 				if (map[a].element === element) {
 					events = map[a].events.slice();
@@ -642,7 +642,7 @@ function initProbe(options, inputValues, userCustomScript) {
 			}
 		}
 
-		map = this.options.eventsMap;
+		map = this._options.eventsMap;
 		for(var selector in map){
 			if(element.webkitMatchesSelector(selector)){
 				events = events.concat(map[selector]);
@@ -659,43 +659,44 @@ function initProbe(options, inputValues, userCustomScript) {
 	 * @private
 	 */
 	Probe.prototype._triggerElementEvents = function (element) {
-		// console.log("triggering events for " + _elementToString(element));
 		var events = this._getEventsForElement(element);
-		for(var a = 0; a < events.length; a++){
 
-			var pageEvent = new this.PageEvent(element, events[a]);
-			if (_isEventTriggerable(events[a]) && !_objectInArray(this.triggeredEvents, pageEvent)) {
+		events.forEach(function (eventName) {
+			var pageEvent = new this.PageEvent(element, eventName);
+
+			// console.log("triggering events for : " + _elementToString(element) + " " + eventName);
+
+			if (_isEventTriggerable(eventName) && !_objectInArray(this.triggeredEvents, pageEvent)) {
 				this.triggeredEvents.push(pageEvent);
 				this._trigger(pageEvent);
 			}
-		}
+		}.bind(this));
 	};
 
-
-
-
-
 	/**
-	 * @param {Element} element
+	 * @param {Element} node
 	 * @private
 	 */
-	Probe.prototype._initializeElement = function (element) {
-		var options = this.options;
+	Probe.prototype._initializeElement = function (node) {
+		var options = this._options;
 
 		if(options.mapEvents){
-			var els = element.getElementsByTagName("*");
-			for(var a = 0; a < els.length; a++){
+			var elements = node.getElementsByTagName("*");
+			for (var a = 0; a < elements.length; a++) {
+				var element = elements[a];
 				for(var b = 0; b < options.allEvents.length; b++){
-					var evname = "on" + options.allEvents[b];
-					if(evname in els[a] && els[a][evname]){
-						this.addEventToMap(els[a], options.allEvents[b]);
+					var eventName = options.allEvents[b],
+						onEventName = "on" + eventName;
+
+					if (onEventName in element && element[onEventName]) {
+						this.addEventToMap(element, eventName);
 					}
 				}
 			}
 		}
 
 		if(options.fillValues){
-			this._fillInputValues(element);
+			this._fillInputValues(node);
 		}
 	};
 
@@ -777,7 +778,7 @@ function initProbe(options, inputValues, userCustomScript) {
 
 				this.DOMSnapshot = _getDOMSnapshot();
 
-				if (this.options.triggerEvents) {
+				if (this._options.triggerEvents) {
 					this._triggerElementEvents(elements.shift());
 				}
 
@@ -805,7 +806,7 @@ function initProbe(options, inputValues, userCustomScript) {
 						this.triggerUserEvent("onAllXhrsCompleted");
 					}
 
-				if (counter < this.options.maximumRecursion) {
+					if (counter < this._options.maximumRecursion) {
 					// getAddedElement is slow and can take time if the DOM is big (~25000 nodes)
 					// so use it only if ajax
 					modifiedElementList = isAjaxTriggered ? _getAddedElements(this.DOMSnapshot) : [];
