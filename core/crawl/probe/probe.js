@@ -16,11 +16,8 @@ version.
 */
 function initProbe(options, inputValues, userCustomScript) {
 
-	/**
-	 * Name for the message corresponding of the event to trigger the schedule of the next event in queue
-	 * @type {string}
-	 */
-	var scheduleNextEventMessageName = "htcap-schedule-next-event-for-trigger";
+	var scheduleNextEventMessageEventData = {from: "htcap", action: "schedule-next-event-for-trigger"};
+	var scheduleNextDOMAssessmentMessageEventData = {from: "htcap", action: "schedule-next-DOM-Assessment"};
 
 	/**
 	 *
@@ -558,7 +555,7 @@ function initProbe(options, inputValues, userCustomScript) {
 			this._toBeTriggeredEventsQueue.push(pageEvent);
 			this.isEventWaitingForTriggering = true;
 
-			window.postMessage(scheduleNextEventMessageName, "*");
+			window.postMessage(scheduleNextEventMessageEventData, "*");
 		}
 	};
 
@@ -595,7 +592,7 @@ function initProbe(options, inputValues, userCustomScript) {
 				this._currentPageEvent = undefined;
 
 				// requesting the next event
-				window.postMessage(scheduleNextEventMessageName, "*");
+				window.postMessage(scheduleNextEventMessageEventData, "*");
 				}.bind(this)
 			);
 
@@ -611,13 +608,17 @@ function initProbe(options, inputValues, userCustomScript) {
 	 * @private
 	 */
 	Probe.prototype._triggerEventFromQueueHandler = function (message) {
+
 		// if it's our message
-		if (message.source === window && message.data === scheduleNextEventMessageName) {
+		if (message.source === window && message.data.from === 'htcap') {
 			message.stopPropagation();
-			// if there's not currently running events (avoiding multiple simultaneous call)
-			if (!this.isEventRunningFromTriggering) {
-				this.isEventRunningFromTriggering = true;
-				this._triggerEventFromQueue();
+
+			if (message.data.action === scheduleNextEventMessageEventData.action) {
+				// if there's not currently running events (avoiding multiple simultaneous call)
+				if (!this.isEventRunningFromTriggering) {
+					this.isEventRunningFromTriggering = true;
+					this._triggerEventFromQueue();
+				}
 			}
 		}
 	};
