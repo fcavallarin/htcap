@@ -767,14 +767,14 @@ function initProbe(options, inputValues, userCustomScript) {
 			this._printUrlsFromElement(node);
 		}
 
-		this.DOMSnapshot = _getDOMSnapshot();
-
-		if (this._options.triggerEvents) {
-			elements.forEach(function (element) {
-				this._triggerElementEvents(element);
-			}.bind(this));
-		}
-
+		// this.DOMSnapshot = _getDOMSnapshot();
+		//
+		// if (this._options.triggerEvents) {
+		// 	elements.forEach(function (element) {
+		// 		this._triggerElementEvents(element);
+		// 	}.bind(this));
+		// }
+		//
 
 
 
@@ -788,6 +788,11 @@ function initProbe(options, inputValues, userCustomScript) {
 
 				// TODO: here the element may have been detached, moved, etc ; try to find a logic to handle this.
 
+				this.DOMSnapshot = _getDOMSnapshot();
+
+				if (this._options.triggerEvents) {
+					this._triggerElementEvents(elements.shift());
+				}
 
 				// treating pending XHR request
 				if (this.pendingXHRs.length > 0) {

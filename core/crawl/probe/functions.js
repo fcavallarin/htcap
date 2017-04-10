@@ -378,20 +378,19 @@ function startProbe(random, injectScript) {
 		if(options.mapEvents){
 
 			Node.prototype.__originalAddEventListener = Node.prototype.addEventListener;
-			Node.prototype.addEventListener = function(event, func, useCapture){
-				if(event != "DOMContentLoaded"){ // is this ok???
-					window.__PROBE__.addEventToMap(this, event);
+			Node.prototype.addEventListener = function () {
+				if (arguments[0] !== "DOMContentLoaded") { // is this ok???
+					window.__PROBE__.addEventToMap(this, arguments[0]);
 				}
-				this.__originalAddEventListener(event, func, useCapture);
+				this.__originalAddEventListener.apply(this, arguments);
 			};
 
-			
 			window.__originalAddEventListener = window.addEventListener;
-			window.addEventListener = function (event, func, useCapture) {
-					if(event != "load"){ // is this ok???
-						window.__PROBE__.addEventToMap(this, event);
-					}
-				window.__originalAddEventListener.apply(this, [event, func, useCapture]);
+			window.addEventListener = function () {
+				if (arguments[0] !== "load") { // is this ok???
+					window.__PROBE__.addEventToMap(this, arguments[0]);
+				}
+				window.__originalAddEventListener.apply(this, arguments);
 			};
 		}
 
@@ -404,7 +403,6 @@ function startProbe(random, injectScript) {
 
 				return this.__originalOpen(method, url, async, user, password);
 			};
-
 
 			XMLHttpRequest.prototype.__originalSend = XMLHttpRequest.prototype.send;
 			XMLHttpRequest.prototype.send = function(data){
