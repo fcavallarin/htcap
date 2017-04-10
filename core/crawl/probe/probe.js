@@ -32,7 +32,7 @@ function initProbe(options, inputValues, userCustomScript) {
 		this._options = options;
 
 		this._requestsPrintQueue = [];
-		this.sentAjax = [];
+		this.sentXHRs = [];
 
 		this._currentPageEvent = undefined;
 		this._eventsMap = [];
@@ -50,7 +50,7 @@ function initProbe(options, inputValues, userCustomScript) {
 		this.websockets = [];
 		this.html = "";
 		this.DOMSnapshot = [];
-		this.pendingAjax = [];
+		this.pendingXHRs = [];
 		this.inputValues = inputValues;
 
 		this.userInterface = {
@@ -230,11 +230,11 @@ function initProbe(options, inputValues, userCustomScript) {
 
 
 	Probe.prototype.waitAjax = function(callback, chainLimit){
-		var xhrList = this.pendingAjax.slice(),	// get a copy of the pending XHRs
+		var xhrList = this.pendingXHRs.slice(),	// get a copy of the pending XHRs
 			timeout = this._options.ajaxTimeout,
 			chainSizeLimit = chainLimit || this._options.maximumAjaxChain;
 
-		this.pendingAjax = []; // clean-up the list
+		this.pendingXHRs = []; // clean-up the list
 
 		console.log("Waiting for ajaxs: " + chainSizeLimit);
 
@@ -242,7 +242,7 @@ function initProbe(options, inputValues, userCustomScript) {
 			if ((timeout <= 0) || _isXHRsInListCompleted(xhrList)) {
 				clearInterval(t);
 				window.__originalSetTimeout(function () {
-					if (chainSizeLimit > 0 && this.pendingAjax.length > 0) {
+					if (chainSizeLimit > 0 && this.pendingXHRs.length > 0) {
 						this.waitAjax(callback, chainSizeLimit - 1);
 					} else {
 						callback(xhrList.length > 0);
@@ -767,24 +767,30 @@ function initProbe(options, inputValues, userCustomScript) {
 			this._printUrlsFromElement(node);
 		}
 
+		this.DOMSnapshot = _getDOMSnapshot();
+
+		if (this._options.triggerEvents) {
+			elements.forEach(function (element) {
+				this._triggerElementEvents(element);
+			}.bind(this));
+		}
+
+
+
+
 		// starting analyse loop
 		var to = window.__originalSetInterval(function () {
 			//console.log(counter+" isWaitingRecursion: "+isWaitingRecursion+" isAjaxCompleted: "+isAjaxCompleted+ " isRecursionReturned:"+isRecursionReturned)
-			// console.log(counter + "#  elements.length: " + elements.length + "\trecursion: " + isWaitingRecursion + "\treturned: " + isRecursionReturned + "\tajax: " + this.pendingAjax.length + "\tcompleted: " + isAjaxCompleted + "\ttriggered: " + isAjaxTriggered + "\tevents: " + (this.isEventWaitingForTriggering) + " " + ( this.isEventRunningFromTriggering));
+			// console.log(counter + "#  elements.length: " + elements.length + "\trecursion: " + isWaitingRecursion + "\treturned: " + isRecursionReturned + "\tajax: " + this.pendingXHRs.length + "\tcompleted: " + isAjaxCompleted + "\ttriggered: " + isAjaxTriggered + "\tevents: " + (this.isEventWaitingForTriggering) + " " + ( this.isEventRunningFromTriggering));
 
 			if (elements.length > 0 && !isWaitingRecursion && !this.isEventWaitingForTriggering) {
 				// console.log(counter + " analysing " + this.describeElement(elements[index]))
 
 				// TODO: here the element may have been detached, moved, etc ; try to find a logic to handle this.
 
-				this.DOMSnapshot = _getDOMSnapshot();
-
-				if (this._options.triggerEvents) {
-					this._triggerElementEvents(elements.shift());
-				}
 
 				// treating pending XHR request
-				if (this.pendingAjax.length > 0) {
+				if (this.pendingXHRs.length > 0) {
 					hasXHRs = this.waitAjax(function () {
 						isAjaxCompleted = true;
 						isAjaxTriggered = true;
@@ -808,19 +814,19 @@ function initProbe(options, inputValues, userCustomScript) {
 					}
 
 					if (counter < this._options.maximumRecursion) {
-					// getAddedElement is slow and can take time if the DOM is big (~25000 nodes)
-					// so use it only if ajax
-					modifiedElementList = isAjaxTriggered ? _getAddedElements(this.DOMSnapshot) : [];
+						// getAddedElement is slow and can take time if the DOM is big (~25000 nodes)
+						// so use it only if ajax
+						modifiedElementList = isAjaxTriggered ? _getAddedElements(this.DOMSnapshot) : [];
 
-					if (modifiedElementList.length > 0) {
-						this.triggerUserEvent("onDomModified", [modifiedElementList, elements]);
+						if (modifiedElementList.length > 0) {
+							this.triggerUserEvent("onDomModified", [modifiedElementList, elements]);
+						}
+						// if ajax has been triggered and some elements are modified then recurse through the modified elements
+						isWaitingRecursion = (modifiedElementList.length > 0 && hasXHRs);
+
+					} else {
+						console.log(">>>>RECURSION LIMIT REACHED :" + counter);
 					}
-					// if ajax has been triggered and some elements are modified then recurse through the modified elements
-					isWaitingRecursion = (modifiedElementList.length > 0 && hasXHRs);
-
-				} else {
-					console.log(">>>>RECURSION LIMIT REACHED :" + counter);
-				}
 				}
 
 				if (isWaitingRecursion) {
@@ -845,7 +851,7 @@ function initProbe(options, inputValues, userCustomScript) {
 
 				}
 
-				// console.log(counter + "## elements.length: " + elements.length + "\trecursion: " + isWaitingRecursion + "\treturned: " + isRecursionReturned + "\tajax: " + this.pendingAjax.length + "\tcompleted: " + isAjaxCompleted + "\ttriggered: " + isAjaxTriggered + "\tevents: " + (this.isEventWaitingForTriggering) + " " + ( this.isEventRunningFromTriggering));
+				// console.log(counter + "## elements.length: " + elements.length + "\trecursion: " + isWaitingRecursion + "\treturned: " + isRecursionReturned + "\tajax: " + this.pendingXHRs.length + "\tcompleted: " + isAjaxCompleted + "\ttriggered: " + isAjaxTriggered + "\tevents: " + (this.isEventWaitingForTriggering) + " " + ( this.isEventRunningFromTriggering));
 
 				if (elements.length === 0) {
 					console.log("call END");
@@ -1014,7 +1020,9 @@ function initProbe(options, inputValues, userCustomScript) {
 		var allDone = true;
 		for (var a = 0; a < xhrList.length; a++) {
 			//console.log("-->"+xhrList[a].readyState + " "+ xhrList[a].__request.url)
-			if (xhrList[a].readyState !== 4 && !xhrList[a].__skipped) allDone = false;
+			if (xhrList[a].readyState !== 4 && !xhrList[a].__skipped) {
+				allDone = false;
+			}
 		}
 		//if(allDone)
 		//	console.log("-----------------> alla ajax completed")

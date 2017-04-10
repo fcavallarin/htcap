@@ -403,13 +403,13 @@ function startProbe(random, injectScript) {
 				this.__request = new window.__PROBE__.Request("xhr", method, _url);
 
 				return this.__originalOpen(method, url, async, user, password);
-			}
+			};
 
 
 			XMLHttpRequest.prototype.__originalSend = XMLHttpRequest.prototype.send;
-
 			XMLHttpRequest.prototype.send = function(data){
 				this.__request.data = data;
+				this.__request.triggerer = window.__PROBE__.getLastTriggerPageEvent();
 
 				var absurl = window.__PROBE__.getAbsoluteUrl(this.__request.url);
 				for(var a = 0; a < options.excludedUrls.length; a++){
@@ -418,29 +418,23 @@ function startProbe(random, injectScript) {
 					}
 				}
 
-
-				this.__request.triggerer = window.__PROBE__.getLastTriggerPageEvent();
-
-
 				// check if request has already been sent
 				var rk = this.__request.key();
-				if(window.__PROBE__.sentAjax.indexOf(rk) != -1){
+				if(window.__PROBE__.sentXHRs.indexOf(rk) != -1){
 					return;
 				}
 
 				var ueRet = window.__PROBE__.triggerUserEvent("onXhr",[this.__request]);
 				if(ueRet){
 					// pending ajax
-					window.__PROBE__.pendingAjax.push(this);
-					window.__PROBE__.sentAjax.push(rk);
+					window.__PROBE__.pendingXHRs.push(this);
+					window.__PROBE__.sentXHRs.push(rk);
 					window.__PROBE__.addRequestToPrintQueue(this.__request);
-
 
 					if(!this.__skipped)
 						return this.__originalSend(data);
 				}
-			}
-
+			};
 		}
 
 
