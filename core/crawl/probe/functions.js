@@ -385,14 +385,14 @@ function startProbe(random, injectScript) {
 				this.__originalAddEventListener(event, func, useCapture);
 			};
 
-			window.addEventListener = (function (__originalAddEventListener) {
-				return function(event, func, useCapture){
+			
+			window.__originalAddEventListener = window.addEventListener;
+			window.addEventListener = function (event, func, useCapture) {
 					if(event != "load"){ // is this ok???
 						window.__PROBE__.addEventToMap(this, event);
 					}
-					__originalAddEventListener.apply(this, [event, func, useCapture]);
-				}
-			})(window.addEventListener);
+				window.__originalAddEventListener.apply(this, [event, func, useCapture]);
+			};
 		}
 
 		if(options.checkAjax){

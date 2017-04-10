@@ -48,8 +48,6 @@ function initProbe(options, inputValues, userCustomScript) {
 		this._toBeTriggeredEventsQueue = [];
 		this.isEventWaitingForTriggering = false;
 		this.isEventRunningFromTriggering = false;
-		// listening for messageEvent to trigger waiting events
-		window.addEventListener("message", this._triggerEventFromQueueHandler.bind(this), true);
 
 		this.triggeredEvents = [];
 		this.websockets = [];
@@ -374,6 +372,8 @@ function initProbe(options, inputValues, userCustomScript) {
 	 */
 	Probe.prototype.startAnalysis = function () {
 		console.log("page initialized ");
+		// listening for messageEvent to trigger waiting events
+		window.__originalAddEventListener("message", this._triggerEventFromQueueHandler.bind(this), true);
 
 		this._analyzeDOM(document, 0, function () {
 			window.__callPhantom({cmd: 'end'})
