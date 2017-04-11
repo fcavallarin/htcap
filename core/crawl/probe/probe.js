@@ -16,9 +16,6 @@ version.
 */
 function initProbe(options, inputValues, userCustomScript) {
 
-	var scheduleNextEventMessageEventData = {from: "htcap", action: "schedule-next-event-for-trigger"};
-	var scheduleNextDOMAssessmentMessageEventData = {from: "htcap", action: "schedule-next-DOM-Assessment"};
-
 	/**
 	 *
 	 * @param options
@@ -231,8 +228,8 @@ function initProbe(options, inputValues, userCustomScript) {
 
 	Probe.prototype.waitAjax = function(callback, chainLimit){
 		var xhrList = this.pendingXHRs.slice(),	// get a copy of the pending XHRs
-			timeout = this._options.ajaxTimeout,
-			chainSizeLimit = chainLimit || this._options.maximumAjaxChain;
+			timeout = this._options.XHRTimeout,
+			chainSizeLimit = chainLimit || this._options.maximumXHRStackSize;
 
 		this.pendingXHRs = []; // clean-up the list
 
@@ -555,7 +552,7 @@ function initProbe(options, inputValues, userCustomScript) {
 			this._toBeTriggeredEventsQueue.push(pageEvent);
 			this.isEventWaitingForTriggering = true;
 
-			window.postMessage(scheduleNextEventMessageEventData, "*");
+			window.postMessage(__HTCAP.messageEvent.scheduleNextEvent, "*");
 		}
 	};
 
@@ -592,7 +589,7 @@ function initProbe(options, inputValues, userCustomScript) {
 				this._currentPageEvent = undefined;
 
 				// requesting the next event
-				window.postMessage(scheduleNextEventMessageEventData, "*");
+				window.postMessage(__HTCAP.messageEvent.scheduleNextEvent, "*");
 				}.bind(this)
 			);
 
@@ -613,7 +610,7 @@ function initProbe(options, inputValues, userCustomScript) {
 		if (message.source === window && message.data.from === 'htcap') {
 			message.stopPropagation();
 
-			if (message.data.action === scheduleNextEventMessageEventData.action) {
+			if (message.data.name === __HTCAP.messageEvent.scheduleNextEvent.name) {
 				// if there's not currently running events (avoiding multiple simultaneous call)
 				if (!this.isEventRunningFromTriggering) {
 					this.isEventRunningFromTriggering = true;

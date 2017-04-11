@@ -371,6 +371,11 @@ function startProbe(random, injectScript) {
 	// this process will lead to and infinite loop!
 	var inputValues = generateRandomValues(random);
 
+	// adding constants to page
+	page.evaluate(function (__HTCAP) {
+		window.__HTCAP = __HTCAP;
+	}, window.__HTCAP);
+
 	page.evaluate(initProbe, options, inputValues, injectScript);
 
 	page.evaluate(function(options) {
@@ -401,6 +406,40 @@ function startProbe(random, injectScript) {
 				var _url = window.__PROBE__.removeUrlParameter(url, "_");
 				this.__request = new window.__PROBE__.Request("xhr", method, _url);
 
+				// adding XHR listener
+				this.addEventListener('readystatechange', function () {
+					// DEBUG:
+					console.log('state change: ' + JSON.stringify(this.readyState) + ' ' + JSON.stringify(this.responseText));
+
+					// if not finish, it's open
+					// https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest/readyState
+					if (this.readyState < 4) {
+						window.postMessage(__HTCAP.messageEvent.XHROpen, "*");
+					} else if (this.readyState === 4) {
+						// /!\ DONE means that the XHR finish but could have FAILED
+						window.postMessage(__HTCAP.messageEvent.XHRFinish, "*");
+					}
+				});
+				this.addEventListener('error', function () {
+					// DEBUG:
+					console.log('state error: ' + JSON.stringify(this.readyState));
+					window.postMessage(__HTCAP.messageEvent.XHRUnsuccessful, "*");
+				});
+				this.addEventListener('abort', function () {
+					// DEBUG:
+					console.log('state abort: ' + JSON.stringify(this.readyState));
+					window.postMessage(__HTCAP.messageEvent.XHRUnsuccessful, "*");
+				});
+				this.addEventListener('timeout', function () {
+					// DEBUG:
+					console.log('state timeout');
+					console.debug(this);
+
+					window.postMessage(__HTCAP.messageEvent.XHRUnsuccessful, "*");
+				});
+
+				this.timeout = options.XHRTimeout;
+
 				return this.__originalOpen(method, url, async, user, password);
 			};
 
@@ -417,8 +456,8 @@ function startProbe(random, injectScript) {
 				}
 
 				// check if request has already been sent
-				var rk = this.__request.key();
-				if(window.__PROBE__.sentXHRs.indexOf(rk) != -1){
+				var rk = this.__request.key;
+				if (window.__PROBE__.sentXHRs.indexOf(rk) !== -1) {
 					return;
 				}
 
