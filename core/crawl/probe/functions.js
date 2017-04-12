@@ -408,34 +408,33 @@ function startProbe(random, injectScript) {
 
 				// adding XHR listener
 				this.addEventListener('readystatechange', function () {
-					// DEBUG:
-					console.log('state change: ' + JSON.stringify(this.readyState) + ' ' + JSON.stringify(this.responseText));
 
 					// if not finish, it's open
 					// https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest/readyState
-					if (this.readyState < 4) {
-						window.postMessage(__HTCAP.messageEvent.XHROpen, "*");
+					if (this.readyState >= 2 && this.readyState < 4) {
+						// DEBUG:
+						console.log('state change: ', this);
+						window.__PROBE__.eventLoopManager.sentXHR(this);
 					} else if (this.readyState === 4) {
 						// /!\ DONE means that the XHR finish but could have FAILED
-						window.postMessage(__HTCAP.messageEvent.XHRFinish, "*");
+						window.__PROBE__.eventLoopManager.doneXHR(this);
 					}
 				});
 				this.addEventListener('error', function () {
 					// DEBUG:
 					console.log('state error: ' + JSON.stringify(this.readyState));
-					window.postMessage(__HTCAP.messageEvent.XHRUnsuccessful, "*");
+					window.__PROBE__.eventLoopManager.inErrorXHR(this);
 				});
 				this.addEventListener('abort', function () {
 					// DEBUG:
-					console.log('state abort: ' + JSON.stringify(this.readyState));
-					window.postMessage(__HTCAP.messageEvent.XHRUnsuccessful, "*");
+					console.log('state abort: ');
+					window.__PROBE__.eventLoopManager.inErrorXHR(this);
 				});
 				this.addEventListener('timeout', function () {
 					// DEBUG:
-					console.log('state timeout');
+					console.log('state timeout' + JSON.stringify(this.readyState));
 					console.debug(this);
-
-					window.postMessage(__HTCAP.messageEvent.XHRUnsuccessful, "*");
+					window.__PROBE__.eventLoopManager.inErrorXHR(this);
 				});
 
 				this.timeout = options.XHRTimeout;

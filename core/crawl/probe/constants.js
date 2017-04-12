@@ -2,26 +2,17 @@
 	'use strict';
 	window.__HTCAP = {
 		messageEvent: {
+			eventLoopReady: {
+				from: "htcap",
+				name: "event-loop-ready"
+			},
 			scheduleNextEvent: {
 				from: "htcap",
 				name: "schedule-next-event-for-trigger"
-			},
-			scheduleNextDOMAsDsessment: {
-				from: "htcap",
-				name: "schedule-next-DOM-Assessment"
-			},
-			XHROpen: {
-				from: "htcap",
-				name: "XHR-open"
-			},
-			XHRFinish: {
-				from: "htcap",
-				name: "XHR-successful"
-			},
-			XHRUnsuccessful: {
-				from: "htcap",
-				name: "XHR-unsuccessful"
 			}
+		},
+		eventLoop: {
+			bufferSize: 3,// number of empty event loop between every new action proceed in the eventLoop
 		}
 	};
 })();
