@@ -287,16 +287,9 @@ page.open(site, page_settings, function(status) {
 	assertContentTypeHtml(response);
 
 	page.evaluate(function(){
-
 		console.log("startAnalysis");
+		// starting page analysis
 		window.__PROBE__.startAnalysis();
-
-		// window.__PROBE__.waitAjax(function(ajaxTriggered){
-		// 	window.__PROBE__.triggerUserEvent("onStart");
-		// 	if(ajaxTriggered){
-		// 		window.__PROBE__.triggerUserEvent("onAllXhrsCompleted");
-		// 	}
-		// });
 	})
 
 

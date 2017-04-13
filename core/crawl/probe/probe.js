@@ -48,7 +48,7 @@ version.
 			this.triggeredEvents = [];
 			this.websockets = [];
 			this.html = "";
-			this.DOMSnapshot = [];
+			// this.DOMSnapshot = [];
 			this.pendingXHRs = [];
 			this.inputValues = inputValues;
 
@@ -159,21 +159,28 @@ version.
 		 */
 		Probe.prototype.PageEvent.prototype.trigger = function () {
 
-			if ('createEvent' in document) {
-				var evt = document.createEvent('HTMLEvents');
-				evt.initEvent(this.eventName, true, false);
-				this.element.dispatchEvent(evt);
-			} else {
-				var eventName = 'on' + this.eventName;
-				if (eventName in this.element && typeof this.element[eventName] === "function") {
-					this.element[eventName]();
+			var ueRet = window.__PROBE__.triggerUserEvent("onTriggerEvent", [this.element, this.eventName]);
+
+
+			if (ueRet !== false) {
+				if ('createEvent' in document) {
+					var evt = document.createEvent('HTMLEvents');
+					evt.initEvent(this.eventName, true, false);
+					this.element.dispatchEvent(evt);
+				} else {
+					var eventName = 'on' + this.eventName;
+					if (eventName in this.element && typeof this.element[eventName] === "function") {
+						this.element[eventName]();
+					}
 				}
+				window.__PROBE__.triggerUserEvent("onEventTriggered", [this.element, this.eventName]);
 			}
 		};
 
 		Probe.prototype.EventLoopManager = function (probe) {
 			this._probe = probe;
 			this._DOMAssessmentQueue = [];
+			this._toBeTriggeredEventsQueue = [];
 			this._sentXHRQueue = [];
 			this._doneXHRQueue = [];
 			this._emptyLoopCounter = 0;
@@ -198,68 +205,157 @@ version.
 						this._emptyLoopCounter += 1;
 					} else {
 						this._emptyLoopCounter = 0;
-						this.scheduleNextAction();
+						this.doNextAction();
 					}
 
-				} else if (eventMessage.data.name === __HTCAP.messageEvent.scheduleNextEvent.name) {
-					// if there's not currently running events (avoiding multiple simultaneous call)
-					if (!this._probe.isEventRunningFromTriggering) {
-						this._probe.isEventRunningFromTriggering = true;
-						this._probe._triggerEventFromQueue();
-					}
+					// } else if (eventMessage.data.name === __HTCAP.messageEvent.scheduleNextEvent.name) {
+					// 	// if there's not currently running events (avoiding multiple simultaneous call)
+					// 	if (!this._probe.isEventRunningFromTriggering) {
+					// 		this._probe.isEventRunningFromTriggering = true;
+					// 		this._probe._triggerEventFromQueue();
+					// 	}
 				}
 			}
 		};
 
 		Probe.prototype.EventLoopManager.prototype.start = function () {
-			this._probe.triggerUserEvent("onStart");
+			// DEBUG:
+			console.log('eventLoop start');
+			window.__PROBE__.triggerUserEvent("onStart");
+
+			// taking snapshot of the DOM
+			// this._probe.DOMSnapshot = _getDOMSnapshot();
+
 			window.postMessage(__HTCAP.messageEvent.eventLoopReady, "*");
 		};
 
-		Probe.prototype.EventLoopManager.prototype.scheduleNextAction = function () {
+		Probe.prototype.EventLoopManager.prototype.doNextAction = function () {
 			// DEBUG:
-			console.log(this);
-			// pushing the next action to the next event loop
-			window.__originalSetTimeout(function () {
-				
-			}.bind(this));
+			// console.log('eventLoop doNextAction - sent: ',
+			// 	this._sentXHRQueue.length,
+			// 	', done:', this._doneXHRQueue.length,
+			// 	', DOM:', this._DOMAssessmentQueue.length,
+			// 	', event:', this._toBeTriggeredEventsQueue.length
+			// );
+
+			if (this._sentXHRQueue.length > 0) {
+				// releasing the eventLoop waiting for resolution
+				window.postMessage(__HTCAP.messageEvent.eventLoopReady, "*");
+			} else if (this._doneXHRQueue.length > 0) {
+				var request = this._doneXHRQueue.shift();
+				// 	modifiedElementList = _getAddedElements(this._probe.DOMSnapshot);
+				// // DEBUG:
+				// console.log('eventLoop request DOMAssessment on ', modifiedElementList.length);
+				// if (modifiedElementList.length > 0) {
+				// 	window.__PROBE__.triggerUserEvent("onDomModified", modifiedElementList);
+				// 	modifiedElementList.forEach(function (element) {
+				//
+				// 		this._DOMAssessmentQueue.push(element);
+				// 	}.bind(this));
+				// }
+
+				// if all XHR done
+				if (this._doneXHRQueue.length === 0) {
+					window.__PROBE__.triggerUserEvent("onAllXhrsCompleted");
+				}
+
+				window.postMessage(__HTCAP.messageEvent.eventLoopReady, "*");
+
+			} else if (this._DOMAssessmentQueue.length > 0) {
+				var node = this._DOMAssessmentQueue.shift();
+				// DEBUG:
+				console.log('eventLoop analyzeDOM: ' + _elementToString(node));
+				// starting analyze on the next node
+				this._probe._analyzeDOM(node);
+				window.postMessage(__HTCAP.messageEvent.eventLoopReady, "*");
+
+			} else if (this._toBeTriggeredEventsQueue.length > 0) {
+				// retrieving the next pageEvent
+				var pageEvent = this._toBeTriggeredEventsQueue.shift();
+
+				// setting the current element
+				this._probe._currentPageEvent = pageEvent;
+
+				// taking snapshot of the DOM
+				// this._probe.DOMSnapshot = _getDOMSnapshot();
+				// DEBUG:
+				// console.log('eventLoop pageEvent.trigger');
+
+				// Triggering the event
+				pageEvent.trigger();
+
+				window.postMessage(__HTCAP.messageEvent.eventLoopReady, "*");
+
+			} else {
+				console.log("eventLoop END");
+				window.__callPhantom({cmd: 'end'})
+			}
 		};
 
-		Probe.prototype.EventLoopManager.prototype.scheduleNextEvent = function () {
-			window.postMessage(__HTCAP.messageEvent.scheduleNextEvent, "*");
-		};
-
-		Probe.prototype.EventLoopManager.prototype.scheduleNextDOMAssessment = function (node) {
+		Probe.prototype.EventLoopManager.prototype.scheduleDOMAssessment = function (node) {
 			if (this._DOMAssessmentQueue.indexOf(node) < 0) {
+				// DEBUG:
+				// console.log('eventLoop scheduleDOMAssessment');
 				this._DOMAssessmentQueue.push(node);
+			}
+		};
+
+		Probe.prototype.EventLoopManager.prototype.nodeMutated = function (mutationRecord) {
+// DEBUG:
+			console.log('eventLoop nodeMutated:', mutationRecord.addedNodes.length);
+
+
+			for (var i = 0; i < mutationRecord.addedNodes.length; i++) {
+				// DEBUG:
+				console.log('added:', _elementToString(mutationRecord.addedNodes[i]));
+			}
+		};
+
+		Probe.prototype.EventLoopManager.prototype.scheduleEventTriggering = function (pageEvent) {
+			if (this._toBeTriggeredEventsQueue.indexOf(pageEvent) < 0) {
+				// DEBUG:
+				// console.log('eventLoop scheduleEventTriggering');
+				this._toBeTriggeredEventsQueue.push(pageEvent);
 			}
 		};
 
 		Probe.prototype.EventLoopManager.prototype.sentXHR = function (request) {
 			if (this._sentXHRQueue.indexOf(request) < 0) {
+				// DEBUG:
+				console.log('eventLoop sentXHR');
 				this._sentXHRQueue.push(request);
 			}
 		};
 
 		Probe.prototype.EventLoopManager.prototype.doneXHR = function (request) {
 			if (this._doneXHRQueue.indexOf(request) < 0) {
+				// DEBUG:
+				console.log('eventLoop doneXHR');
+				// if the request is in the sentXHR queue
+				var i = this._sentXHRQueue.indexOf(request);
+				if (i >= 0) {
+					this._sentXHRQueue.splice(i, 1);
+				}
+
 				this._doneXHRQueue.push(request);
 			}
 		};
 
 		Probe.prototype.EventLoopManager.prototype.inErrorXHR = function (request) {
+			// DEBUG:
+			console.log('eventLoop inErrorXHR');
 		};
 
-		Probe.prototype.printRequestQueue = function () {
-			for (var a = 0; a < this._requestsPrintQueue.length; a++) {
-				this._requestsPrintQueue[a].print();
-			}
-			this._requestsPrintQueue = [];
-		};
-
-		Probe.prototype.addRequestToPrintQueue = function (req) {
-			this._requestsPrintQueue.push(req);
-		};
+		// Probe.prototype.printRequestQueue = function () {
+		// 	for (var a = 0; a < this._requestsPrintQueue.length; a++) {
+		// 		this._requestsPrintQueue[a].print();
+		// 	}
+		// 	this._requestsPrintQueue = [];
+		// };
+		//
+		// Probe.prototype.addRequestToPrintQueue = function (req) {
+		// 	this._requestsPrintQueue.push(req);
+		// };
 
 		Probe.prototype.printJSONP = function (node) {
 
@@ -307,34 +403,34 @@ version.
 		};
 
 
-		Probe.prototype.waitAjax = function (callback, chainLimit) {
-			var xhrList = this.pendingXHRs.slice(),	// get a copy of the pending XHRs
-				timeout = this._options.XHRTimeout,
-				chainSizeLimit = chainLimit || this._options.maximumXHRStackSize;
-
-			this.pendingXHRs = []; // clean-up the list
-
-			console.log("Waiting for ajaxs: " + chainSizeLimit);
-
-			var t = window.__originalSetInterval(function () {
-				if ((timeout <= 0) || _isXHRsInListCompleted(xhrList)) {
-					clearInterval(t);
-					window.__originalSetTimeout(function () {
-						if (chainSizeLimit > 0 && this.pendingXHRs.length > 0) {
-							this.waitAjax(callback, chainSizeLimit - 1);
-						} else {
-							callback(xhrList.length > 0);
-						}
-					}.bind(this), 100);
-					return;
-				}
-				timeout -= 10;
-			}.bind(this), 0);
-
-			console.log("Wait ajax return, " + chainSizeLimit);
-
-			return xhrList.length > 0;
-		};
+		// Probe.prototype.waitAjax = function (callback, chainLimit) {
+		// 	var xhrList = this.pendingXHRs.slice(),	// get a copy of the pending XHRs
+		// 		timeout = this._options.XHRTimeout,
+		// 		chainSizeLimit = chainLimit || this._options.maximumXHRStackSize;
+		//
+		// 	this.pendingXHRs = []; // clean-up the list
+		//
+		// 	console.log("Waiting for ajaxs: " + chainSizeLimit);
+		//
+		// 	var t = window.__originalSetInterval(function () {
+		// 		if ((timeout <= 0) || _isXHRsInListCompleted(xhrList)) {
+		// 			clearInterval(t);
+		// 			window.__originalSetTimeout(function () {
+		// 				if (chainSizeLimit > 0 && this.pendingXHRs.length > 0) {
+		// 					this.waitAjax(callback, chainSizeLimit - 1);
+		// 				} else {
+		// 					callback(xhrList.length > 0);
+		// 				}
+		// 			}.bind(this), 100);
+		// 			return;
+		// 		}
+		// 		timeout -= 10;
+		// 	}.bind(this), 0);
+		//
+		// 	console.log("Wait ajax return, " + chainSizeLimit);
+		//
+		// 	return xhrList.length > 0;
+		// };
 
 
 		Probe.prototype.getRandomValue = function (type) {
@@ -449,14 +545,10 @@ version.
 
 			// Starting the first DOM analysis
 			console.log("page initialized ");
-			this.eventLoopManager.scheduleNextDOMAssessment(document);
+			// this.eventLoopManager.scheduleDOMAssessment(document);
 
 			// starting the eventLoop manager
 			this.eventLoopManager.start();
-
-			// this._analyzeDOM(document, 0, function () {
-			// 	window.__callPhantom({cmd: 'end'})
-			// });
 		};
 
 
@@ -491,7 +583,7 @@ version.
 			var _options = this._options;
 			var _this = this;
 
-			var ueRet = this.triggerUserEvent("onFillInput", [el]);
+			var ueRet = window.__PROBE__.triggerUserEvent("onFillInput", [el]);
 			if (ueRet === false) return;
 
 			var setv = function (name) {
@@ -634,55 +726,46 @@ version.
 				// trigger the given event only when there is some space in the event stack to avoid collision
 				// and give time to things to resolve properly (since we trigger user driven event,
 				// it is important to give time to the analysed page to breath between calls)
-				this._toBeTriggeredEventsQueue.push(pageEvent);
-				this.isEventWaitingForTriggering = true;
-				this.eventLoopManager.scheduleNextEvent();
+				this.eventLoopManager.scheduleEventTriggering(pageEvent);
+				// this.isEventWaitingForTriggering = true;
+				// this.eventLoopManager.scheduleNextEvent();
 			}
 		};
 
-		/**
-		 * Trigger the first event in the `_toBeTriggeredEventsQueue`
-		 * @private
-		 */
-		Probe.prototype._triggerEventFromQueue = function () {
-
-			if (this._toBeTriggeredEventsQueue.length > 0) {
-
-				// retrieving the next pageEvent
-				var pageEvent = this._toBeTriggeredEventsQueue.shift();
-
-				var ueRet = this.triggerUserEvent("onTriggerEvent", [pageEvent.element, pageEvent.eventName]);
-
-
-				if (ueRet !== false) {
-
-					// setting the current element
-					this._currentPageEvent = pageEvent;
-
-					// Triggering the event
-					pageEvent.trigger();
-
-					this.triggerUserEvent("onEventTriggered", [pageEvent.element, pageEvent.eventName]);
-				}
-
-				// pushing the next event to the next event loop
-				window.__originalSetTimeout(function () {
-						this.isEventRunningFromTriggering = false;
-
-						// cleaning the current element
-						this._currentPageEvent = undefined;
-
-						// requesting the next event
-						this.eventLoopManager.scheduleNextEvent();
-					}.bind(this)
-				);
-
-			} else {
-				// nothing left to do, turning flags off
-				this.isEventWaitingForTriggering = false;
-				this.isEventRunningFromTriggering = false;
-			}
-		};
+		// /**
+		//  * Trigger the first event in the `_toBeTriggeredEventsQueue`
+		//  * @private
+		//  */
+		// Probe.prototype._triggerEventFromQueue = function () {
+		//
+		// 	if (this._toBeTriggeredEventsQueue.length > 0) {
+		//
+		// 		// retrieving the next pageEvent
+		// 		var pageEvent = this._toBeTriggeredEventsQueue.shift();
+		//
+		// 		// setting the current element
+		// 		this._currentPageEvent = pageEvent;
+		// 		// Triggering the event
+		// 		pageEvent.trigger();
+		//
+		// 		// pushing the next event to the next event loop
+		// 		window.__originalSetTimeout(function () {
+		// 				this.isEventRunningFromTriggering = false;
+		//
+		// 				// cleaning the current element
+		// 				this._currentPageEvent = undefined;
+		//
+		// 				// requesting the next event
+		// 				this.eventLoopManager.scheduleNextEvent();
+		// 			}.bind(this)
+		// 		);
+		//
+		// 	} else {
+		// 		// nothing left to do, turning flags off
+		// 		this.isEventWaitingForTriggering = false;
+		// 		this.isEventRunningFromTriggering = false;
+		// 	}
+		// };
 
 		/**
 		 * @param  {Element} element
@@ -735,7 +818,7 @@ version.
 		};
 
 		/**
-		 * @param {Element} node
+		 * @param {Node} node
 		 * @private
 		 */
 		Probe.prototype._initializeElement = function (node) {
@@ -763,7 +846,7 @@ version.
 
 		/**
 		 * print out url found in the given element
-		 * @param {Element} element
+		 * @param {Node} element
 		 * @private
 		 */
 		Probe.prototype._printUrlsFromElement = function (element) {
@@ -796,138 +879,131 @@ version.
 		/**
 		 * analyze the given node DOM
 		 * @param {Node} node - the node to analyze
-		 * @param {number} counter - counter representing the level of recursion
-		 * @param {function=} callback - callback called when finish
 		 * @private
 		 */
-		Probe.prototype._analyzeDOM = function (node, counter, callback) {
+		Probe.prototype._analyzeDOM = function (node) {
 
-			var elements = [node === document ? document.documentElement : node].concat(_getDOMTreeAsArray(node));
+			// var elements = [node === document ? document.documentElement : node].concat(_getDOMTreeAsArray(node));
 
-			var isAjaxCompleted = false,
-				isAjaxTriggered = true,
-				hasXHRs = false,
-				isRecursionReturned = false,
-				isWaitingRecursion = false;
+			// if (elements.length > 0) {
+				// map property events and fill input values
+				this._initializeElement(node);
 
-			var modifiedElementList = [];
-
-			// if no element in the given node
-			if (elements.length === 0) {
-				if (typeof callback === 'function') callback();
-				return;
-			}
-
-
-			//console.log(counter + " layer: "+counter+" initializing " + _elementToString(node))
-			// map property events and fill input values
-			this._initializeElement(node);
-
-			if (this._options.searchUrls) {
-				this._printUrlsFromElement(node);
-			}
-
-			// this.DOMSnapshot = _getDOMSnapshot();
-			//
-			// if (this._options.triggerEvents) {
-			// 	elements.forEach(function (element) {
-			// 		this._triggerElementEvents(element);
-			// 	}.bind(this));
-			// }
-			//
-
-
-			// starting analyse loop
-			var to = window.__originalSetInterval(function () {
-				//console.log(counter+" isWaitingRecursion: "+isWaitingRecursion+" isAjaxCompleted: "+isAjaxCompleted+ " isRecursionReturned:"+isRecursionReturned)
-				// console.log(counter + "#  elements.length: " + elements.length + "\trecursion: " + isWaitingRecursion + "\treturned: " + isRecursionReturned + "\tajax: " + this.pendingXHRs.length + "\tcompleted: " + isAjaxCompleted + "\ttriggered: " + isAjaxTriggered + "\tevents: " + (this.isEventWaitingForTriggering) + " " + ( this.isEventRunningFromTriggering));
-
-				if (elements.length > 0 && !isWaitingRecursion && !this.isEventWaitingForTriggering) {
-					// console.log(counter + " analysing " + this.describeElement(elements[index]))
-
-					// TODO: here the element may have been detached, moved, etc ; try to find a logic to handle this.
-
-					this.DOMSnapshot = _getDOMSnapshot();
-
-					if (this._options.triggerEvents) {
-						this._triggerElementEvents(elements.shift());
-					}
-
-					// treating pending XHR request
-					if (this.pendingXHRs.length > 0) {
-						hasXHRs = this.waitAjax(function () {
-							isAjaxCompleted = true;
-							isAjaxTriggered = true;
-						});
-					} else {
-						hasXHRs = false;
-						isAjaxCompleted = true;
-						isAjaxTriggered = false;
-					}
+				if (this._options.searchUrls) {
+					this._printUrlsFromElement(node);
 				}
 
-				if (!this.isEventWaitingForTriggering && !this.isEventRunningFromTriggering && (isAjaxCompleted || isWaitingRecursion)) {
+				if (this._options.triggerEvents) {
+					// DEBUG:
+					console.log(elements.length);
+					elements.forEach(function (element) {
+						// DEBUG:
+						// console.log('AnalyzeDOM ' + _elementToString(element));
+						this._triggerElementEvents(element);
+					}.bind(this));
+				}
+			// }
 
-					// treating completed ajax
-					if (isAjaxCompleted) {
-						isAjaxCompleted = false;
+			// var isAjaxCompleted = false,
+			// 	isAjaxTriggered = true,
+			// 	hasXHRs = false,
+			// 	isRecursionReturned = false,
+			// 	isWaitingRecursion = false;
 
-						this.printRequestQueue();
-						if (isAjaxTriggered) {
-							this.triggerUserEvent("onAllXhrsCompleted");
-						}
+			// var modifiedElementList = [];
+			// /*
+			//addRequestToPrintQueue starting analyse loop
+			// var to = window.__originalSetInterval(function () {
+			//console.log(counter+" isWaitingRecursion: "+isWaitingRecursion+" isAjaxCompleted: "+isAjaxCompleted+ " isRecursionReturned:"+isRecursionReturned)
+			// console.log(counter + "#  elements.length: " + elements.length + "\trecursion: " + isWaitingRecursion + "\treturned: " + isRecursionReturned + "\tajax: " + this.pendingXHRs.length + "\tcompleted: " + isAjaxCompleted + "\ttriggered: " + isAjaxTriggered + "\tevents: " + (this.isEventWaitingForTriggering) + " " + ( this.isEventRunningFromTriggering));
 
-						if (counter < this._options.maximumRecursion) {
-							// getAddedElement is slow and can take time if the DOM is big (~25000 nodes)
-							// so use it only if ajax
-							modifiedElementList = isAjaxTriggered ? _getAddedElements(this.DOMSnapshot) : [];
-
-							if (modifiedElementList.length > 0) {
-								this.triggerUserEvent("onDomModified", [modifiedElementList, elements]);
-							}
-							// if ajax has been triggered and some elements are modified then recurse through the modified elements
-							isWaitingRecursion = (modifiedElementList.length > 0 && hasXHRs);
-
-						} else {
-							console.log(">>>>RECURSION LIMIT REACHED :" + counter);
-						}
-					}
-
-					if (isWaitingRecursion) {
-
-						if (modifiedElementList.length > 0) {
-							// DEBUG:
-							console.log('modified');
-							this._analyzeDOM(modifiedElementList.shift(), counter + 1, function () {
-								isRecursionReturned = true;
-							});
-						}
-
-						if (!isRecursionReturned) return;
-
-						isRecursionReturned = false;
-
-						if (modifiedElementList.length <= 0) {
-							isWaitingRecursion = false;
-						} else {
-							return;
-						}
-
-					}
+			// if (elements.length > 0 && !isWaitingRecursion && !this.isEventWaitingForTriggering) {
+			// 	// console.log(counter + " analysing " + this.describeElement(elements[index]))
+			//
+			// 	// TODO: here the element may have been detached, moved, etc ; try to find a logic to handle this.
+			//
+			// 	this.DOMSnapshot = _getDOMSnapshot();
+			//
+			// 	if (this._options.triggerEvents) {
+			// 		this._triggerElementEvents(elements.shift());
+			// 	}
+			//
+			// 	// treating pending XHR request
+			// 	if (this.pendingXHRs.length > 0) {
+			// 		hasXHRs = this.waitAjax(function () {
+			// 			isAjaxCompleted = true;
+			// 			isAjaxTriggered = true;
+			// 		});
+			// 	} else {
+			// 		hasXHRs = false;
+			// 		isAjaxCompleted = true;
+			// 		isAjaxTriggered = false;
+			// 	}
+			// }
+			//
+			// if (!this.isEventWaitingForTriggering && !this.isEventRunningFromTriggering && (isAjaxCompleted || isWaitingRecursion)) {
+			//
+			// 	// treating completed ajax
+			// 	if (isAjaxCompleted) {
+			// 		isAjaxCompleted = false;
+			//
+			// 		// this.printRequestQueue();
+			// 		// if (isAjaxTriggered) {
+			// 		// 	window.__PROBE__.triggerUserEvent("onAllXhrsCompleted");
+			// 		// }
+			//
+			// 		if (counter < this._options.maximumRecursion) {
+			// 			// getAddedElement is slow and can take time if the DOM is big (~25000 nodes)
+			// 			// so use it only if ajax
+			// 			modifiedElementList = isAjaxTriggered ? _getAddedElements(this.DOMSnapshot) : [];
+			//
+			// 			if (modifiedElementList.length > 0) {
+			// 				window.__PROBE__.triggerUserEvent("onDomModified", [modifiedElementList, elements]);
+			// 			}
+			// 			// if ajax has been triggered and some elements are modified then recurse through the modified elements
+			// 			isWaitingRecursion = (modifiedElementList.length > 0 && hasXHRs);
+			//
+			// 		} else {
+			console.log(">>>>RECURSION LIMIT REACHED :");
+			// 	}
+			// }
+			//
+			// if (isWaitingRecursion) {
+			//
+			// 	if (modifiedElementList.length > 0) {
+			// 		// DEBUG:
+			// 		console.log('modified');
+			// 		this._analyzeDOM(modifiedElementList.shift(), counter + 1, function () {
+			// 			isRecursionReturned = true;
+			// 		});
+			// 	}
+			//
+			// 	if (!isRecursionReturned) return;
+			//
+			// 	isRecursionReturned = false;
+			//
+			// 	if (modifiedElementList.length <= 0) {
+			// 		isWaitingRecursion = false;
+			// 	} else {
+			// 		return;
+			// 	}
+			//
+			// }
 
 					// console.log(counter + "## elements.length: " + elements.length + "\trecursion: " + isWaitingRecursion + "\treturned: " + isRecursionReturned + "\tajax: " + this.pendingXHRs.length + "\tcompleted: " + isAjaxCompleted + "\ttriggered: " + isAjaxTriggered + "\tevents: " + (this.isEventWaitingForTriggering) + " " + ( this.isEventRunningFromTriggering));
 
-					if (elements.length === 0) {
-						console.log("call END");
-						// setting the "finish" step to the next event loop to leave some time to the last process/event to finish
-						window.__originalSetTimeout(function () {
-							clearInterval(to);
-							console.log("-------END");
-							if (typeof callback === 'function') callback();
-						});
-					}
-				}
-			}.bind(this), 0);
+			// if (elements.length === 0) {
+			// 	console.log("call END");
+			// 	// setting the "finish" step to the next event loop to leave some time to the last process/event to finish
+			// 	window.__originalSetTimeout(function () {
+			// 		clearInterval(to);
+			// 		console.log("-------END");
+			// 		if (typeof callback === 'function') callback();
+			// 	});
+			// }
+			// }
+			// }.bind(this), 0);
+
 		};
 
 
@@ -937,9 +1013,11 @@ version.
 		 * @returns {Array}
 		 * @private
 		 */
-		function _getDOMSnapshot() {
-			return Array.prototype.slice.call(document.getElementsByTagName("*"), 0);
-		}
+		// function _getDOMSnapshot() {
+		// 	// DEBUG:
+		// 	console.log("Do DOMSnapshot");
+		// 	return Array.prototype.slice.call(document.getElementsByTagName("*"), 0);
+		// }
 
 		/**
 		 * Get an array of all the DOM elements added to the DOM
@@ -948,49 +1026,57 @@ version.
 		 * @private
 		 * @static
 		 */
-		function _getAddedElements(DOMSnapshot) {
-			var a,
-				elements = [],
-				rootElements = [];
-
-			var newDom = Array.prototype.slice.call(document.getElementsByTagName("*"), 0);
-
-			console.log('get added elements start dom len: ' + DOMSnapshot.length + ' new dom len: ' + newDom.length);
-			// get all added elements
-			for (a = 0; a < newDom.length; a++) {
-				if (DOMSnapshot.indexOf(newDom[a]) === -1) {
-					// set __new flag on added elements to avoid checking for elements.indexOf
-					// that is very very slow
-					newDom[a].__new = true;
-					elements.push(newDom[a]);
-				}
-			}
-
-			console.log("elements get... (tot " + elements.length + ") searching for root nodes");
-
-			for (a = 0; a < elements.length; a++) {
-				var p = elements[a];
-				var root = null;
-				// find the farest parent between added elements
-				while (p) {
-					//if(elements.indexOf(p) != -1){
-					if (p.__new) {
-						root = p;
-					}
-					p = p.parentNode;
-				}
-				if (root && rootElements.indexOf(root) === -1) {
-					rootElements.push(root);
-				}
-			}
-
-			for (a = 0; a < elements.length; a++) {
-				delete elements[a].__new;
-			}
-
-			console.log("root elements found: " + rootElements.length);
-			return rootElements;
-		}
+		// function _getAddedElements(DOMSnapshot) {
+		// 	var a,
+		// 		elements = [],
+		// 		rootElements = [];
+		//
+		// 	// DEBUG:
+		// 	var html = document.documentElement.innerHTML;
+		//
+		// 	console.log(html);
+		//
+		//
+		// 	var newDom = Array.prototype.slice.call(document.getElementsByTagName("*"), 0);
+		//
+		// 	console.log('get added elements start dom len: ' + DOMSnapshot.length + ' new dom len: ' + newDom.length);
+		// 	// get all added elements
+		// 	for (a = 0; a < newDom.length; a++) {
+		// 		// DEBUG:
+		// 		// console.log(_elementToString(newDom[a]));
+		// 		if (DOMSnapshot.indexOf(newDom[a]) === -1) {
+		// 			// set __new flag on added elements to avoid checking for elements.indexOf
+		// 			// that is very very slow
+		// 			newDom[a].__new = true;
+		// 			elements.push(newDom[a]);
+		// 		}
+		// 	}
+		//
+		// 	console.log("elements get... (tot " + elements.length + ") searching for root nodes");
+		//
+		// 	for (a = 0; a < elements.length; a++) {
+		// 		var p = elements[a];
+		// 		var root = null;
+		// 		// find the farest parent between added elements
+		// 		while (p) {
+		// 			//if(elements.indexOf(p) != -1){
+		// 			if (p.__new) {
+		// 				root = p;
+		// 			}
+		// 			p = p.parentNode;
+		// 		}
+		// 		if (root && rootElements.indexOf(root) === -1) {
+		// 			rootElements.push(root);
+		// 		}
+		// 	}
+		//
+		// 	for (a = 0; a < elements.length; a++) {
+		// 		delete elements[a].__new;
+		// 	}
+		//
+		// 	console.log("root elements found: " + rootElements.length);
+		// 	return rootElements;
+		// }
 
 
 		/**
@@ -1080,18 +1166,18 @@ version.
 		 * @private
 		 * @static
 		 */
-		function _isXHRsInListCompleted(xhrList) {
-			var allDone = true;
-			for (var a = 0; a < xhrList.length; a++) {
-				//console.log("-->"+xhrList[a].readyState + " "+ xhrList[a].__request.url)
-				if (xhrList[a].readyState !== 4 && !xhrList[a].__skipped) {
-					allDone = false;
-				}
-			}
-			//if(allDone)
-			//	console.log("-----------------> alla ajax completed")
-			return allDone;
-		}
+		// function _isXHRsInListCompleted(xhrList) {
+		// 	var allDone = true;
+		// 	for (var a = 0; a < xhrList.length; a++) {
+		// 		//console.log("-->"+xhrList[a].readyState + " "+ xhrList[a].__request.url)
+		// 		if (xhrList[a].readyState !== 4 && !xhrList[a].__skipped) {
+		// 			allDone = false;
+		// 		}
+		// 	}
+		// 	//if(allDone)
+		// 	//	console.log("-----------------> alla ajax completed")
+		// 	return allDone;
+		// }
 
 
 		/**

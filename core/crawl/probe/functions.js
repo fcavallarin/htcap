@@ -408,12 +408,11 @@ function startProbe(random, injectScript) {
 
 				// adding XHR listener
 				this.addEventListener('readystatechange', function () {
-
+					// DEBUG:
+					// console.log('XHR', this.__request.url, this.readyState);
 					// if not finish, it's open
 					// https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest/readyState
-					if (this.readyState >= 2 && this.readyState < 4) {
-						// DEBUG:
-						console.log('state change: ', this);
+					if (this.readyState >= 1 && this.readyState < 4) {
 						window.__PROBE__.eventLoopManager.sentXHR(this);
 					} else if (this.readyState === 4) {
 						// /!\ DONE means that the XHR finish but could have FAILED
@@ -455,24 +454,24 @@ function startProbe(random, injectScript) {
 				}
 
 				// check if request has already been sent
-				var rk = this.__request.key;
-				if (window.__PROBE__.sentXHRs.indexOf(rk) !== -1) {
+				var requestKey = this.__request.key;
+				if (window.__PROBE__.sentXHRs.indexOf(requestKey) !== -1) {
 					return;
 				}
 
 				var ueRet = window.__PROBE__.triggerUserEvent("onXhr",[this.__request]);
 				if(ueRet){
 					// pending ajax
-					window.__PROBE__.pendingXHRs.push(this);
-					window.__PROBE__.sentXHRs.push(rk);
-					window.__PROBE__.addRequestToPrintQueue(this.__request);
+					// window.__PROBE__.pendingXHRs.push(this);
+					window.__PROBE__.sentXHRs.push(requestKey);
+					// window.__PROBE__.addRequestToPrintQueue(this.__request);
+					this.__request.print();
 
 					if(!this.__skipped)
 						return this.__originalSend(data);
 				}
 			};
 		}
-
 
 		if(options.checkScriptInsertion){
 
@@ -504,7 +503,6 @@ function startProbe(random, injectScript) {
 			})(window.WebSocket);
 		}
 
-
 		if(options.overrideTimeoutFunctions){
 			window.__originalSetTimeout = window.setTimeout;
 			window.setTimeout = function () {
@@ -523,9 +521,8 @@ function startProbe(random, injectScript) {
 		}
 
 		if(options.preventElementRemoval){
-			//Node.prototype.__originalRemoveChild = Node.prototype.removeChild;
+			Node.prototype.__originalRemoveChild = Node.prototype.removeChild;
 			Node.prototype.removeChild = function(node){
-				//console.log(node);
 				return node;
 			}
 		}
@@ -535,7 +532,7 @@ function startProbe(random, injectScript) {
 			//console.log("=-->"+this.action)
 			window.__PROBE__.getFormAsRequest(this).print();
 			return this.__originalSubmit();
-		}
+		};
 
 		// prevent window.close
 		window.close = function () {
@@ -543,12 +540,35 @@ function startProbe(random, injectScript) {
 
 		window.open = function(url, name, specs, replace){
 			window.__PROBE__.printLink(url);
-		}
+		};
+
+		// create an observer instance for DOM changes
+		var observer = new WebKitMutationObserver(function (mutations) {
+			// DEBUG:
+			console.log(mutations.length);
+			mutations.forEach(function (mutation) {
+				window.__PROBE__.eventLoopManager.nodeMutated(mutation);
+			});
+		});
+		var eventAttributeList = [];
+		options.allEvents.forEach(function (event) {
+			eventAttributeList.push('on' + event);
+		});
+		// observing for any change on document and its children
+		observer.observe(document.documentElement, {
+			childList: true,
+			attributes: true,
+			characterData: false,
+			subtree: true,
+			attributeOldValue: true,
+			characterDataOldValue: false,
+			attributeFilter: eventAttributeList
+		});
 
 		window.__PROBE__.triggerUserEvent("onInit");
 	}, options);
 
-};
+}
 
 
 
