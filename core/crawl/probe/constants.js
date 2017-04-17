@@ -8,7 +8,7 @@
 			},
 		},
 		eventLoop: {
-			bufferSize: 10,// number of empty event loop between every new action proceed in the eventLoop
+			bufferSize: 10 // number of empty event loop between every new action proceed in the eventLoop
 		},
 		mappableEvents: [
 			'abort', 'autocomplete', 'autocompleteerror', 'beforecopy', 'beforecut', 'beforepaste', 'blur',
@@ -27,9 +27,9 @@
 			'select': ['change', 'click', 'keyup', 'keydown'],
 			'input': ['change', 'click', 'blur', 'focus', 'keyup', 'keydown'],
 			'a': ['click', 'keyup', 'keydown'],
-			'textarea': ['change', 'click', 'blur', 'focus', 'keyup', 'keydown']
-			, 'span': ['click']
-			, 'td': ['click']
+			'textarea': ['change', 'click', 'blur', 'focus', 'keyup', 'keydown'],
+			'span': ['click'],
+			'td': ['click']
 		}
 	};
 })();

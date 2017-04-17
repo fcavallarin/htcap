@@ -207,13 +207,6 @@ version.
 						this._emptyLoopCounter = 0;
 						this.doNextAction();
 					}
-
-					// } else if (eventMessage.data.name === __HTCAP.messageEvent.scheduleNextEvent.name) {
-					// 	// if there's not currently running events (avoiding multiple simultaneous call)
-					// 	if (!this._probe.isEventRunningFromTriggering) {
-					// 		this._probe.isEventRunningFromTriggering = true;
-					// 		this._probe._triggerEventFromQueue();
-					// 	}
 				}
 			}
 		};
@@ -273,7 +266,7 @@ version.
 				this._probe._currentPageEvent = pageEvent;
 
 				// DEBUG:
-				// console.log('eventLoop pageEvent.trigger');
+				console.log('eventLoop pageEvent.trigger', pageEvent.element.tagName, pageEvent.eventName);
 
 				// Triggering the event
 				pageEvent.trigger();
@@ -315,6 +308,8 @@ version.
 				} else if (mutationRecord.type === 'attributes') {
 					// DEBUG:
 					console.log('eventLoop nodeMutated: attributes', mutationRecord.attributeName, mutationRecord.target[mutationRecord.attributeName]);
+					this.scheduleDOMAssessment(mutationRecord.target);
+
 				}
 			}.bind(this));
 		};

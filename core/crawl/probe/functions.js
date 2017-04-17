@@ -537,8 +537,6 @@ function startProbe(random, injectScript) {
 		// prevent window.close
 		window.close = function () {
 		};
-		window.alert = function () {
-		};
 
 		window.open = function(url, name, specs, replace){
 			window.__PROBE__.printLink(url);
