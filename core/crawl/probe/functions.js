@@ -546,12 +546,10 @@ function startProbe(random, injectScript) {
 		var observer = new WebKitMutationObserver(function (mutations) {
 			// DEBUG:
 			console.log(mutations.length);
-			mutations.forEach(function (mutation) {
-				window.__PROBE__.eventLoopManager.nodeMutated(mutation);
-			});
+			window.__PROBE__.eventLoopManager.nodeMutated(mutations);
 		});
 		var eventAttributeList = [];
-		options.allEvents.forEach(function (event) {
+		window.__HTCAP.mappableEvents.forEach(function (event) {
 			eventAttributeList.push('on' + event);
 		});
 		// observing for any change on document and its children

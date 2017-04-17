@@ -28,7 +28,7 @@ version.
 
 			this._options = options;
 
-			this._requestsPrintQueue = [];
+			// this._requestsPrintQueue = [];
 			this.sentXHRs = [];
 
 			this._currentPageEvent = undefined;
@@ -36,20 +36,20 @@ version.
 
 			this.eventLoopManager = new this.EventLoopManager(this);
 
-			/**
-			 * the queue containing all the awaiting events to be triggered
-			 * @type {Array}
-			 * @private
-			 */
-			this._toBeTriggeredEventsQueue = [];
-			this.isEventWaitingForTriggering = false;
-			this.isEventRunningFromTriggering = false;
+			// /**
+			//  * the queue containing all the awaiting events to be triggered
+			//  * @type {Array}
+			//  * @private
+			//  */
+			// this._toBeTriggeredEventsQueue = [];
+			// this.isEventWaitingForTriggering = false;
+			// this.isEventRunningFromTriggering = false;
 
 			this.triggeredEvents = [];
 			this.websockets = [];
 			this.html = "";
 			// this.DOMSnapshot = [];
-			this.pendingXHRs = [];
+			// this.pendingXHRs = [];
 			this.inputValues = inputValues;
 
 			this.userInterface = {
@@ -79,7 +79,7 @@ version.
 				try {
 					eval("this.userEvents=" + userCustomScript.trim() + ";");
 				} catch (e) {
-				}  // @
+				}
 			}
 
 		}
@@ -99,6 +99,8 @@ version.
 			this.method = method;
 			this.url = url;
 			this.data = data || null;
+
+			/** @type {PageEvent} */
 			this.triggerer = triggerer;
 			this.isPrinted = false;
 
@@ -145,7 +147,7 @@ version.
 		 * Class PageEvent
 		 * Element's event found in the page
 		 *
-		 * @param {Element} element
+		 * @param {Node} element
 		 * @param {String} eventName
 		 * @constructor
 		 */
@@ -300,15 +302,17 @@ version.
 			}
 		};
 
-		Probe.prototype.EventLoopManager.prototype.nodeMutated = function (mutationRecord) {
-// DEBUG:
-			console.log('eventLoop nodeMutated:', mutationRecord.addedNodes.length);
-
-
-			for (var i = 0; i < mutationRecord.addedNodes.length; i++) {
+		Probe.prototype.EventLoopManager.prototype.nodeMutated = function (mutations) {
+			mutations.forEach(function (mutationRecord) {
 				// DEBUG:
-				console.log('added:', _elementToString(mutationRecord.addedNodes[i]));
-			}
+				console.log('eventLoop nodeMutated:', mutationRecord.addedNodes.length);
+
+
+				for (var i = 0; i < mutationRecord.addedNodes.length; i++) {
+					// DEBUG:
+					console.log('added:', _elementToString(mutationRecord.addedNodes[i]), mutationRecord.addedNodes[i]);
+				}
+			}.bind(this));
 		};
 
 		Probe.prototype.EventLoopManager.prototype.scheduleEventTriggering = function (pageEvent) {
@@ -510,7 +514,7 @@ version.
 
 		/**
 		 * add the given element/event pair to map
-		 * @param {Element} element
+		 * @param {Node} element
 		 * @param {String} eventName
 		 */
 		Probe.prototype.addEventToMap = function (element, eventName) {
@@ -786,10 +790,9 @@ version.
 				}
 			}
 
-			map = this._options.eventsMap;
 			for (var selector in map) {
 				if (element.webkitMatchesSelector(selector)) {
-					events = events.concat(map[selector]);
+					events = events.concat(__HTCAP.triggerableEvents[selector]);
 				}
 			}
 
@@ -818,30 +821,17 @@ version.
 		};
 
 		/**
-		 * @param {Node} node
+		 * @param {Node} element
 		 * @private
 		 */
-		Probe.prototype._initializeElement = function (node) {
-			var _options = this._options;
+		Probe.prototype._initializeElement = function (element) {
+			__HTCAP.mappableEvents.forEach(function (eventName) {
+				var onEventName = "on" + eventName;
 
-			if (_options.mapEvents) {
-				var elements = node.getElementsByTagName("*");
-				for (var a = 0; a < elements.length; a++) {
-					var element = elements[a];
-					for (var b = 0; b < _options.allEvents.length; b++) {
-						var eventName = _options.allEvents[b],
-							onEventName = "on" + eventName;
-
-						if (onEventName in element && element[onEventName]) {
-							this.addEventToMap(element, eventName);
-						}
-					}
+				if (onEventName in element && element[onEventName]) {
+					this.addEventToMap(element, eventName);
 				}
-			}
-
-			if (_options.fillValues) {
-				this._fillInputValues(node);
-			}
+			}.bind(this))
 		};
 
 		/**
@@ -886,9 +876,14 @@ version.
 			// var elements = [node === document ? document.documentElement : node].concat(_getDOMTreeAsArray(node));
 
 			// if (elements.length > 0) {
+			if (this._options.mapEvents) {
 				// map property events and fill input values
 				this._initializeElement(node);
+			}
 
+			if (this._options.fillValues) {
+				this._fillInputValues(node);
+			}
 				if (this._options.searchUrls) {
 					this._printUrlsFromElement(node);
 				}
@@ -1007,25 +1002,25 @@ version.
 		};
 
 
-		/**
-		 * return a snapshot of the current DOM
-		 * NOTE: do NOT use MutationObserver to get added elements .. it is asynchronous and the callback is fired only when DOM is refreshed (graphically)
-		 * @returns {Array}
-		 * @private
-		 */
+		// /**
+		//  * return a snapshot of the current DOM
+		//  * NOTE: do NOT use MutationObserver to get added elements .. it is asynchronous and the callback is fired only when DOM is refreshed (graphically)
+		//  * @returns {Array}
+		//  * @private
+		//  */
 		// function _getDOMSnapshot() {
 		// 	// DEBUG:
 		// 	console.log("Do DOMSnapshot");
 		// 	return Array.prototype.slice.call(document.getElementsByTagName("*"), 0);
 		// }
 
-		/**
-		 * Get an array of all the DOM elements added to the DOM
-		 * @param DOMSnapshot - the initial DOM to compare with
-		 * @returns {Array}
-		 * @private
-		 * @static
-		 */
+		// /**
+		//  * Get an array of all the DOM elements added to the DOM
+		//  * @param DOMSnapshot - the initial DOM to compare with
+		//  * @returns {Array}
+		//  * @private
+		//  * @static
+		//  */
 		// function _getAddedElements(DOMSnapshot) {
 		// 	var a,
 		// 		elements = [],
@@ -1079,27 +1074,27 @@ version.
 		// }
 
 
-		/**
-		 * convert a DOM tree to an array
-		 *
-		 * WARNING: DO NOT include node as first element. this is a requirement
-		 *
-		 * @param node
-		 * @returns {Array} array of the given DOM node
-		 * @private
-		 * @static
-		 */
-		function _getDOMTreeAsArray(node) {
-			var out = [],
-				children = node.querySelectorAll(":scope > *");
-
-			for (var a = 0; a < children.length; a++) {
-				var child = children[a];
-				out.push(child);
-				out = out.concat(_getDOMTreeAsArray(child));
-			}
-			return out;
-		}
+		// /**
+		//  * convert a DOM tree to an array
+		//  *
+		//  * WARNING: DO NOT include node as first element. this is a requirement
+		//  *
+		//  * @param node
+		//  * @returns {Array} array of the given DOM node
+		//  * @private
+		//  * @static
+		//  */
+		// function _getDOMTreeAsArray(node) {
+		// 	var out = [],
+		// 		children = node.querySelectorAll(":scope > *");
+		//
+		// 	for (var a = 0; a < children.length; a++) {
+		// 		var child = children[a];
+		// 		out.push(child);
+		// 		out = out.concat(_getDOMTreeAsArray(child));
+		// 	}
+		// 	return out;
+		// }
 
 
 		function _print(str) {
@@ -1160,12 +1155,12 @@ version.
 			_print(json);
 		}
 
-		/**
-		 * @param xhrList
-		 * @returns {boolean}
-		 * @private
-		 * @static
-		 */
+		// /**
+		//  * @param xhrList
+		//  * @returns {boolean}
+		//  * @private
+		//  * @static
+		//  */
 		// function _isXHRsInListCompleted(xhrList) {
 		// 	var allDone = true;
 		// 	for (var a = 0; a < xhrList.length; a++) {
