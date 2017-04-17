@@ -220,7 +220,7 @@ version.
 
 		Probe.prototype.EventLoopManager.prototype.start = function () {
 			// DEBUG:
-			console.log('eventLoop start');
+			// console.log('eventLoop start');
 			window.__PROBE__.triggerUserEvent("onStart");
 
 			// taking snapshot of the DOM
@@ -262,11 +262,11 @@ version.
 				window.postMessage(__HTCAP.messageEvent.eventLoopReady, "*");
 
 			} else if (this._DOMAssessmentQueue.length > 0) {
-				var node = this._DOMAssessmentQueue.shift();
+				var element = this._DOMAssessmentQueue.shift();
 				// DEBUG:
-				console.log('eventLoop analyzeDOM: ' + _elementToString(node));
-				// starting analyze on the next node
-				this._probe._analyzeDOM(node);
+				// console.log('eventLoop analyzeDOM: ' + _elementToString(element));
+				// starting analyze on the next element
+				this._probe._analyzeDOMElement(element);
 				window.postMessage(__HTCAP.messageEvent.eventLoopReady, "*");
 
 			} else if (this._toBeTriggeredEventsQueue.length > 0) {
@@ -276,8 +276,6 @@ version.
 				// setting the current element
 				this._probe._currentPageEvent = pageEvent;
 
-				// taking snapshot of the DOM
-				// this._probe.DOMSnapshot = _getDOMSnapshot();
 				// DEBUG:
 				// console.log('eventLoop pageEvent.trigger');
 
@@ -287,28 +285,42 @@ version.
 				window.postMessage(__HTCAP.messageEvent.eventLoopReady, "*");
 
 			} else {
-				console.log("eventLoop END");
+				// console.log("eventLoop END");
 				window.__callPhantom({cmd: 'end'})
 			}
 		};
 
-		Probe.prototype.EventLoopManager.prototype.scheduleDOMAssessment = function (node) {
-			if (this._DOMAssessmentQueue.indexOf(node) < 0) {
+		Probe.prototype.EventLoopManager.prototype.scheduleDOMAssessment = function (element) {
+			if (this._DOMAssessmentQueue.indexOf(element) < 0) {
 				// DEBUG:
 				// console.log('eventLoop scheduleDOMAssessment');
-				this._DOMAssessmentQueue.push(node);
+				this._DOMAssessmentQueue.push(element);
 			}
 		};
 
 		Probe.prototype.EventLoopManager.prototype.nodeMutated = function (mutations) {
+			// DEBUG:
+			// console.log('eventLoop nodesMutated:', mutations.length);
 			mutations.forEach(function (mutationRecord) {
-				// DEBUG:
-				console.log('eventLoop nodeMutated:', mutationRecord.addedNodes.length);
-
-
-				for (var i = 0; i < mutationRecord.addedNodes.length; i++) {
+				if (mutationRecord.type === 'childList') {
 					// DEBUG:
-					console.log('added:', _elementToString(mutationRecord.addedNodes[i]), mutationRecord.addedNodes[i]);
+					// console.log('eventLoop nodeMutated: childList', mutationRecord.target.nodeName.toLowerCase());
+					// console.log('eventLoop', mutationRecord.addedNodes[0].nodeType, mutationRecord.addedNodes[0].nodeName);
+					for (var i = 0; i < mutationRecord.addedNodes.length; i++) {
+						var addedNode = mutationRecord.addedNodes[i];
+						// DEBUG:
+						// console.log('added:', _elementToString(mutationRecord.addedNodes[i]), mutationRecord.addedNodes[i]);
+
+						// see: https://developer.mozilla.org/en-US/docs/Web/API/Node/nodeType#Constants
+						if (addedNode.nodeType === Node.ELEMENT_NODE) {
+							// DEBUG:
+							// console.log('added:', addedNode);
+							this.scheduleDOMAssessment(addedNode)
+						}
+					}
+				} else if (mutationRecord.type === 'attributes') {
+					// DEBUG:
+					// console.log('eventLoop nodeMutated: attributes', mutationRecord.attributeName);
 				}
 			}.bind(this));
 		};
@@ -324,7 +336,7 @@ version.
 		Probe.prototype.EventLoopManager.prototype.sentXHR = function (request) {
 			if (this._sentXHRQueue.indexOf(request) < 0) {
 				// DEBUG:
-				console.log('eventLoop sentXHR');
+				// console.log('eventLoop sentXHR');
 				this._sentXHRQueue.push(request);
 			}
 		};
@@ -332,7 +344,7 @@ version.
 		Probe.prototype.EventLoopManager.prototype.doneXHR = function (request) {
 			if (this._doneXHRQueue.indexOf(request) < 0) {
 				// DEBUG:
-				console.log('eventLoop doneXHR');
+				// console.log('eventLoop doneXHR');
 				// if the request is in the sentXHR queue
 				var i = this._sentXHRQueue.indexOf(request);
 				if (i >= 0) {
@@ -345,7 +357,7 @@ version.
 
 		Probe.prototype.EventLoopManager.prototype.inErrorXHR = function (request) {
 			// DEBUG:
-			console.log('eventLoop inErrorXHR');
+			// console.log('eventLoop inErrorXHR');
 		};
 
 		// Probe.prototype.printRequestQueue = function () {
@@ -689,22 +701,18 @@ version.
 
 		};
 
-		/**
-		 * @param element
-		 * @returns {boolean}
-		 * @private
-		 */
-		Probe.prototype._fillInputValues = function (element) {
-			element = element || document;
-			var ret = false;
-			var els = element.querySelectorAll("input, select, textarea");
-
-			for (var a = 0; a < els.length; a++) {
-				if (this._setVal(els[a]))
-					ret = true;
-			}
-			return ret;
-		};
+// 		/**
+// 		 * @param element
+// 		 * @private
+// 		 */
+// 		Probe.prototype._fillInputValues = function (element) {
+// 			var elements = element.querySelectorAll("input, select, textarea");
+// // DEBUG:
+// 			console.log(elements);
+// 			for (var a = 0; a < elements.length; a++) {
+// 				this._setVal(elements[a]);
+// 			}
+// 		};
 
 		/**
 		 * add the trigger of the given event on the given element to the trigger queue to be triggered
@@ -716,14 +724,14 @@ version.
 		 *
 		 * more info on {@link https://developer.mozilla.org/en-US/docs/Web/JavaScript/EventLoop MDN}
 		 *
-		 * @param {Probe.PageEvent} pageEvent which have to be triggered
+		 * @param {PageEvent} pageEvent which have to be triggered
 		 * @private
 		 */
 		Probe.prototype._trigger = function (pageEvent) {
 			// workaround for a phantomjs bug on linux (so maybe not a phantom bug but some linux libs??).
 			// if you trigger click on input type=color everything freezes... maybe due to some
 			// color picker that pops up ...
-			if (!(pageEvent.element.tagName === "INPUT" && pageEvent.element.type.toLowerCase() === 'color' && pageEvent.eventName === 'click')) {
+			if (!(pageEvent.element.tagName.toUpperCase() === "INPUT" && pageEvent.element.type.toLowerCase() === 'color' && pageEvent.eventName.toLowerCase() === 'click')) {
 
 				// trigger the given event only when there is some space in the event stack to avoid collision
 				// and give time to things to resolve properly (since we trigger user driven event,
@@ -776,10 +784,9 @@ version.
 		 */
 		Probe.prototype._getEventsForElement = function (element) {
 			var events = [];
-			var map;
 
 			if (this._options.triggerAllMappedEvents) {
-				map = this._eventsMap;
+				var map = this._eventsMap;
 				for (var a = 0; a < map.length; a++) {
 					if (map[a].element === element) {
 						events = map[a].events.slice();
@@ -788,7 +795,7 @@ version.
 				}
 			}
 
-			for (var selector in map) {
+			for (var selector in __HTCAP.triggerableEvents) {
 				if (element.webkitMatchesSelector(selector)) {
 					events = events.concat(__HTCAP.triggerableEvents[selector]);
 				}
@@ -822,7 +829,7 @@ version.
 		 * @param {Node} element
 		 * @private
 		 */
-		Probe.prototype._initializeElement = function (element) {
+		Probe.prototype._mapElementEvents = function (element) {
 			__HTCAP.mappableEvents.forEach(function (eventName) {
 				var onEventName = "on" + eventName;
 
@@ -865,36 +872,32 @@ version.
 
 
 		/**
-		 * analyze the given node DOM
-		 * @param {Node} node - the node to analyze
+		 * analyze the given element
+		 * @param {Element} element - the element to analyze
 		 * @private
 		 */
-		Probe.prototype._analyzeDOM = function (node) {
+		Probe.prototype._analyzeDOMElement = function (element) {
 
-			// var elements = [node === document ? document.documentElement : node].concat(_getDOMTreeAsArray(node));
+			// var elements = [element === document ? document.documentElement : element].concat(_getDOMTreeAsArray(element));
 
-			// if (elements.length > 0) {
+			// map property events and fill input values
 			if (this._options.mapEvents) {
-				// map property events and fill input values
-				this._initializeElement(node);
+				this._mapElementEvents(element);
 			}
 
-			if (this._options.fillValues) {
-				this._fillInputValues(node);
+			if (this._options.fillValues && element.tagName.toLowerCase() in ['input', 'select', 'textarea']) {
+				this._setVal(element);
 			}
-				if (this._options.searchUrls) {
-					this._printUrlsFromElement(node);
-				}
 
-				if (this._options.triggerEvents) {
-					// DEBUG:
-					console.log(elements.length);
-					elements.forEach(function (element) {
-						// DEBUG:
-						// console.log('AnalyzeDOM ' + _elementToString(element));
-						this._triggerElementEvents(element);
-					}.bind(this));
-				}
+			if (this._options.searchUrls) {
+				this._printUrlsFromElement(element);
+			}
+
+			if (this._options.triggerEvents) {
+				// DEBUG:
+				// console.log('AnalyzeDOM ' + _elementToString(element));
+				this._triggerElementEvents(element);
+			}
 			// }
 
 			// var isAjaxCompleted = false,
@@ -966,7 +969,7 @@ version.
 			// 	if (modifiedElementList.length > 0) {
 			// 		// DEBUG:
 			// 		console.log('modified');
-			// 		this._analyzeDOM(modifiedElementList.shift(), counter + 1, function () {
+			// 		this._analyzeDOMElement(modifiedElementList.shift(), counter + 1, function () {
 			// 			isRecursionReturned = true;
 			// 		});
 			// 	}

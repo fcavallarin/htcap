@@ -544,8 +544,6 @@ function startProbe(random, injectScript) {
 
 		// create an observer instance for DOM changes
 		var observer = new WebKitMutationObserver(function (mutations) {
-			// DEBUG:
-			console.log(mutations.length);
 			window.__PROBE__.eventLoopManager.nodeMutated(mutations);
 		});
 		var eventAttributeList = [];
