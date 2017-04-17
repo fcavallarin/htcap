@@ -31,10 +31,11 @@ version.
 			// this._requestsPrintQueue = [];
 			this.sentXHRs = [];
 
+			this.eventLoopManager = new this.EventLoopManager(this);
+
 			this._currentPageEvent = undefined;
 			this._eventsMap = [];
-
-			this.eventLoopManager = new this.EventLoopManager(this);
+			this._triggeredPageEvents = [];
 
 			// /**
 			//  * the queue containing all the awaiting events to be triggered
@@ -45,14 +46,11 @@ version.
 			// this.isEventWaitingForTriggering = false;
 			// this.isEventRunningFromTriggering = false;
 
-			this.triggeredEvents = [];
-			this.websockets = [];
-			this.html = "";
 			// this.DOMSnapshot = [];
 			// this.pendingXHRs = [];
-			this.inputValues = inputValues;
+			this._inputValues = inputValues;
 
-			this.userInterface = {
+			this._userInterface = {
 				id: options.id,
 				vars: {},
 				log: function (str) {
@@ -439,10 +437,10 @@ version.
 
 		Probe.prototype.getRandomValue = function (type) {
 
-			if (!(type in this.inputValues))
+			if (!(type in this._inputValues))
 				type = "string";
 
-			return this.inputValues[type];
+			return this._inputValues[type];
 
 		};
 
@@ -537,8 +535,8 @@ version.
 			if (!(name in this.userEvents) || typeof this.userEvents[name] !== 'function') {
 				return true;
 			}
-			params.splice(0, 0, this.userInterface);
-			var ret = this.userEvents[name].apply(this.userInterface, params);
+			params.splice(0, 0, this._userInterface);
+			var ret = this.userEvents[name].apply(this._userInterface, params);
 			return !(ret === false)
 		};
 
@@ -684,10 +682,10 @@ version.
 
 		Probe.prototype.getRandomValue = function (type) {
 
-			if (!(type in this.inputValues))
+			if (!(type in this._inputValues))
 				type = "string";
 
-			return this.inputValues[type];
+			return this._inputValues[type];
 
 		};
 
@@ -813,8 +811,8 @@ version.
 
 				// console.log("triggering events for : " + _elementToString(element) + " " + eventName);
 
-				if (_isEventTriggerable(eventName) && !_objectInArray(this.triggeredEvents, pageEvent)) {
-					this.triggeredEvents.push(pageEvent);
+				if (_isEventTriggerable(eventName) && !_objectInArray(this._triggeredPageEvents, pageEvent)) {
+					this._triggeredPageEvents.push(pageEvent);
 					this._trigger(pageEvent);
 				}
 			}.bind(this));
