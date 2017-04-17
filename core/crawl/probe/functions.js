@@ -537,6 +537,8 @@ function startProbe(random, injectScript) {
 		// prevent window.close
 		window.close = function () {
 		};
+		window.alert = function () {
+		};
 
 		window.open = function(url, name, specs, replace){
 			window.__PROBE__.printLink(url);
@@ -546,7 +548,7 @@ function startProbe(random, injectScript) {
 		var observer = new WebKitMutationObserver(function (mutations) {
 			window.__PROBE__.eventLoopManager.nodeMutated(mutations);
 		});
-		var eventAttributeList = [];
+		var eventAttributeList = ['src', 'href'];
 		window.__HTCAP.mappableEvents.forEach(function (event) {
 			eventAttributeList.push('on' + event);
 		});

@@ -145,7 +145,7 @@ version.
 		 * Class PageEvent
 		 * Element's event found in the page
 		 *
-		 * @param {Node} element
+		 * @param {Element} element
 		 * @param {String} eventName
 		 * @constructor
 		 */
@@ -220,39 +220,35 @@ version.
 
 		Probe.prototype.EventLoopManager.prototype.start = function () {
 			// DEBUG:
-			// console.log('eventLoop start');
+			console.log('eventLoop start');
 			window.__PROBE__.triggerUserEvent("onStart");
 
-			// taking snapshot of the DOM
-			// this._probe.DOMSnapshot = _getDOMSnapshot();
+			// Parsing the current DOM
+			var elements = document.getElementsByTagName('*');
+			for (var i = 0; i < elements.length; i++) {
+				var element = elements[i];
+				if (element.nodeType === Node.ELEMENT_NODE) {
+					this.scheduleDOMAssessment(element);
+				}
+			}
 
 			window.postMessage(__HTCAP.messageEvent.eventLoopReady, "*");
 		};
 
 		Probe.prototype.EventLoopManager.prototype.doNextAction = function () {
 			// DEBUG:
-			// console.log('eventLoop doNextAction - sent: ',
-			// 	this._sentXHRQueue.length,
-			// 	', done:', this._doneXHRQueue.length,
-			// 	', DOM:', this._DOMAssessmentQueue.length,
-			// 	', event:', this._toBeTriggeredEventsQueue.length
-			// );
+			console.log('eventLoop doNextAction - sent: ',
+				this._sentXHRQueue.length,
+				', done:', this._doneXHRQueue.length,
+				', DOM:', this._DOMAssessmentQueue.length,
+				', event:', this._toBeTriggeredEventsQueue.length
+			);
 
 			if (this._sentXHRQueue.length > 0) {
 				// releasing the eventLoop waiting for resolution
 				window.postMessage(__HTCAP.messageEvent.eventLoopReady, "*");
 			} else if (this._doneXHRQueue.length > 0) {
 				var request = this._doneXHRQueue.shift();
-				// 	modifiedElementList = _getAddedElements(this._probe.DOMSnapshot);
-				// // DEBUG:
-				// console.log('eventLoop request DOMAssessment on ', modifiedElementList.length);
-				// if (modifiedElementList.length > 0) {
-				// 	window.__PROBE__.triggerUserEvent("onDomModified", modifiedElementList);
-				// 	modifiedElementList.forEach(function (element) {
-				//
-				// 		this._DOMAssessmentQueue.push(element);
-				// 	}.bind(this));
-				// }
 
 				// if all XHR done
 				if (this._doneXHRQueue.length === 0) {
@@ -285,22 +281,20 @@ version.
 				window.postMessage(__HTCAP.messageEvent.eventLoopReady, "*");
 
 			} else {
-				// console.log("eventLoop END");
+				console.log("eventLoop END");
 				window.__callPhantom({cmd: 'end'})
 			}
 		};
 
 		Probe.prototype.EventLoopManager.prototype.scheduleDOMAssessment = function (element) {
 			if (this._DOMAssessmentQueue.indexOf(element) < 0) {
-				// DEBUG:
-				// console.log('eventLoop scheduleDOMAssessment');
 				this._DOMAssessmentQueue.push(element);
 			}
 		};
 
 		Probe.prototype.EventLoopManager.prototype.nodeMutated = function (mutations) {
 			// DEBUG:
-			// console.log('eventLoop nodesMutated:', mutations.length);
+			console.log('eventLoop nodesMutated:', mutations.length);
 			mutations.forEach(function (mutationRecord) {
 				if (mutationRecord.type === 'childList') {
 					// DEBUG:
@@ -320,7 +314,7 @@ version.
 					}
 				} else if (mutationRecord.type === 'attributes') {
 					// DEBUG:
-					// console.log('eventLoop nodeMutated: attributes', mutationRecord.attributeName);
+					console.log('eventLoop nodeMutated: attributes', mutationRecord.attributeName, mutationRecord.target[mutationRecord.attributeName]);
 				}
 			}.bind(this));
 		};
@@ -416,44 +410,11 @@ version.
 			_print(json);
 		};
 
-
-		// Probe.prototype.waitAjax = function (callback, chainLimit) {
-		// 	var xhrList = this.pendingXHRs.slice(),	// get a copy of the pending XHRs
-		// 		timeout = this._options.XHRTimeout,
-		// 		chainSizeLimit = chainLimit || this._options.maximumXHRStackSize;
-		//
-		// 	this.pendingXHRs = []; // clean-up the list
-		//
-		// 	console.log("Waiting for ajaxs: " + chainSizeLimit);
-		//
-		// 	var t = window.__originalSetInterval(function () {
-		// 		if ((timeout <= 0) || _isXHRsInListCompleted(xhrList)) {
-		// 			clearInterval(t);
-		// 			window.__originalSetTimeout(function () {
-		// 				if (chainSizeLimit > 0 && this.pendingXHRs.length > 0) {
-		// 					this.waitAjax(callback, chainSizeLimit - 1);
-		// 				} else {
-		// 					callback(xhrList.length > 0);
-		// 				}
-		// 			}.bind(this), 100);
-		// 			return;
-		// 		}
-		// 		timeout -= 10;
-		// 	}.bind(this), 0);
-		//
-		// 	console.log("Wait ajax return, " + chainSizeLimit);
-		//
-		// 	return xhrList.length > 0;
-		// };
-
-
 		Probe.prototype.getRandomValue = function (type) {
-
 			if (!(type in this._inputValues))
 				type = "string";
 
 			return this._inputValues[type];
-
 		};
 
 		/**
@@ -524,7 +485,7 @@ version.
 
 		/**
 		 * add the given element/event pair to map
-		 * @param {Node} element
+		 * @param {Element} element
 		 * @param {String} eventName
 		 */
 		Probe.prototype.addEventToMap = function (element, eventName) {
@@ -826,7 +787,7 @@ version.
 		};
 
 		/**
-		 * @param {Node} element
+		 * @param {Element} element
 		 * @private
 		 */
 		Probe.prototype._mapElementEvents = function (element) {
@@ -894,8 +855,6 @@ version.
 			}
 
 			if (this._options.triggerEvents) {
-				// DEBUG:
-				// console.log('AnalyzeDOM ' + _elementToString(element));
 				this._triggerElementEvents(element);
 			}
 			// }
@@ -960,7 +919,7 @@ version.
 			// 			isWaitingRecursion = (modifiedElementList.length > 0 && hasXHRs);
 			//
 			// 		} else {
-			console.log(">>>>RECURSION LIMIT REACHED :");
+			// console.log(">>>>RECURSION LIMIT REACHED :");
 			// 	}
 			// }
 			//
