@@ -28,7 +28,6 @@ version.
 
 			this._options = options;
 
-			// this._requestsPrintQueue = [];
 			this.sentXHRs = [];
 
 			this.eventLoopManager = new this.EventLoopManager(this);
@@ -36,18 +35,6 @@ version.
 			this._currentPageEvent = undefined;
 			this._eventsMap = [];
 			this._triggeredPageEvents = [];
-
-			// /**
-			//  * the queue containing all the awaiting events to be triggered
-			//  * @type {Array}
-			//  * @private
-			//  */
-			// this._toBeTriggeredEventsQueue = [];
-			// this.isEventWaitingForTriggering = false;
-			// this.isEventRunningFromTriggering = false;
-
-			// this.DOMSnapshot = [];
-			// this.pendingXHRs = [];
 			this._inputValues = inputValues;
 
 			this._userInterface = {
@@ -117,6 +104,10 @@ version.
 			}
 		});
 
+		/**
+		 * the standard toJSON for JSON.stringify() call
+		 * @returns {{type: *, method: *, url: *, data: null}}
+		 */
 		Probe.prototype.Request.prototype.toJSON = function () {
 			var obj = {
 				type: this.type,
@@ -160,7 +151,7 @@ version.
 		Probe.prototype.PageEvent.prototype.trigger = function () {
 
 			// DEBUG:
-			// console.log('triggering events for : ', _elementToString(this.element), this.eventName);
+			// console.log('PageEvent triggering events for : ', _elementToString(this.element), this.eventName);
 			var ueRet = window.__PROBE__.triggerUserEvent("onTriggerEvent", [this.element, this.eventName]);
 
 
@@ -179,6 +170,34 @@ version.
 			}
 		};
 
+		/**
+		 * EventLoop Manager
+		 * Responsibility:
+		 * Managing the eventLoop to ensure that every code execution (from the page or from the probe)
+		 * is completely done before launching anything else.
+		 * Since the possible actions on the page are _user triggered_, the executed code is design to be triggered by
+		 * a _normal_ interaction through standard HID, not automated. So it is important to give time
+		 * to the JS stack to empty before launching anything new.
+		 *
+		 * Possible actions to be schedule are: DOM Assessment and event triggering.
+		 *
+		 * Upon schedule, the action will take place as soon as the eventLoop is empty and nothing is waiting
+		 * to be completed (like an XHR request).
+		 *
+		 * The logic is (in this order):
+		 * if a XHR has been sent or is done, do nothing (ie. wait the next event loop before acting)
+		 * then if a DOM Assessment is waiting, do it first.
+		 * then if a event is waiting to be triggered, trigger it.
+		 *
+		 * A new DOM Assessment is schedule everytime the DOM is modified.
+		 * A new event is schedule for every triggerable event on every element in the DOM.
+		 *
+		 *
+		 * more info on {@link https://developer.mozilla.org/en-US/docs/Web/JavaScript/EventLoop MDN}
+		 *
+		 * @param probe the probe from where it's initialized
+		 * @constructor
+		 */
 		Probe.prototype.EventLoopManager = function (probe) {
 			this._probe = probe;
 			this._DOMAssessmentQueue = [];
@@ -190,6 +209,9 @@ version.
 
 		/**
 		 * callback for the eventMessage listener
+		 * it will wait until x empty eventLoop before requesting a `doNextAction()`,
+		 * x being the buffer size set in constants.js
+		 *
 		 * @param eventMessage - the eventMessage triggered
 		 * @private
 		 */
@@ -213,23 +235,24 @@ version.
 			}
 		};
 
+		/**
+		 * start the eventLoopManager
+		 */
 		Probe.prototype.EventLoopManager.prototype.start = function () {
 			// DEBUG:
-			console.log('eventLoop start');
+			// console.log('eventLoop start');
 			window.__PROBE__.triggerUserEvent("onStart");
-
-			// Parsing the current DOM
-			var elements = document.getElementsByTagName('*');
-			for (var i = 0; i < elements.length; i++) {
-				var element = elements[i];
-				if (element.nodeType === Node.ELEMENT_NODE) {
-					this.scheduleDOMAssessment(element);
-				}
-			}
 
 			window.postMessage(__HTCAP.messageEvent.eventLoopReady, "*");
 		};
 
+		/**
+		 * Do the next action based on the priority:
+		 * if a XHR has been sent or is done, do nothing (ie. wait the next event loop before acting)
+		 * then if a DOM Assessment is waiting, do it first.
+		 * then if a event is waiting to be triggered, trigger it.
+		 * then close the manager
+		 */
 		Probe.prototype.EventLoopManager.prototype.doNextAction = function () {
 			// DEBUG:
 			console.log('eventLoop doNextAction - sent: ',
@@ -239,10 +262,11 @@ version.
 				', event:', this._toBeTriggeredEventsQueue.length
 			);
 
-			if (this._sentXHRQueue.length > 0) {
+			if (this._sentXHRQueue.length > 0) { // if there is XHR waiting to be resolved
 				// releasing the eventLoop waiting for resolution
 				window.postMessage(__HTCAP.messageEvent.eventLoopReady, "*");
-			} else if (this._doneXHRQueue.length > 0) {
+
+			} else if (this._doneXHRQueue.length > 0) { // if there is XHR done
 				var request = this._doneXHRQueue.shift();
 
 				// if all XHR done
@@ -252,7 +276,8 @@ version.
 
 				window.postMessage(__HTCAP.messageEvent.eventLoopReady, "*");
 
-			} else if (this._DOMAssessmentQueue.length > 0) {
+			} else if (this._DOMAssessmentQueue.length > 0) { // if there is DOMAssessment waiting
+
 				var element = this._DOMAssessmentQueue.shift();
 				// DEBUG:
 				// console.log('eventLoop analyzeDOM: ' + _elementToString(element));
@@ -261,7 +286,7 @@ version.
 				this._probe._analyzeDOMElement(element);
 				window.postMessage(__HTCAP.messageEvent.eventLoopReady, "*");
 
-			} else if (this._toBeTriggeredEventsQueue.length > 0) {
+			} else if (this._toBeTriggeredEventsQueue.length > 0) { // if there is event waiting
 				// retrieving the next pageEvent
 				var pageEvent = this._toBeTriggeredEventsQueue.shift();
 
@@ -277,7 +302,8 @@ version.
 				window.postMessage(__HTCAP.messageEvent.eventLoopReady, "*");
 
 			} else {
-				console.log("eventLoop END");
+				// DEBUG:
+				// console.log("eventLoop END");
 				window.__callPhantom({cmd: 'end'})
 			}
 		};
@@ -290,7 +316,7 @@ version.
 
 		Probe.prototype.EventLoopManager.prototype.nodeMutated = function (mutations) {
 			// DEBUG:
-			console.log('eventLoop nodesMutated:', mutations.length);
+			// console.log('eventLoop nodesMutated:', mutations.length);
 			mutations.forEach(function (mutationRecord) {
 				if (mutationRecord.type === 'childList') {
 					for (var i = 0; i < mutationRecord.addedNodes.length; i++) {
@@ -334,6 +360,7 @@ version.
 			if (this._doneXHRQueue.indexOf(request) < 0) {
 				// DEBUG:
 				// console.log('eventLoop doneXHR');
+
 				// if the request is in the sentXHR queue
 				var i = this._sentXHRQueue.indexOf(request);
 				if (i >= 0) {
@@ -348,17 +375,6 @@ version.
 			// DEBUG:
 			// console.log('eventLoop inErrorXHR');
 		};
-
-		// Probe.prototype.printRequestQueue = function () {
-		// 	for (var a = 0; a < this._requestsPrintQueue.length; a++) {
-		// 		this._requestsPrintQueue[a].print();
-		// 	}
-		// 	this._requestsPrintQueue = [];
-		// };
-		//
-		// Probe.prototype.addRequestToPrintQueue = function (req) {
-		// 	this._requestsPrintQueue.push(req);
-		// };
 
 		Probe.prototype.printJSONP = function (node) {
 
@@ -477,7 +493,6 @@ version.
 			return req;
 		};
 
-
 		/**
 		 * add the given element/event pair to map
 		 * @param {Element} element
@@ -512,15 +527,20 @@ version.
 		 * Start the analysis of the current Document
 		 */
 		Probe.prototype.startAnalysis = function () {
-
-			// Starting the first DOM analysis
 			console.log("page initialized ");
-			// this.eventLoopManager.scheduleDOMAssessment(document);
+
+			// Parsing the current DOM
+			var elements = document.getElementsByTagName('*');
+			for (var i = 0; i < elements.length; i++) {
+				var element = elements[i];
+				if (element.nodeType === Node.ELEMENT_NODE) {
+					this.eventLoopManager.scheduleDOMAssessment(element);
+				}
+			}
 
 			// starting the eventLoop manager
 			this.eventLoopManager.start();
 		};
-
 
 		Probe.prototype.removeUrlParameter = function (url, par) {
 			var anchor = document.createElement("a");
@@ -541,7 +561,6 @@ version.
 			anchor.href = url;
 			return anchor.href;
 		};
-
 
 		/**
 		 * returns true if the value has been set
@@ -637,38 +656,15 @@ version.
 			}
 		};
 
-
 		Probe.prototype.getRandomValue = function (type) {
-
-			if (!(type in this._inputValues))
+			if (!(type in this._inputValues)) {
 				type = "string";
-
+			}
 			return this._inputValues[type];
-
 		};
 
-// 		/**
-// 		 * @param element
-// 		 * @private
-// 		 */
-// 		Probe.prototype._fillInputValues = function (element) {
-// 			var elements = element.querySelectorAll("input, select, textarea");
-// // DEBUG:
-// 			console.log(elements);
-// 			for (var a = 0; a < elements.length; a++) {
-// 				this._setVal(elements[a]);
-// 			}
-// 		};
-
 		/**
-		 * add the trigger of the given event on the given element to the trigger queue to be triggered
-		 *
-		 * it place the given event in a queue and trigger it when the event loop is empty/ready
-		 * trigger the given event only when there is some space in the event stack to avoid collision
-		 * and give time to things to resolve properly (since we trigger user driven event,
-		 * it is important to give time to the analysed page to breath between calls)
-		 *
-		 * more info on {@link https://developer.mozilla.org/en-US/docs/Web/JavaScript/EventLoop MDN}
+		 * schedule the trigger of the given event on the given element when the eventLoop is ready
 		 *
 		 * @param {PageEvent} pageEvent which have to be triggered
 		 * @private
@@ -683,45 +679,8 @@ version.
 				// and give time to things to resolve properly (since we trigger user driven event,
 				// it is important to give time to the analysed page to breath between calls)
 				this.eventLoopManager.scheduleEventTriggering(pageEvent);
-				// this.isEventWaitingForTriggering = true;
-				// this.eventLoopManager.scheduleNextEvent();
 			}
 		};
-
-		// /**
-		//  * Trigger the first event in the `_toBeTriggeredEventsQueue`
-		//  * @private
-		//  */
-		// Probe.prototype._triggerEventFromQueue = function () {
-		//
-		// 	if (this._toBeTriggeredEventsQueue.length > 0) {
-		//
-		// 		// retrieving the next pageEvent
-		// 		var pageEvent = this._toBeTriggeredEventsQueue.shift();
-		//
-		// 		// setting the current element
-		// 		this._currentPageEvent = pageEvent;
-		// 		// Triggering the event
-		// 		pageEvent.trigger();
-		//
-		// 		// pushing the next event to the next event loop
-		// 		window.__originalSetTimeout(function () {
-		// 				this.isEventRunningFromTriggering = false;
-		//
-		// 				// cleaning the current element
-		// 				this._currentPageEvent = undefined;
-		//
-		// 				// requesting the next event
-		// 				this.eventLoopManager.scheduleNextEvent();
-		// 			}.bind(this)
-		// 		);
-		//
-		// 	} else {
-		// 		// nothing left to do, turning flags off
-		// 		this.isEventWaitingForTriggering = false;
-		// 		this.isEventRunningFromTriggering = false;
-		// 	}
-		// };
 
 		/**
 		 * @param  {Element} element
@@ -749,7 +708,6 @@ version.
 
 			return events;
 		};
-
 
 		/**
 		 * Trigger all event for a given element
@@ -816,15 +774,12 @@ version.
 			}
 		};
 
-
 		/**
 		 * analyze the given element
 		 * @param {Element} element - the element to analyze
 		 * @private
 		 */
 		Probe.prototype._analyzeDOMElement = function (element) {
-
-			// var elements = [element === document ? document.documentElement : element].concat(_getDOMTreeAsArray(element));
 
 			// map property events and fill input values
 			if (this._options.mapEvents) {
@@ -842,205 +797,7 @@ version.
 			if (this._options.triggerEvents) {
 				this._triggerElementEvents(element);
 			}
-			// }
-
-			// var isAjaxCompleted = false,
-			// 	isAjaxTriggered = true,
-			// 	hasXHRs = false,
-			// 	isRecursionReturned = false,
-			// 	isWaitingRecursion = false;
-
-			// var modifiedElementList = [];
-			// /*
-			//addRequestToPrintQueue starting analyse loop
-			// var to = window.__originalSetInterval(function () {
-			//console.log(counter+" isWaitingRecursion: "+isWaitingRecursion+" isAjaxCompleted: "+isAjaxCompleted+ " isRecursionReturned:"+isRecursionReturned)
-			// console.log(counter + "#  elements.length: " + elements.length + "\trecursion: " + isWaitingRecursion + "\treturned: " + isRecursionReturned + "\tajax: " + this.pendingXHRs.length + "\tcompleted: " + isAjaxCompleted + "\ttriggered: " + isAjaxTriggered + "\tevents: " + (this.isEventWaitingForTriggering) + " " + ( this.isEventRunningFromTriggering));
-
-			// if (elements.length > 0 && !isWaitingRecursion && !this.isEventWaitingForTriggering) {
-			// 	// console.log(counter + " analysing " + this.describeElement(elements[index]))
-			//
-			// 	// TODO: here the element may have been detached, moved, etc ; try to find a logic to handle this.
-			//
-			// 	this.DOMSnapshot = _getDOMSnapshot();
-			//
-			// 	if (this._options.triggerEvents) {
-			// 		this._triggerElementEvents(elements.shift());
-			// 	}
-			//
-			// 	// treating pending XHR request
-			// 	if (this.pendingXHRs.length > 0) {
-			// 		hasXHRs = this.waitAjax(function () {
-			// 			isAjaxCompleted = true;
-			// 			isAjaxTriggered = true;
-			// 		});
-			// 	} else {
-			// 		hasXHRs = false;
-			// 		isAjaxCompleted = true;
-			// 		isAjaxTriggered = false;
-			// 	}
-			// }
-			//
-			// if (!this.isEventWaitingForTriggering && !this.isEventRunningFromTriggering && (isAjaxCompleted || isWaitingRecursion)) {
-			//
-			// 	// treating completed ajax
-			// 	if (isAjaxCompleted) {
-			// 		isAjaxCompleted = false;
-			//
-			// 		// this.printRequestQueue();
-			// 		// if (isAjaxTriggered) {
-			// 		// 	window.__PROBE__.triggerUserEvent("onAllXhrsCompleted");
-			// 		// }
-			//
-			// 		if (counter < this._options.maximumRecursion) {
-			// 			// getAddedElement is slow and can take time if the DOM is big (~25000 nodes)
-			// 			// so use it only if ajax
-			// 			modifiedElementList = isAjaxTriggered ? _getAddedElements(this.DOMSnapshot) : [];
-			//
-			// 			if (modifiedElementList.length > 0) {
-			// 				window.__PROBE__.triggerUserEvent("onDomModified", [modifiedElementList, elements]);
-			// 			}
-			// 			// if ajax has been triggered and some elements are modified then recurse through the modified elements
-			// 			isWaitingRecursion = (modifiedElementList.length > 0 && hasXHRs);
-			//
-			// 		} else {
-			// console.log(">>>>RECURSION LIMIT REACHED :");
-			// 	}
-			// }
-			//
-			// if (isWaitingRecursion) {
-			//
-			// 	if (modifiedElementList.length > 0) {
-			// 		// DEBUG:
-			// 		console.log('modified');
-			// 		this._analyzeDOMElement(modifiedElementList.shift(), counter + 1, function () {
-			// 			isRecursionReturned = true;
-			// 		});
-			// 	}
-			//
-			// 	if (!isRecursionReturned) return;
-			//
-			// 	isRecursionReturned = false;
-			//
-			// 	if (modifiedElementList.length <= 0) {
-			// 		isWaitingRecursion = false;
-			// 	} else {
-			// 		return;
-			// 	}
-			//
-			// }
-
-					// console.log(counter + "## elements.length: " + elements.length + "\trecursion: " + isWaitingRecursion + "\treturned: " + isRecursionReturned + "\tajax: " + this.pendingXHRs.length + "\tcompleted: " + isAjaxCompleted + "\ttriggered: " + isAjaxTriggered + "\tevents: " + (this.isEventWaitingForTriggering) + " " + ( this.isEventRunningFromTriggering));
-
-			// if (elements.length === 0) {
-			// 	console.log("call END");
-			// 	// setting the "finish" step to the next event loop to leave some time to the last process/event to finish
-			// 	window.__originalSetTimeout(function () {
-			// 		clearInterval(to);
-			// 		console.log("-------END");
-			// 		if (typeof callback === 'function') callback();
-			// 	});
-			// }
-			// }
-			// }.bind(this), 0);
-
 		};
-
-
-		// /**
-		//  * return a snapshot of the current DOM
-		//  * NOTE: do NOT use MutationObserver to get added elements .. it is asynchronous and the callback is fired only when DOM is refreshed (graphically)
-		//  * @returns {Array}
-		//  * @private
-		//  */
-		// function _getDOMSnapshot() {
-		// 	// DEBUG:
-		// 	console.log("Do DOMSnapshot");
-		// 	return Array.prototype.slice.call(document.getElementsByTagName("*"), 0);
-		// }
-
-		// /**
-		//  * Get an array of all the DOM elements added to the DOM
-		//  * @param DOMSnapshot - the initial DOM to compare with
-		//  * @returns {Array}
-		//  * @private
-		//  * @static
-		//  */
-		// function _getAddedElements(DOMSnapshot) {
-		// 	var a,
-		// 		elements = [],
-		// 		rootElements = [];
-		//
-		// 	// DEBUG:
-		// 	var html = document.documentElement.innerHTML;
-		//
-		// 	console.log(html);
-		//
-		//
-		// 	var newDom = Array.prototype.slice.call(document.getElementsByTagName("*"), 0);
-		//
-		// 	console.log('get added elements start dom len: ' + DOMSnapshot.length + ' new dom len: ' + newDom.length);
-		// 	// get all added elements
-		// 	for (a = 0; a < newDom.length; a++) {
-		// 		// DEBUG:
-		// 		// console.log(_elementToString(newDom[a]));
-		// 		if (DOMSnapshot.indexOf(newDom[a]) === -1) {
-		// 			// set __new flag on added elements to avoid checking for elements.indexOf
-		// 			// that is very very slow
-		// 			newDom[a].__new = true;
-		// 			elements.push(newDom[a]);
-		// 		}
-		// 	}
-		//
-		// 	console.log("elements get... (tot " + elements.length + ") searching for root nodes");
-		//
-		// 	for (a = 0; a < elements.length; a++) {
-		// 		var p = elements[a];
-		// 		var root = null;
-		// 		// find the farest parent between added elements
-		// 		while (p) {
-		// 			//if(elements.indexOf(p) != -1){
-		// 			if (p.__new) {
-		// 				root = p;
-		// 			}
-		// 			p = p.parentNode;
-		// 		}
-		// 		if (root && rootElements.indexOf(root) === -1) {
-		// 			rootElements.push(root);
-		// 		}
-		// 	}
-		//
-		// 	for (a = 0; a < elements.length; a++) {
-		// 		delete elements[a].__new;
-		// 	}
-		//
-		// 	console.log("root elements found: " + rootElements.length);
-		// 	return rootElements;
-		// }
-
-
-		// /**
-		//  * convert a DOM tree to an array
-		//  *
-		//  * WARNING: DO NOT include node as first element. this is a requirement
-		//  *
-		//  * @param node
-		//  * @returns {Array} array of the given DOM node
-		//  * @private
-		//  * @static
-		//  */
-		// function _getDOMTreeAsArray(node) {
-		// 	var out = [],
-		// 		children = node.querySelectorAll(":scope > *");
-		//
-		// 	for (var a = 0; a < children.length; a++) {
-		// 		var child = children[a];
-		// 		out.push(child);
-		// 		out = out.concat(_getDOMTreeAsArray(child));
-		// 	}
-		// 	return out;
-		// }
-
 
 		function _print(str) {
 			window.__callPhantom({cmd: 'print', argument: str});
@@ -1100,26 +857,6 @@ version.
 			_print(json);
 		}
 
-		// /**
-		//  * @param xhrList
-		//  * @returns {boolean}
-		//  * @private
-		//  * @static
-		//  */
-		// function _isXHRsInListCompleted(xhrList) {
-		// 	var allDone = true;
-		// 	for (var a = 0; a < xhrList.length; a++) {
-		// 		//console.log("-->"+xhrList[a].readyState + " "+ xhrList[a].__request.url)
-		// 		if (xhrList[a].readyState !== 4 && !xhrList[a].__skipped) {
-		// 			allDone = false;
-		// 		}
-		// 	}
-		// 	//if(allDone)
-		// 	//	console.log("-----------------> alla ajax completed")
-		// 	return allDone;
-		// }
-
-
 		/**
 		 * @param eventName
 		 * @returns {boolean}
@@ -1129,7 +866,6 @@ version.
 		function _isEventTriggerable(eventName) {
 			return ['load', 'unload', 'beforeunload'].indexOf(eventName) === -1;
 		}
-
 
 		/**
 		 *

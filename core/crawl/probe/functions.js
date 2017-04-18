@@ -408,8 +408,6 @@ function startProbe(random, injectScript) {
 
 				// adding XHR listener
 				this.addEventListener('readystatechange', function () {
-					// DEBUG:
-					// console.log('XHR', this.__request.url, this.readyState);
 					// if not finish, it's open
 					// https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest/readyState
 					if (this.readyState >= 1 && this.readyState < 4) {
@@ -420,19 +418,12 @@ function startProbe(random, injectScript) {
 					}
 				});
 				this.addEventListener('error', function () {
-					// DEBUG:
-					console.log('state error: ' + JSON.stringify(this.readyState));
 					window.__PROBE__.eventLoopManager.inErrorXHR(this);
 				});
 				this.addEventListener('abort', function () {
-					// DEBUG:
-					console.log('state abort: ');
 					window.__PROBE__.eventLoopManager.inErrorXHR(this);
 				});
 				this.addEventListener('timeout', function () {
-					// DEBUG:
-					console.log('state timeout' + JSON.stringify(this.readyState));
-					console.debug(this);
 					window.__PROBE__.eventLoopManager.inErrorXHR(this);
 				});
 
@@ -529,7 +520,6 @@ function startProbe(random, injectScript) {
 
 		HTMLFormElement.prototype.__originalSubmit = HTMLFormElement.prototype.submit;
 		HTMLFormElement.prototype.submit = function(){
-			//console.log("=-->"+this.action)
 			window.__PROBE__.getFormAsRequest(this).print();
 			return this.__originalSubmit();
 		};
@@ -588,7 +578,6 @@ function getCookies(headers, url){
 	var domain = purl.hostname;
 
 	for(a = 0; a < headers.length; a++){
-		//console.log(JSON.stringify(headers[a]))
 		if(headers[a].name.toLowerCase() == "set-cookie"){
 			var cookies = headers[a].value.split("\n");	 // phantomjs stores multiple cookies in this way ..
 			for(b = 0; b < cookies.length; b++){
