@@ -159,6 +159,8 @@ version.
 		 */
 		Probe.prototype.PageEvent.prototype.trigger = function () {
 
+			// DEBUG:
+			// console.log('triggering events for : ', _elementToString(this.element), this.eventName);
 			var ueRet = window.__PROBE__.triggerUserEvent("onTriggerEvent", [this.element, this.eventName]);
 
 
@@ -254,6 +256,7 @@ version.
 				var element = this._DOMAssessmentQueue.shift();
 				// DEBUG:
 				// console.log('eventLoop analyzeDOM: ' + _elementToString(element));
+
 				// starting analyze on the next element
 				this._probe._analyzeDOMElement(element);
 				window.postMessage(__HTCAP.messageEvent.eventLoopReady, "*");
@@ -266,7 +269,7 @@ version.
 				this._probe._currentPageEvent = pageEvent;
 
 				// DEBUG:
-				console.log('eventLoop pageEvent.trigger', pageEvent.element.tagName, pageEvent.eventName);
+				// console.log('eventLoop pageEvent.trigger', pageEvent.element.tagName, pageEvent.eventName);
 
 				// Triggering the event
 				pageEvent.trigger();
@@ -290,9 +293,6 @@ version.
 			console.log('eventLoop nodesMutated:', mutations.length);
 			mutations.forEach(function (mutationRecord) {
 				if (mutationRecord.type === 'childList') {
-					// DEBUG:
-					// console.log('eventLoop nodeMutated: childList', mutationRecord.target.nodeName.toLowerCase());
-					// console.log('eventLoop', mutationRecord.addedNodes[0].nodeType, mutationRecord.addedNodes[0].nodeName);
 					for (var i = 0; i < mutationRecord.addedNodes.length; i++) {
 						var addedNode = mutationRecord.addedNodes[i];
 						// DEBUG:
@@ -307,7 +307,7 @@ version.
 					}
 				} else if (mutationRecord.type === 'attributes') {
 					// DEBUG:
-					console.log('eventLoop nodeMutated: attributes', mutationRecord.attributeName, mutationRecord.target[mutationRecord.attributeName]);
+					// console.log('eventLoop nodeMutated: attributes', mutationRecord.attributeName, mutationRecord.target[mutationRecord.attributeName]);
 					this.scheduleDOMAssessment(mutationRecord.target);
 
 				}
@@ -545,106 +545,96 @@ version.
 
 		/**
 		 * returns true if the value has been set
-		 * @param el
-		 * @returns {boolean}
+		 * @param {Element} el
 		 * @private
 		 */
 		Probe.prototype._setVal = function (el) {
-			var _options = this._options;
 			var _this = this;
 
 			var ueRet = window.__PROBE__.triggerUserEvent("onFillInput", [el]);
-			if (ueRet === false) return;
+			if (ueRet === true) {
+				var setv = function (name) {
+					var ret = _this.getRandomValue('string');
+					_this._options.inputNameMatchValue.forEach(function (matchValue) {
+						var regexp = new RegExp(matchValue.name, "gi");
+						if (name.match(regexp)) {
+							ret = _this.getRandomValue(matchValue.value);
+						}
+					});
+					return ret;
+				};
 
-			var setv = function (name) {
-				var ret = _this.getRandomValue('string');
-				_options.inputNameMatchValue.forEach(function (matchValue) {
-					var regexp = new RegExp(matchValue.name, "gi");
-					if (name.match(regexp)) {
-						ret = _this.getRandomValue(matchValue.value);
-					}
-				});
-				return ret;
-			};
+				// needed for example by angularjs
+				var triggerChange = function () {
+					// update angular model
+					_this._trigger(new _this.PageEvent(el, 'input'));
 
-			// needed for example by angularjs
-			var triggerChange = function () {
-				// update angular model
-				_this._trigger(new _this.PageEvent(el, 'input'));
+					// _this._trigger(new _this.PageEvent(el, 'blur'));
+					// _this._trigger(new _this.PageEvent(el, 'keyup'));
+					// _this._trigger(new _this.PageEvent(el, 'keydown'));
+				};
 
-				// _this._trigger(new _this.PageEvent(el, 'blur'));
-				// _this._trigger(new _this.PageEvent(el, 'keyup'));
-				// _this._trigger(new _this.PageEvent(el, 'keydown'));
-			};
-
-			if (el.nodeName.toLowerCase() === 'textarea') {
-				el.value = setv(el.name);
-				triggerChange();
-				return true;
-			}
-
-			if (el.nodeName.toLowerCase() === 'select') {
-				var opts = el.getElementsByTagName('option');
-				if (opts.length > 1) { // avoid to set the first (already selected) options
-					// @TODO .. qui seleziono l'ultimo val.. ma devo controllare che non fosse "selected"
-					el.value = opts[opts.length - 1].value;
-				} else {
+				if (el.tagName.toLowerCase() === 'textarea') {
 					el.value = setv(el.name);
-				}
-				triggerChange();
-				return true;
-			}
+					triggerChange();
 
-			var type = el.type.toLowerCase();
-
-			switch (type) {
-				case 'button':
-				case 'hidden':
-				case 'submit':
-				case 'file':
-					return false;
-				case '':
-				case 'text':
-				case 'search':
-					el.value = setv(el.name);
-					break;
-
-				case 'radio':
-				case 'checkbox':
-					el.setAttribute('checked', !(el.getAttribute('checked')));
-					break;
-				case 'range':
-				case 'number':
-
-					if ('min' in el && el.min) {
-
-						el.value = (parseInt(el.min) + parseInt(('step' in el) ? el.step : 1));
+				} else if (el.tagName.toLowerCase() === 'select') {
+					var opts = el.getElementsByTagName('option');
+					if (opts.length > 1) { // avoid to set the first (already selected) options
+						// @TODO .. qui seleziono l'ultimo val.. ma devo controllare che non fosse "selected"
+						el.value = opts[opts.length - 1].value;
 					} else {
-						el.value = parseInt(this.getRandomValue('number'));
+						el.value = setv(el.name);
 					}
-					break;
-				case 'password':
-				case 'color':
-				case 'date':
-				case 'email':
-				case 'month':
-				case 'time':
-				case 'url':
-				case 'week':
-				case 'tel':
-					el.value = this.getRandomValue(type);
-					break;
-				case 'datetime-local':
-					el.value = this.getRandomValue('datetimeLocal');
-					break;
+					triggerChange();
 
+				} else if (el.tagName.toLowerCase() === 'input') {
+					var type = el.type.toLowerCase();
 
-				default:
-					return false;
+					switch (type) {
+						case 'button':
+						case 'hidden':
+						case 'submit':
+						case 'file':
+							return;
+						case '':
+						case 'text':
+						case 'search':
+							el.value = setv(el.name);
+							break;
+						case 'radio':
+						case 'checkbox':
+							el.setAttribute('checked', !(el.getAttribute('checked')));
+							break;
+						case 'range':
+						case 'number':
+							if ('min' in el && el.min) {
+								el.value = (parseInt(el.min) + parseInt(('step' in el) ? el.step : 1));
+							} else {
+								el.value = parseInt(this.getRandomValue('number'));
+							}
+							break;
+						case 'password':
+						case 'color':
+						case 'date':
+						case 'email':
+						case 'month':
+						case 'time':
+						case 'url':
+						case 'week':
+						case 'tel':
+							el.value = this.getRandomValue(type);
+							break;
+						case 'datetime-local':
+							el.value = this.getRandomValue('datetimeLocal');
+							break;
+						default:
+							return;
+					}
+
+					triggerChange();
+				}
 			}
-
-			triggerChange();
-			return true;
 		};
 
 
@@ -841,7 +831,7 @@ version.
 				this._mapElementEvents(element);
 			}
 
-			if (this._options.fillValues && element.tagName.toLowerCase() in ['input', 'select', 'textarea']) {
+			if (this._options.fillValues) {
 				this._setVal(element);
 			}
 
