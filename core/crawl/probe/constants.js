@@ -8,7 +8,9 @@
 			}
 		},
 		eventLoop: {
-			bufferSize: 10 // number of empty event loop between every new action proceed in the eventLoop
+			bufferCycleSize: 100, // number of event loop cycle between every new action proceed in the eventLoop
+			afterEventTriggeredTimeout: 1, // after triggering an event, time in ms to wait before requesting another eventLoop cycle
+			afterDoneXHRTimeout: 10// after a done XHR, time in ms to before requesting another eventLoop cycle
 		},
 		mappableEvents: [
 			'abort', 'autocomplete', 'autocompleteerror', 'beforecopy', 'beforecut', 'beforepaste', 'blur',

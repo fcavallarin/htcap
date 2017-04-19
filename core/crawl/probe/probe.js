@@ -224,7 +224,7 @@ version.
 				if (eventMessage.data.name === __HTCAP.messageEvent.eventLoopReady.name) {
 
 					// waiting x number eventLoop before doing anything (x being the buffer size)
-					if (this._emptyLoopCounter < __HTCAP.eventLoop.bufferSize) {
+					if (this._emptyLoopCounter < __HTCAP.eventLoop.bufferCycleSize) {
 						window.postMessage(__HTCAP.messageEvent.eventLoopReady, "*");
 						this._emptyLoopCounter += 1;
 					} else {
@@ -273,8 +273,9 @@ version.
 				if (this._doneXHRQueue.length === 0) {
 					window.__PROBE__.triggerUserEvent("onAllXhrsCompleted");
 				}
-
-				window.postMessage(__HTCAP.messageEvent.eventLoopReady, "*");
+				window.__originalSetTimeout(function () {
+					window.postMessage(__HTCAP.messageEvent.eventLoopReady, "*");
+				}, __HTCAP.eventLoop.afterDoneXHRTimeout);
 
 			} else if (this._DOMAssessmentQueue.length > 0) { // if there is DOMAssessment waiting
 
@@ -299,8 +300,9 @@ version.
 				// Triggering the event
 				pageEvent.trigger();
 
-				window.postMessage(__HTCAP.messageEvent.eventLoopReady, "*");
-
+				window.__originalSetTimeout(function () {
+					window.postMessage(__HTCAP.messageEvent.eventLoopReady, "*");
+				}, __HTCAP.eventLoop.afterEventTriggeredTimeout);
 			} else {
 				// DEBUG:
 				// console.log("eventLoop END");
@@ -316,7 +318,7 @@ version.
 
 		Probe.prototype.EventLoopManager.prototype.nodeMutated = function (mutations) {
 			// DEBUG:
-			// console.log('eventLoop nodesMutated:', mutations.length);
+			console.log('eventLoop nodesMutated:', mutations.length);
 			mutations.forEach(function (mutationRecord) {
 				if (mutationRecord.type === 'childList') {
 					for (var i = 0; i < mutationRecord.addedNodes.length; i++) {
