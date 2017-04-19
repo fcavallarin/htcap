@@ -18,9 +18,8 @@ window.options = {
 	checkWebsockets: true,
 	searchUrls: true,
 	jsonOutput:true,
-	//maxExecTime: 300000, // 300 seconds
 	maxExecTime: 100000, // 100 seconds
-	ajaxTimeout:5000,
+	XHRTimeout: 5000,
 	printAjaxPostData: true,
 	loadImages: false,
 	getCookies:true,
@@ -32,13 +31,12 @@ window.options = {
 	overrideTimeoutFunctions: true,
 	referer: false,
 	userAgent: 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/53.0.2785.143 Safari/537.36',
-	allEvents: ['abort', 'autocomplete', 'autocompleteerror', 'beforecopy', 'beforecut', 'beforepaste', 'blur', 'cancel', 'canplay', 'canplaythrough', 'change', 'click', 'close', 'contextmenu', 'copy', 'cuechange', 'cut', 'dblclick', 'drag', 'dragend', 'dragenter', 'dragleave', 'dragover', 'dragstart', 'drop', 'durationchange', 'emptied', 'ended', 'error', 'focus', 'input', 'invalid', 'keydown', 'keypress', 'keyup', 'load', 'loadeddata', 'loadedmetadata', 'loadstart', 'mousedown', 'mouseenter', 'mouseleave', 'mousemove', 'mouseout', 'mouseover', 'mouseup', 'mousewheel', 'paste', 'pause', 'play', 'playing', 'progress', 'ratechange', 'reset', 'resize', 'scroll', 'search', 'seeked', 'seeking', 'select', 'selectstart', 'show', 'stalled', 'submit', 'suspend', 'timeupdate', 'toggle', 'volumechange', 'waiting', 'webkitfullscreenchange', 'webkitfullscreenerror', 'wheel'],
 	returnHtml: false,
 	setCookies: [],
 	excludedUrls: [],
 	maximumRecursion: 50,
 	printUnknownRequests: false, // unknown requests are for example mailto: and javascript: urls
-	maximumAjaxChain: 30,
+	maximumXHRStackSize: 30,
 	preventElementRemoval: false,
 	// map input names to string generators. see generateRandomValues to see all available generators
 	inputNameMatchValue:[ // regexps NEED to be string to get passed to phantom page
@@ -50,15 +48,5 @@ window.options = {
 		{name: "url", value: "url"},
 		{name: "firstname", value: "firstname"},
 		{name: "(surname)|(lastname)", value: "surname"},
-	],
-	/* always trigger these events since event delegation mays "confuse" the triggering of mapped events */
-	eventsMap: {
-		'button':['click','keyup','keydown'],
-		'select':['change','click','keyup','keydown'],
-		'input':['change','click','blur','focus','keyup','keydown'],
-		'a':['click','keyup','keydown'],
-		'textarea':['change','click','blur','focus','keyup','keydown']
-		,'span':['click']
-		,'td':['click']
-	}
+	]
 };
