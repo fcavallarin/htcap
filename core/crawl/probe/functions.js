@@ -225,24 +225,23 @@ function parseArgsToOptions(args){
 	}
 };
 
-function onNavigationRequested(url, type, willNavigate, main) {
+function onNavigationRequested(url, type) {
 
-	// @todo: detection on window.location is broken .. it fals on multiple calls
-	if(page.navigationLocked == true){
-		page.evaluate(function(url, type, main){
-			if(type == "LinkClicked")
+	if (page.navigationLocked === true) {
+		page.evaluate(function (url, type) {
+			if (type === "LinkClicked")
 				return;
 
-			if(type == 'Other' && main == false){
+			if (type === 'Other' && url !== "about:blank") {
 				window.__PROBE__.printLink(url);
 			}
 
-		},url, type, main);
+		}, url, type);
 	}
 
 
 	// allow the navigation if only the hash is changed
-	if(page.navigationLocked == true && compareUrls(url, site)){
+	if (page.navigationLocked === true && compareUrls(url, site)) {
 		page.navigationLocked = false;
 		page.evaluate(function(url){
 			document.location.href=url;
@@ -372,46 +371,71 @@ function startProbe(random, injectScript) {
 	// this process will lead to and infinite loop!
 	var inputValues = generateRandomValues(random);
 
+	// adding constants to page
+	page.evaluate(function (__HTCAP) {
+		window.__HTCAP = __HTCAP;
+	}, window.__HTCAP);
+
 	page.evaluate(initProbe, options, inputValues, injectScript);
 
 	page.evaluate(function(options) {
 
 		if(options.mapEvents){
 
-			Node.prototype.originaladdEventListener = Node.prototype.addEventListener;
-			Node.prototype.addEventListener = function(event, func, useCapture){
-				if(event != "DOMContentLoaded"){ // is this ok???
-					window.__PROBE__.addEventToMap(this, event);
+			Node.prototype.__originalAddEventListener = Node.prototype.addEventListener;
+			Node.prototype.addEventListener = function () {
+				if (arguments[0] !== "DOMContentLoaded") { // is this ok???
+					window.__PROBE__.addEventToMap(this, arguments[0]);
 				}
-				this.originaladdEventListener(event, func, useCapture);
+				this.__originalAddEventListener.apply(this, arguments);
 			};
 
-			window.addEventListener = (function(originalAddEventListener){
-				return function(event, func, useCapture){
-					if(event != "load"){ // is this ok???
-						window.__PROBE__.addEventToMap(this, event);
-					}
-					originalAddEventListener.apply(this,[event, func, useCapture]);
+			window.__originalAddEventListener = window.addEventListener;
+			window.addEventListener = function () {
+				if (arguments[0] !== "load") { // is this ok???
+					window.__PROBE__.addEventToMap(this, arguments[0]);
 				}
-			})(window.addEventListener);
+				window.__originalAddEventListener.apply(this, arguments);
+			};
 		}
 
 		if(options.checkAjax){
-			XMLHttpRequest.prototype.originalOpen = XMLHttpRequest.prototype.open;
+			XMLHttpRequest.prototype.__originalOpen = XMLHttpRequest.prototype.open;
 			XMLHttpRequest.prototype.open = function(method, url, async, user, password){
 
 				var _url = window.__PROBE__.removeUrlParameter(url, "_");
-				this.__request = new window.__PROBE__.Request("xhr", method, _url, null, null);
+				this.__request = new window.__PROBE__.Request("xhr", method, _url);
 
-				return this.originalOpen(method, url, async, user, password);
-			}
+				// adding XHR listener
+				this.addEventListener('readystatechange', function () {
+					// if not finish, it's open
+					// https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest/readyState
+					if (this.readyState >= 1 && this.readyState < 4) {
+						window.__PROBE__.eventLoopManager.sentXHR(this);
+					} else if (this.readyState === 4) {
+						// /!\ DONE means that the XHR finish but could have FAILED
+						window.__PROBE__.eventLoopManager.doneXHR(this);
+					}
+				});
+				this.addEventListener('error', function () {
+					window.__PROBE__.eventLoopManager.inErrorXHR(this);
+				});
+				this.addEventListener('abort', function () {
+					window.__PROBE__.eventLoopManager.inErrorXHR(this);
+				});
+				this.addEventListener('timeout', function () {
+					window.__PROBE__.eventLoopManager.inErrorXHR(this);
+				});
 
+				this.timeout = options.XHRTimeout;
 
+				return this.__originalOpen(method, url, async, user, password);
+			};
 
-			XMLHttpRequest.prototype.originalSend = XMLHttpRequest.prototype.send;
-
+			XMLHttpRequest.prototype.__originalSend = XMLHttpRequest.prototype.send;
 			XMLHttpRequest.prototype.send = function(data){
 				this.__request.data = data;
+				this.__request.triggerer = window.__PROBE__.getLastTriggerPageEvent();
 
 				var absurl = window.__PROBE__.getAbsoluteUrl(this.__request.url);
 				for(var a = 0; a < options.excludedUrls.length; a++){
@@ -420,52 +444,41 @@ function startProbe(random, injectScript) {
 					}
 				}
 
-
-				this.__request.trigger = window.__PROBE__.getTrigger();
-
-
 				// check if request has already been sent
-				var rk = this.__request.key();
-				if(window.__PROBE__.sentAjax.indexOf(rk) != -1){
+				var requestKey = this.__request.key;
+				if (window.__PROBE__.sentXHRs.indexOf(requestKey) !== -1) {
 					return;
 				}
 
 				var ueRet = window.__PROBE__.triggerUserEvent("onXhr",[this.__request]);
 				if(ueRet){
-					// pending ajax
-					window.__PROBE__.pendingAjax.push(this);
-					window.__PROBE__.sentAjax.push(rk);
-					window.__PROBE__.addRequestToPrintQueue(this.__request);
-
+					window.__PROBE__.sentXHRs.push(requestKey);
+					window.__PROBE__.addToRequestToPrint(this.__request);
 
 					if(!this.__skipped)
-						return this.originalSend(data);
+						return this.__originalSend(data);
 				}
-
-				return;
-			}
-
+			};
 		}
-
 
 		if(options.checkScriptInsertion){
 
-			Node.prototype.originalappendChild = Node.prototype.appendChild;
+			Node.prototype.__originalAppendChild = Node.prototype.appendChild;
 			Node.prototype.appendChild = function(node){
 				window.__PROBE__.printJSONP(node);
-				return this.originalappendChild(node);
+				return this.__originalAppendChild(node);
 			}
 
-			Node.prototype.originalinsertBefore = Node.prototype.insertBefore;
+			Node.prototype.__originalInsertBefore = Node.prototype.insertBefore;
 			Node.prototype.insertBefore = function(node, element){
 				window.__PROBE__.printJSONP(node);
-				return this.originalinsertBefore(node, element);
+				return this.__originalInsertBefore(node, element);
 			}
 
-			Node.prototype.originalreplaceChild = Node.prototype.replaceChild;
+			Node.prototype.__originalReplaceChild = Node.prototype.replaceChild;
 			Node.prototype.replaceChild = function(node, oldNode){
 				window.__PROBE__.printJSONP(node);
-				return this.originalreplaceChild(node, oldNode);
+				return this.__originalReplaceChild(node, oldNode);
 			}
 		}
 
@@ -478,61 +491,67 @@ function startProbe(random, injectScript) {
 			})(window.WebSocket);
 		}
 
-
 		if(options.overrideTimeoutFunctions){
-			window.setTimeout = (function(setTimeout){
-				return function(func, time, setTime){
-					var t = setTime ? time : 0;
-					return setTimeout(func, t);
-				}
-			})(window.setTimeout);
+			window.__originalSetTimeout = window.setTimeout;
+			window.setTimeout = function () {
+				// Forcing a delay of 0
+				arguments[1] = 0;
+				return window.__originalSetTimeout.apply(this, arguments);
+			};
 
-			window.setInterval = (function(setInterval){
-				return function(func, time, setTime){
-					var t = setTime ? time : 0;
-					return setInterval(func, t);
-				}
-			})(window.setInterval);
+			window.__originalSetInterval = window.setInterval;
+			window.setInterval = function () {
+				// Forcing a delay of 0
+				arguments[1] = 0;
+				return window.__originalSetInterval.apply(this, arguments);
+			};
 
 		}
 
 		if(options.preventElementRemoval){
-			//Node.prototype.originalremoveChild = Node.prototype.removeChild;
+			Node.prototype.__originalRemoveChild = Node.prototype.removeChild;
 			Node.prototype.removeChild = function(node){
-				//console.log(node);
 				return node;
 			}
 		}
 
-		HTMLFormElement.prototype.originalSubmit = HTMLFormElement.prototype.submit;
+		HTMLFormElement.prototype.__originalSubmit = HTMLFormElement.prototype.submit;
 		HTMLFormElement.prototype.submit = function(){
-			//console.log("=-->"+this.action)
-			var req = window.__PROBE__.getFormAsRequest(this);
-			window.__PROBE__.printRequest(req);
-			return this.originalSubmit();
-		}
+			window.__PROBE__.addToRequestToPrint(window.__PROBE__.getFormAsRequest(this));
+			return this.__originalSubmit();
+		};
 
 		// prevent window.close
-		window.close = function(){ return }
+		window.close = function () {
+		};
 
 		window.open = function(url, name, specs, replace){
 			window.__PROBE__.printLink(url);
-		}
+		};
+
+		// create an observer instance for DOM changes
+		var observer = new WebKitMutationObserver(function (mutations) {
+			window.__PROBE__.eventLoopManager.nodeMutated(mutations);
+		});
+		var eventAttributeList = ['src', 'href'];
+		window.__HTCAP.mappableEvents.forEach(function (event) {
+			eventAttributeList.push('on' + event);
+		});
+		// observing for any change on document and its children
+		observer.observe(document.documentElement, {
+			childList: true,
+			attributes: true,
+			characterData: false,
+			subtree: true,
+			attributeOldValue: true,
+			characterDataOldValue: false,
+			attributeFilter: eventAttributeList
+		});
 
 		window.__PROBE__.triggerUserEvent("onInit");
 	}, options);
 
-	// if(injectScript){
-	// 	page.evaluate(function(code){
-	// 		try{
-	// 			eval("window.__PROBE__.userEvents=" + code.trim() + ";");
-	// 		} catch(e){
-	// 			window.__PROBE__.print(e);
-	// 		}
-	// 		window.__PROBE__.triggerUserEvent("onInit");
-	// 	},injectScript);
-	// }
-};
+}
 
 
 
@@ -556,7 +575,6 @@ function getCookies(headers, url){
 	var domain = purl.hostname;
 
 	for(a = 0; a < headers.length; a++){
-		//console.log(JSON.stringify(headers[a]))
 		if(headers[a].name.toLowerCase() == "set-cookie"){
 			var cookies = headers[a].value.split("\n");	 // phantomjs stores multiple cookies in this way ..
 			for(b = 0; b < cookies.length; b++){
