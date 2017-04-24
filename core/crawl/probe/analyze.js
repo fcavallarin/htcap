@@ -199,13 +199,18 @@ page.onCallback = function(data) {
 			}
 			break;
 		case "end":
+
+			page.evaluate(function () {
+				window.__PROBE__.printRequests();
+			});
+
 			if(options.returnHtml){
 				page.evaluate(function(options){
 					window.__PROBE__.printPageHTML();
 				}, options);
 			}
 
-			page.evaluate(function(options){
+			page.evaluate(function () {
 				window.__PROBE__.triggerUserEvent("onEnd");
 			});
 

@@ -452,11 +452,8 @@ function startProbe(random, injectScript) {
 
 				var ueRet = window.__PROBE__.triggerUserEvent("onXhr",[this.__request]);
 				if(ueRet){
-					// pending ajax
-					// window.__PROBE__.pendingXHRs.push(this);
 					window.__PROBE__.sentXHRs.push(requestKey);
-					// window.__PROBE__.addRequestToPrintQueue(this.__request);
-					this.__request.print();
+					window.__PROBE__.addToRequestToPrint(this.__request);
 
 					if(!this.__skipped)
 						return this.__originalSend(data);
@@ -520,7 +517,7 @@ function startProbe(random, injectScript) {
 
 		HTMLFormElement.prototype.__originalSubmit = HTMLFormElement.prototype.submit;
 		HTMLFormElement.prototype.submit = function(){
-			window.__PROBE__.getFormAsRequest(this).print();
+			window.__PROBE__.addToRequestToPrint(window.__PROBE__.getFormAsRequest(this));
 			return this.__originalSubmit();
 		};
 

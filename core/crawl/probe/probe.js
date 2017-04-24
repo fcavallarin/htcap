@@ -32,6 +32,7 @@ version.
 
 			this.eventLoopManager = new this.EventLoopManager(this);
 
+			this.requestToPrint = [];
 			this._currentPageEvent = undefined;
 			this._eventsMap = [];
 			this._triggeredPageEvents = [];
@@ -87,7 +88,6 @@ version.
 
 			/** @type {PageEvent} */
 			this.triggerer = triggerer;
-			this.isPrinted = false;
 
 			//this.username = null; // todo
 			//this.password = null;
@@ -123,13 +123,6 @@ version.
 			return obj;
 		};
 
-		Probe.prototype.Request.prototype.print = function () {
-			if (!this.isPrinted) {
-				_print('["request",' + JSON.stringify(this) + "],");
-				this.isPrinted = true;
-			}
-		};
-
 		// END OF class Request..
 
 		/**
@@ -153,7 +146,6 @@ version.
 			// DEBUG:
 			// console.log('PageEvent triggering events for : ', _elementToString(this.element), this.eventName);
 			var ueRet = window.__PROBE__.triggerUserEvent("onTriggerEvent", [this.element, this.eventName]);
-
 
 			if (ueRet !== false) {
 				if ('createEvent' in document) {
@@ -254,13 +246,15 @@ version.
 		 * then close the manager
 		 */
 		Probe.prototype.EventLoopManager.prototype.doNextAction = function () {
+
 			// DEBUG:
-			console.log('eventLoop doNextAction - sent: ',
-				this._sentXHRQueue.length,
-				', done:', this._doneXHRQueue.length,
-				', DOM:', this._DOMAssessmentQueue.length,
-				', event:', this._toBeTriggeredEventsQueue.length
-			);
+			// avoiding noise
+			if (this._sentXHRQueue.length <= 0) {
+				console.log('eventLoop doNextAction - done:', this._doneXHRQueue.length,
+					', DOM:', this._DOMAssessmentQueue.length,
+					', event:', this._toBeTriggeredEventsQueue.length
+				);
+			}
 
 			if (this._sentXHRQueue.length > 0) { // if there is XHR waiting to be resolved
 				// releasing the eventLoop waiting for resolution
@@ -318,7 +312,7 @@ version.
 
 		Probe.prototype.EventLoopManager.prototype.nodeMutated = function (mutations) {
 			// DEBUG:
-			console.log('eventLoop nodesMutated:', mutations.length);
+			// console.log('eventLoop nodesMutated:', mutations.length);
 			mutations.forEach(function (mutationRecord) {
 				if (mutationRecord.type === 'childList') {
 					for (var i = 0; i < mutationRecord.addedNodes.length; i++) {
@@ -378,6 +372,20 @@ version.
 			// console.log('eventLoop inErrorXHR');
 		};
 
+
+		Probe.prototype.addToRequestToPrint = function (request) {
+			var requestKey = request.key;
+			if (this.requestToPrint.indexOf(requestKey) < 0) {
+				this.requestToPrint.push(requestKey);
+			}
+		};
+
+		Probe.prototype.printRequests = function () {
+			this.requestToPrint.forEach(function (request) {
+				_print('["request",' + request + "],");
+			});
+		};
+
 		Probe.prototype.printJSONP = function (node) {
 
 			if (node.nodeName.toLowerCase() === "script" && node.hasAttribute("src")) {
@@ -389,7 +397,7 @@ version.
 				// JSONP must have a querystring...
 				if (a.search) {
 					var req = new this.Request("jsonp", "GET", src, null, this.getLastTriggerPageEvent());
-					req.print();
+					this.addToRequestToPrint(req);
 				}
 			}
 		};
@@ -408,13 +416,13 @@ version.
 			}
 
 			if (req) {
-				req.print();
+				this.addToRequestToPrint(req);
 			}
 		};
 
 		Probe.prototype.printWebsocket = function (url) {
 			var req = new this.Request("websocket", "GET", url, null, this.getLastTriggerPageEvent());
-			req.print();
+			this.addToRequestToPrint(req);
 		};
 
 		Probe.prototype.printPageHTML = function () {
@@ -658,13 +666,6 @@ version.
 			}
 		};
 
-		Probe.prototype.getRandomValue = function (type) {
-			if (!(type in this._inputValues)) {
-				type = "string";
-			}
-			return this._inputValues[type];
-		};
-
 		/**
 		 * schedule the trigger of the given event on the given element when the eventLoop is ready
 		 *
@@ -721,7 +722,7 @@ version.
 
 			events.forEach(function (eventName) {
 				var pageEvent = new this.PageEvent(element, eventName);
-
+				// DEBUG:
 				// console.log("triggering events for : " + _elementToString(element) + " " + eventName);
 
 				if (_isEventTriggerable(eventName) && !_objectInArray(this._triggeredPageEvents, pageEvent)) {
@@ -746,33 +747,24 @@ version.
 		};
 
 		/**
-		 * print out url found in the given element
-		 * @param {Node} element
+		 * print request from <form> html tag
+		 * @param {Element} element
 		 * @private
 		 */
-		Probe.prototype._printUrlsFromElement = function (element) {
-			var a;
-			var links = element.getElementsByTagName("a");
-			var forms = element.getElementsByTagName("form");
-
-			if (element.tagName === "A") {
-				links = Array.prototype.slice.call(links, 0).concat(element);
+		Probe.prototype._printRequestFromForm = function (element) {
+			if (element.tagName.toLowerCase() === "form") {
+				this.addToRequestToPrint(this.getFormAsRequest(element));
 			}
+		};
 
-			if (element.tagName === "FORM") {
-				forms = Array.prototype.slice.call(forms, 0).concat(element);
-			}
-
-			for (a = 0; a < links.length; a++) {
-				var url = links[a].href;
-				if (url) {
-					this.printLink(url);
-				}
-			}
-
-			for (a = 0; a < forms.length; a++) {
-				var req = this.getFormAsRequest(forms[a]);
-				req.print();
+		/**
+		 * print request from <a> html tag
+		 * @param {Element} element
+		 * @private
+		 */
+		Probe.prototype._printRequestFromATag = function (element) {
+			if (element.tagName.toLowerCase() === "a" && element.hasAttribute("href")) {
+				this.printLink(element.href);
 			}
 		};
 
@@ -789,11 +781,16 @@ version.
 			}
 
 			if (this._options.fillValues) {
-				this._setVal(element);
+				// Parsing the current element and set values for each element within
+				var elements = element.getElementsByTagName('*');
+				for (var i = 0; i < elements.length; i++) {
+					this._setVal(elements[i]);
+				}
 			}
 
 			if (this._options.searchUrls) {
-				this._printUrlsFromElement(element);
+				this._printRequestFromForm(element);
+				this._printRequestFromATag(element);
 			}
 
 			if (this._options.triggerEvents) {
