@@ -1,1 +1,1 @@
-HTMLParser
+HTMLParser==0.0.2

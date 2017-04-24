@@ -10,9 +10,12 @@ More infos at [htcap.org](http://htcap.org).
 ### Requirements
 
  1. Python 2.7
- 2. PhantomJS v2
+ 2. PhantomJS v2 (it is recommended to use the version provided by the project himself)
  3. Sqlmap (for sqlmap scanner module)
  4. Arachni (for arachni scanner module)
+
+PhantomJs can be downloaded [here](http://phantomjs.org//download.html). It comes as a self-contained executable with all libraries linked statically, so there is no need to install or compile anything else.  
+There is [a known bug](https://github.com/segment-srl/htcap/issues/11) with the PhantomJS provided by the ubuntu package, it is recommended to use the version provided by the project himself.
 
 ### Download and Run
 
@@ -20,9 +23,6 @@ More infos at [htcap.org](http://htcap.org).
 $ git clone https://github.com/segment-srl/htcap.git htcap
 $ htcap/htcap.py
 ```
-
-PhantomJs can be downloaded [here](http://phantomjs.org//download.html). It comes as a self-contained executable with all libraries linked statically, so there is no need to install or compile anything else.  
-
 
 ## DOCUMENTATION
 

@@ -10,11 +10,15 @@ version.
 
 var system = require('system');
 var fs = require('fs');
+var page = require('webpage').create();
 
+window.page = page;
+window.fs = fs;
 
 
 phantom.injectJs("functions.js");
 phantom.injectJs("options.js");
+phantom.injectJs("constants.js");
 phantom.injectJs("probe.js");
 
 
@@ -29,7 +33,6 @@ var headers = {};
 
 var args = getopt(system.args,"hVaftUJdICc:MSEp:Tsx:A:r:mHX:PD:R:Oi:u:v");
 
-var page = require('webpage').create();
 var page_settings = {encoding: "utf8"};
 var random = "IsHOulDb34RaNd0MsTR1ngbUt1mN0t";
 var injectScript = null;
@@ -138,7 +141,10 @@ page.onNavigationRequested = onNavigationRequested;
 
 page.onConfirm = function(msg) {return true;} // recently changed
 
-/* phantomjs issue #11684 workaround */
+/*
+ phantomjs issue #11684 workaround
+ https://github.com/ariya/phantomjs/issues/11684
+ */
 var isPageInitialized = false;
 page.onInitialized = function(){
 	if(isPageInitialized) return;
@@ -193,13 +199,18 @@ page.onCallback = function(data) {
 			}
 			break;
 		case "end":
+
+			page.evaluate(function () {
+				window.__PROBE__.printRequests();
+			});
+
 			if(options.returnHtml){
 				page.evaluate(function(options){
 					window.__PROBE__.printPageHTML();
 				}, options);
 			}
 
-			page.evaluate(function(options){
+			page.evaluate(function () {
 				window.__PROBE__.triggerUserEvent("onEnd");
 			});
 
@@ -281,19 +292,10 @@ page.open(site, page_settings, function(status) {
 	assertContentTypeHtml(response);
 
 	page.evaluate(function(){
-
-		window.__PROBE__.waitAjax(function(ajaxTriggered){
-			window.__PROBE__.triggerUserEvent("onStart");
-			if(ajaxTriggered){
-				window.__PROBE__.triggerUserEvent("onAllXhrsCompleted");
-			}
-			console.log("startAnalysis")
-			window.__PROBE__.startAnalysis();
-		});
+		console.log("startAnalysis");
+		// starting page analysis
+		window.__PROBE__.startAnalysis();
 	})
 
 
 });
-
-
-
