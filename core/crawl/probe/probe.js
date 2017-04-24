@@ -147,7 +147,6 @@ version.
 			// console.log('PageEvent triggering events for : ', _elementToString(this.element), this.eventName);
 			var ueRet = window.__PROBE__.triggerUserEvent("onTriggerEvent", [this.element, this.eventName]);
 
-
 			if (ueRet !== false) {
 				if ('createEvent' in document) {
 					var evt = document.createEvent('HTMLEvents');
@@ -247,13 +246,15 @@ version.
 		 * then close the manager
 		 */
 		Probe.prototype.EventLoopManager.prototype.doNextAction = function () {
+
 			// DEBUG:
-			// console.log('eventLoop doNextAction - sent: ',
-			// 	this._sentXHRQueue.length,
-			// 	', done:', this._doneXHRQueue.length,
-			// 	// 	', DOM:', this._DOMAssessmentQueue.length,
-			// 	', event:', this._toBeTriggeredEventsQueue.length
-			// );
+			// avoiding noise
+			if (this._sentXHRQueue.length <= 0) {
+				console.log('eventLoop doNextAction - done:', this._doneXHRQueue.length,
+					', DOM:', this._DOMAssessmentQueue.length,
+					', event:', this._toBeTriggeredEventsQueue.length
+				);
+			}
 
 			if (this._sentXHRQueue.length > 0) { // if there is XHR waiting to be resolved
 				// releasing the eventLoop waiting for resolution
@@ -665,13 +666,6 @@ version.
 			}
 		};
 
-		Probe.prototype.getRandomValue = function (type) {
-			if (!(type in this._inputValues)) {
-				type = "string";
-			}
-			return this._inputValues[type];
-		};
-
 		/**
 		 * schedule the trigger of the given event on the given element when the eventLoop is ready
 		 *
@@ -786,22 +780,20 @@ version.
 				this._mapElementEvents(element);
 			}
 
-			if (this._options.searchUrls) {
-				if (this._options.fillValues && element.tagName.toLowerCase() === "form") {
-					// Parsing the current FORM and set values for each element
-					var elements = element.getElementsByTagName('*');
-					for (var i = 0; i < elements.length; i++) {
-						this._setVal(elements[i]);
-					}
+			if (this._options.fillValues) {
+				// Parsing the current element and set values for each element within
+				var elements = element.getElementsByTagName('*');
+				for (var i = 0; i < elements.length; i++) {
+					this._setVal(elements[i]);
 				}
+			}
+
+			if (this._options.searchUrls) {
 				this._printRequestFromForm(element);
 				this._printRequestFromATag(element);
 			}
 
 			if (this._options.triggerEvents) {
-				if (this._options.fillValues) {
-					this._setVal(element);
-				}
 				this._triggerElementEvents(element);
 			}
 		};
