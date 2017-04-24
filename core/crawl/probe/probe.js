@@ -32,6 +32,7 @@ version.
 
 			this.eventLoopManager = new this.EventLoopManager(this);
 
+			this.requestToPrint = [];
 			this._currentPageEvent = undefined;
 			this._eventsMap = [];
 			this._triggeredPageEvents = [];
@@ -87,7 +88,6 @@ version.
 
 			/** @type {PageEvent} */
 			this.triggerer = triggerer;
-			this.isPrinted = false;
 
 			//this.username = null; // todo
 			//this.password = null;
@@ -121,13 +121,6 @@ version.
 			}
 
 			return obj;
-		};
-
-		Probe.prototype.Request.prototype.print = function () {
-			if (!this.isPrinted) {
-				_print('["request",' + JSON.stringify(this) + "],");
-				this.isPrinted = true;
-			}
 		};
 
 		// END OF class Request..
@@ -258,7 +251,7 @@ version.
 			console.log('eventLoop doNextAction - sent: ',
 				this._sentXHRQueue.length,
 				', done:', this._doneXHRQueue.length,
-				', DOM:', this._DOMAssessmentQueue.length,
+				// 	', DOM:', this._DOMAssessmentQueue.length,
 				', event:', this._toBeTriggeredEventsQueue.length
 			);
 
@@ -378,6 +371,20 @@ version.
 			// console.log('eventLoop inErrorXHR');
 		};
 
+
+		Probe.prototype.addToRequestToPrint = function (request) {
+			var requestKey = request.key;
+			if (this.requestToPrint.indexOf(requestKey) < 0) {
+				this.requestToPrint.push(requestKey);
+			}
+		};
+
+		Probe.prototype.printRequests = function () {
+			this.requestToPrint.forEach(function (request) {
+				_print('["request",' + request + "],");
+			});
+		};
+
 		Probe.prototype.printJSONP = function (node) {
 
 			if (node.nodeName.toLowerCase() === "script" && node.hasAttribute("src")) {
@@ -389,7 +396,7 @@ version.
 				// JSONP must have a querystring...
 				if (a.search) {
 					var req = new this.Request("jsonp", "GET", src, null, this.getLastTriggerPageEvent());
-					req.print();
+					this.addToRequestToPrint(req);
 				}
 			}
 		};
@@ -408,13 +415,13 @@ version.
 			}
 
 			if (req) {
-				req.print();
+				this.addToRequestToPrint(req);
 			}
 		};
 
 		Probe.prototype.printWebsocket = function (url) {
 			var req = new this.Request("websocket", "GET", url, null, this.getLastTriggerPageEvent());
-			req.print();
+			this.addToRequestToPrint(req);
 		};
 
 		Probe.prototype.printPageHTML = function () {
@@ -772,7 +779,7 @@ version.
 
 			for (a = 0; a < forms.length; a++) {
 				var req = this.getFormAsRequest(forms[a]);
-				req.print();
+				this.addToRequestToPrint(req);
 			}
 		};
 
