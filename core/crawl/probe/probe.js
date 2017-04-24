@@ -248,12 +248,12 @@ version.
 		 */
 		Probe.prototype.EventLoopManager.prototype.doNextAction = function () {
 			// DEBUG:
-			console.log('eventLoop doNextAction - sent: ',
-				this._sentXHRQueue.length,
-				', done:', this._doneXHRQueue.length,
-				// 	', DOM:', this._DOMAssessmentQueue.length,
-				', event:', this._toBeTriggeredEventsQueue.length
-			);
+			// console.log('eventLoop doNextAction - sent: ',
+			// 	this._sentXHRQueue.length,
+			// 	', done:', this._doneXHRQueue.length,
+			// 	// 	', DOM:', this._DOMAssessmentQueue.length,
+			// 	', event:', this._toBeTriggeredEventsQueue.length
+			// );
 
 			if (this._sentXHRQueue.length > 0) { // if there is XHR waiting to be resolved
 				// releasing the eventLoop waiting for resolution
@@ -311,7 +311,7 @@ version.
 
 		Probe.prototype.EventLoopManager.prototype.nodeMutated = function (mutations) {
 			// DEBUG:
-			console.log('eventLoop nodesMutated:', mutations.length);
+			// console.log('eventLoop nodesMutated:', mutations.length);
 			mutations.forEach(function (mutationRecord) {
 				if (mutationRecord.type === 'childList') {
 					for (var i = 0; i < mutationRecord.addedNodes.length; i++) {
@@ -728,7 +728,7 @@ version.
 
 			events.forEach(function (eventName) {
 				var pageEvent = new this.PageEvent(element, eventName);
-
+				// DEBUG:
 				// console.log("triggering events for : " + _elementToString(element) + " " + eventName);
 
 				if (_isEventTriggerable(eventName) && !_objectInArray(this._triggeredPageEvents, pageEvent)) {
@@ -753,33 +753,24 @@ version.
 		};
 
 		/**
-		 * print out url found in the given element
-		 * @param {Node} element
+		 * print request from <form> html tag
+		 * @param {Element} element
 		 * @private
 		 */
-		Probe.prototype._printUrlsFromElement = function (element) {
-			var a;
-			var links = element.getElementsByTagName("a");
-			var forms = element.getElementsByTagName("form");
-
-			if (element.tagName === "A") {
-				links = Array.prototype.slice.call(links, 0).concat(element);
+		Probe.prototype._printRequestFromForm = function (element) {
+			if (element.tagName.toLowerCase() === "form") {
+				this.addToRequestToPrint(this.getFormAsRequest(element));
 			}
+		};
 
-			if (element.tagName === "FORM") {
-				forms = Array.prototype.slice.call(forms, 0).concat(element);
-			}
-
-			for (a = 0; a < links.length; a++) {
-				var url = links[a].href;
-				if (url) {
-					this.printLink(url);
-				}
-			}
-
-			for (a = 0; a < forms.length; a++) {
-				var req = this.getFormAsRequest(forms[a]);
-				this.addToRequestToPrint(req);
+		/**
+		 * print request from <a> html tag
+		 * @param {Element} element
+		 * @private
+		 */
+		Probe.prototype._printRequestFromATag = function (element) {
+			if (element.tagName.toLowerCase() === "a" && element.hasAttribute("href")) {
+				this.printLink(element.href);
 			}
 		};
 
@@ -795,15 +786,22 @@ version.
 				this._mapElementEvents(element);
 			}
 
-			if (this._options.fillValues) {
-				this._setVal(element);
-			}
-
 			if (this._options.searchUrls) {
-				this._printUrlsFromElement(element);
+				if (this._options.fillValues && element.tagName.toLowerCase() === "form") {
+					// Parsing the current FORM and set values for each element
+					var elements = element.getElementsByTagName('*');
+					for (var i = 0; i < elements.length; i++) {
+						this._setVal(elements[i]);
+					}
+				}
+				this._printRequestFromForm(element);
+				this._printRequestFromATag(element);
 			}
 
 			if (this._options.triggerEvents) {
+				if (this._options.fillValues) {
+					this._setVal(element);
+				}
 				this._triggerElementEvents(element);
 			}
 		};
