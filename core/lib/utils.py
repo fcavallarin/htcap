@@ -195,3 +195,18 @@ def get_phantomjs_cmd():
 			return [exe, "--ignore-ssl-errors=yes", "--web-security=false", "--ssl-protocol=any", "--debug=false"]
 
 	return None
+
+
+
+def url_is_valid(url):
+	purl = urlsplit(url)
+
+	if not purl.scheme or not purl.netloc:
+		return False
+
+	# ensure netloc is in the form "something dot something"
+	#if not re.match(r'^[^\.]+\..*(?<!\.)$', purl.netloc, re.I):
+	if not re.match(r'^.+\..+$', purl.netloc):
+		return False
+
+	return True

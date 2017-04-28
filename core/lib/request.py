@@ -48,6 +48,8 @@ class Request(object):
 		else:
 			self.url = url
 
+		# if not url_is_valid(self.url):
+		# 	raise MalformedUrlException(url)
 
 		# parent is the parent request that can be a redirect, referer is the referer page (ahead of redirects)
 		self._parent = parent

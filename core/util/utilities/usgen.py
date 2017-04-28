@@ -48,58 +48,81 @@ class Usgen(BaseUtil):
 
 
 CONTENT = """/*
-UI Methods:
-	ui.print(message) - save a per-request user message into the request table
-	ui.fread(path_to_file) - read from file
-	ui.fwrite(path_to_file, content, mode) - write to file
-	ui.render(path_to_file) - save a screenshot of the page current state
-	ui.triggerEvent(element, event) - trigger an event
+ui Methods:
+    ui.pageEval(function) - evaluate function in the context of the webpage (no scope chain available)
+    ui.print(message) - save a per-request user message into the request table
+    ui.fread(path_to_file) - read from file
+    ui.fwrite(path_to_file, content, mode) - write to file
+    ui.render(path_to_file) - save a screenshot of the page current state
 */
 
-{
+ US = {
   onInit: function(ui){
-    // override natove methods
-    window.prompt = function(){ return "AAA" };
     // init local variables
-    ui.vars.cnt = 0; 
+    ui.vars.cnt = 0;
+
+    // override native methods
+    ui.pageEval(function(){
+        window.prompt = function(){ return "AAA" };
+    });
   },
 
-  onStart: function(ui){}, 
+  onStart: function(ui){
+    ui.pageEval(function(){});
+  }, 
 
-  onTriggerEvent: function(ui, element, event){
-    // cancel trigger if element has class kill-all
-    if(element.matches(".kill-all")) return false;
+  onTriggerEvent: function(ui){
+    var ok = ui.pageEval(function(element, event){
+        if(event == "click" && element.className == 'kill'){
+            return false;
+        }
+        return true;
+    });
+    // cancel triggering of event
+    if(!ok) return false;
   },
 
-  onEventTriggered: function(ui, element, event){},
+  onEventTriggered: function(ui){
+    ui.pageEval(function(element, event){});
+  },
 
-  onFillInput: function(ui, element){
+  onXhr: function(ui){
+    var url = ui.pageEval(function(request){
+        return request.url;
+    });
+    // cancel XHR request if url matches XXX
+    if(url.match(/step=4/)){
+        ui.print("Skipped XHR to " + url)
+        return false;
+    }
+  },
+  onFillInput: function(ui){
     // here it's possible to force a value or prevent it to be filled
     // WARNING: do NOT set dynamic values! for instance something like
     //  element.value = Math.random()
     // will lead to INFINITE CRAWLING if you crawl forms
-
-    if(element.id == "car_vendor"){
-      element.value = "Ferrari";
-      return false;
-    }
+    return ui.pageEval(function(element){
+        if(element.id == "car_vendor"){
+            element.value = "Ferrari";
+            // prevent element value to be set
+            return false;
+        }
+    });
+  },
+  onAllXhrsCompleted: function(ui){
+    ui.pageEval(function(){});
   },
 
-  onXhr: function(ui, request){
-    // cancel XHR request if url matches XXX
-    if(request.url.match(/XXX/))
-      return false
-  },
-
-  onAllXhrsCompleted: function(ui){},
-
-  onDomModified: function(ui, rootElements, allElements){
+  onDomModified: function(ui){
+    ui.pageEval(function(rootElements, allElements){});
     // save a screenshot on every DOM change
     ui.render(ui.id + "-screen-" + ui.vars.cnt + ".png");
     ui.vars.cnt++; 
   },
 
-  onEnd: function(ui){} 
+  onEnd: function(ui){
+    ui.pageEval(function(){});
+  } 
 }
 """
 

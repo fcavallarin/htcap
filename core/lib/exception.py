@@ -21,6 +21,6 @@ class RedirectException(Exception):
 class ThreadExitRequestException(Exception):
 	pass
 
-# class MalformedUrlException(Exception):
-# 	pass
+class MalformedUrlException(Exception):
+	pass
 

@@ -32,8 +32,46 @@ var args = getopt(system.args,"hVaftUJdICc:MSEp:Tsx:A:r:mHX:PD:R:Oi:u:v");
 var page = require('webpage').create();
 var page_settings = {encoding: "utf8"};
 var random = "IsHOulDb34RaNd0MsTR1ngbUt1mN0t";
-var injectScript = null;
+//var injectScript = "{}";
+var US = null;
 
+var userInterface = {
+	id: null,
+	vars: {},
+	pageEval: function(fnc){
+		var sfnc = 'return (' + fnc.toString() + ').apply(null, arguments)';
+		return page.evaluate(function(fnc){
+			 return (new Function('', fnc)).apply(null, window.__PROBE__.currentUserScriptParameters)
+		}, sfnc);
+	},
+	render: function(file){
+		try {
+			page.render(file);
+			return true;
+		} catch(e){
+			return false;
+		}
+	},
+	print: function(str){
+		console.log('["user",' + JSON.stringify(str) + '],');
+	},
+	fread: function(file){
+		try{
+			return "" + fs.read(file);
+		} catch(e){
+			return false;
+		}
+	},
+	fwrite: function(file, content, mode){
+		try {
+			fs.write(file, content, mode || 'w');
+			return true;
+		} catch(e) {
+			console.log(e)
+			return false;
+		}
+	}
+}
 
 if(typeof args == 'string'){
 	console.log("Error: " + args);
@@ -56,18 +94,22 @@ for(var a = 0; a < args.opts.length; a++){
 			random = args.opts[a][1];
 			break;
 		case "u":
-			injectScript = fs.read(args.opts[a][1]);
+			if(!phantom.injectJs(args.opts[a][1])){
+				console.log("File not found: " + args.opts[a][1]);
+				phantom.exit(0);
+			}
+			if(!window.US){
+				phantom.exit(0);
+			}
 			break;
 		case "v":
-			var vs = verifyUserScript(injectScript);
-			if(vs !== true) console.log(vs);
 			phantom.exit(0);
-			break;
 	}
 }
 
 
 parseArgsToOptions(args);
+userInterface.id = options.id;
 
 site = args.args[1];
 
@@ -76,6 +118,7 @@ if(!site){
 	phantom.exit(-1);
 }
 
+site = site.trim();
 if(site.length < 4 || site.substring(0,4).toLowerCase() != "http"){
 	site = "http://" + site;
 }
@@ -150,48 +193,20 @@ page.onInitialized = function(){
 		delete window.callPhantom;
 	});
 
-	startProbe(random, injectScript);
+	startProbe(random/*, injectScript*/);
 
 };
 
 
 page.onCallback = function(data) {
 	switch(data.cmd){
+		case "triggerUserEvent":
+			var ret = window.US[data.argument.name](window.userInterface)
+			return ret;
 		case "print":
 			console.log(data.argument);
 			break;
-		case "log":
-			try{
-				fs.write("htcap_log-" + options.id + ".txt", data.argument + "\n", 'a');
-			} catch(e) {} // @
-			break;
-		case "die": // @TMP
-			console.log(data.argument);
-			phantom.exit(0);
-		case "render":
-			try {
-				page.render(data.argument);
-				return true;
-			} catch(e){
-				return false;
-			}
-			break;
-		case "fwrite":
-			try {
-				fs.write(data.file, data.content, data.mode || 'w');
-				return true;
-			} catch(e) {
-				console.log(e)
-				return false;
-			}
-			break;
-		case "fread":
-			try{
-				return "" + fs.read(data.file);
-			} catch(e){
-				return false;
-			}
-			break;
+
 		case "end":
 			if(options.returnHtml){
 				page.evaluate(function(options){

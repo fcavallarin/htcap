@@ -14,9 +14,9 @@ version.
 	this function is passed to page.evaluate. doing so it is possible to avoid that the Probe object
 	is inserted into page window scope (only its instance is referred by window.__PROBE__)
 */
-function initProbe(options, inputValues, userEvents){
+function initProbe(options, inputValues){
 
-	function Probe(options, inputValues, userEvents){
+	function Probe(options, inputValues){
 		var _this = this;
 
 		this.options = options;
@@ -36,36 +36,7 @@ function initProbe(options, inputValues, userEvents){
 		this.DOMSnapshot = [];
 		this.pendingAjax = [];
 		this.inputValues = inputValues;
-
-		this.userInterface = {
-			id: options.id,
-			vars: {},
-			log: function(str){
-				_this.log(str);
-			},
-			print: function(str){
-				_this.printUserOutput(str)
-			},
-			fread: function(file){
-				return _this.fread(file);
-			},
-			fwrite: function(file, content, mode){
-				return _this.fwrite(file, content, mode);
-			},
-			render: function(file){
-				return _this.render(file);
-			},
-			triggerEvent: function(element, eventName){
-				_this.trigger(element, eventName);
-			}
-		};
-		this.userEvents = {};
-		if(userEvents){
-			try{
-				eval("this.userEvents=" + userEvents.trim() + ";");
-			} catch(e){}  // @
-		}
-
+		this.currentUserScriptParameters = [];
 	};
 
 
@@ -284,22 +255,6 @@ function initProbe(options, inputValues, userEvents){
 		window.__callPhantom({cmd:'print', argument: str});
 	}
 
-	Probe.prototype.log = function(str){
-		window.__callPhantom({cmd:'log', argument: str});
-	}
-
-	Probe.prototype.render = function(file){
-		return window.__callPhantom({cmd:'render', argument: file});
-	}
-
-	Probe.prototype.fread = function(file){
-		return window.__callPhantom({cmd:'fread', file: file});
-	}
-
-	Probe.prototype.fwrite = function(file, content, mode){
-		return window.__callPhantom({cmd:'fwrite', file: file, content:content, mode:mode || 'w'});
-	}
-
 	Probe.prototype.printRequest = function(req){
 		var k = req.key();
 		if(this.printedRequests.indexOf(k) == -1){
@@ -365,16 +320,9 @@ function initProbe(options, inputValues, userEvents){
 	};
 
 
-	Probe.prototype.printUserOutput = function(str){
-		var json = '["user",' + JSON.stringify(str) + '],';
-		this.print(json);
-	};
-
-
 	Probe.prototype.addRequestToPrintQueue = function(req){
 		this.requestsPrintQueue.push(req);
 	}
-
 
 
 	Probe.prototype.isAjaxCompleted = function(xhrs){
@@ -387,6 +335,7 @@ function initProbe(options, inputValues, userEvents){
 		//	console.log("-----------------> alla ajax completed")
 		return alldone;
 	}
+
 
 	Probe.prototype.waitAjax = function(callback, chainLimit){
 		var _this = this;
@@ -414,8 +363,6 @@ function initProbe(options, inputValues, userEvents){
 	}
 
 
-
-
 	// returns true if the value has been set
 	Probe.prototype.setVal = function(el){
 		var options = this.options;
@@ -439,10 +386,6 @@ function initProbe(options, inputValues, userEvents){
 		var triggerChange =  function(){
 			// update angular model
 			_this.trigger(el, 'input');
-
-			// _this.trigger(el, 'blur');
-			// _this.trigger(el, 'keyup');
-			// _this.trigger(el, 'keydown');
 		}
 
 		if(el.nodeName.toLowerCase() == 'textarea'){
@@ -622,20 +565,12 @@ function initProbe(options, inputValues, userEvents){
 	}
 
 
-
 	Probe.prototype.getTrigger = function(){
 		if(!this.curElement || !this.curElement.element)
 			return null;
 
 		return {element: this.curElement.element, event: this.curElement.event};
 	};
-
-
-
-
-
-
-
 
 
 	Probe.prototype.describeElement = function(el){
@@ -790,29 +725,15 @@ function initProbe(options, inputValues, userEvents){
 	};
 
 
-	Probe.prototype.addUserEvent = function(name, fnc){
-		if(!(name in this.userEvents) || typeof fnc != 'function'){
-			return false;
-		}
-		this.userEvents[name].push(fnc);
-		return true;
-	};
-
-
-
 	Probe.prototype.triggerUserEvent = function(name, params){
-		params = params || [];
-		if(!(name in this.userEvents) || typeof this.userEvents[name] != 'function'){
-			return true;
-		}
-		params.splice(0, 0, this.userInterface);
-		var ret = this.userEvents[name].apply(this.userInterface, params);
+		this.currentUserScriptParameters = params || [];
+		var args = {name: name};
+		var ret = window.__callPhantom({cmd:'triggerUserEvent', argument: args});
 		return !(ret === false) 
 	};
 
 
 	Probe.prototype.startAnalysis = function(){
-
 		console.log("page initialized ");
 		this.analyzeDOM(document, 0, function(){ window.__callPhantom({cmd:'end'}) });
 
@@ -895,11 +816,13 @@ function initProbe(options, inputValues, userEvents){
 						// getAddedElement is slow and can take time if the DOM is big (~25000 nodes)
 						// so use it only if ajax
 						me = ajaxTriggered ? _this.getAddedElements() : [];
+						///me = _this.getAddedElements();
 
 						meIndex = 0;
 						lastMeIndex = -1;
 						// if ajax has been triggered and some elements are modified then recurse thru modified elements
 						waitingRecursion = (me.length > 0 && xhrs);
+						///waitingRecursion = (me.length > 0);
 
 					} else {
 						console.log(">>>>RECURSON LIMIT REACHED :" + counter);
@@ -943,5 +866,5 @@ function initProbe(options, inputValues, userEvents){
 
 
 
-	window.__PROBE__ = new Probe(options, inputValues, userEvents);
+	window.__PROBE__ = new Probe(options, inputValues);
 };

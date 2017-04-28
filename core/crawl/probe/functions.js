@@ -129,7 +129,7 @@ function usage(){
 				"  -O              dont't override timeout functions\n" +
 				"  -u              path to user script to inject\n" +
 				"  -K              keep elements in the DOM (prevent removal)\n" +
-				"  -v              verify user script and exit";
+				"  -v              exit after parsing options, used to verify user script";
 	console.log(usage);
 }
 
@@ -234,7 +234,8 @@ function onNavigationRequested(url, type, willNavigate, main) {
 				return;
 
 			if(type == 'Other' && main == false){
-				window.__PROBE__.printLink(url);
+				if(window.__PROBE__)
+					window.__PROBE__.printLink(url);
 			}
 
 		},url, type, main);
@@ -362,7 +363,7 @@ function generateRandomValues(seed){
 
 
 
-function startProbe(random, injectScript) {
+function startProbe(random) {
 	// generate a static map of random values using a "static" seed for input fields
 	// the same seed generates the same values
 	// generated values MUST be the same for all analyze.js call othewise the same form will look different
@@ -372,8 +373,7 @@ function startProbe(random, injectScript) {
 	// this process will lead to and infinite loop!
 	var inputValues = generateRandomValues(random);
 
-	page.evaluate(initProbe, options, inputValues, injectScript);
-
+	page.evaluate(initProbe, options, inputValues);
 	page.evaluate(function(options) {
 
 		if(options.mapEvents){
@@ -521,17 +521,6 @@ function startProbe(random, injectScript) {
 
 		window.__PROBE__.triggerUserEvent("onInit");
 	}, options);
-
-	// if(injectScript){
-	// 	page.evaluate(function(code){
-	// 		try{
-	// 			eval("window.__PROBE__.userEvents=" + code.trim() + ";");
-	// 		} catch(e){
-	// 			window.__PROBE__.print(e);
-	// 		}
-	// 		window.__PROBE__.triggerUserEvent("onInit");
-	// 	},injectScript);
-	// }
 };
 
 
@@ -594,16 +583,4 @@ function getCookies(headers, url){
 	return ret;
 };
 
-
-
-function verifyUserScript(script){
-	if(!script) return true;
-	try{
-		eval("var x = " + script.trim() + ";");
-	}catch(e){
-		return "" + e;
-	}
-
-	return true;
-}
 
