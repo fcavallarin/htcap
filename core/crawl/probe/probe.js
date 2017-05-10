@@ -344,16 +344,16 @@ function initProbe(options, inputValues){
 		var timeout = this.options.ajaxTimeout;
 		var chainLimit = typeof chainLimit != 'undefined' ? chainLimit : this.options.maximumAjaxChain;
 		console.log("Waiting for ajaxs: "+chainLimit)
-		var t = setInterval(function(){
+		var t = window.__originalSetInterval(function () {
 			if((timeout <= 0) || _this.isAjaxCompleted(xhrs)){
 				clearInterval(t);
-				setTimeout(function(){
+				window.__originalSetTimeout(function () {
 					if(chainLimit > 0 && _this.pendingAjax.length > 0){
 						_this.waitAjax(callback, chainLimit - 1);
 					} else {
 						callback(xhrs.length > 0);
 					}
-				}, 100, true);
+				}, 100);
 				return;
 			}
 			timeout -= 10;
@@ -774,8 +774,7 @@ function initProbe(options, inputValues){
 		}
 
 
-
-		var to = setInterval(function(){
+		var to = window.__originalSetInterval(function () {
 			//console.log(threadId+" waitingRecursion: "+waitingRecursion+" ajaxCompleted: "+ajaxCompleted+ " recursionReturned:"+recursionReturned)
 
 			if(lastIndex < index && !waitingRecursion){
