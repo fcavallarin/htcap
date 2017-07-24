@@ -233,7 +233,7 @@ function onNavigationRequested(url, type, willNavigate, main) {
 			if(type == "LinkClicked")
 				return;
 
-			if(type == 'Other' && main == false){
+			if(type == 'Other' /* && main == false */){
 				if(window.__PROBE__)
 					window.__PROBE__.printLink(url);
 			}
