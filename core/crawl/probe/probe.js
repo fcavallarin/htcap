@@ -781,7 +781,7 @@ function initProbe(options, inputValues){
 		var meIndex = 0, lastMeIndex = -1;
 		var xhrs = false;
 		var ajaxTriggered = true;
-
+		var waitAfterEventTrigger = -1;
 		var threadId = window.lastThreadId++;
 
 
@@ -800,7 +800,6 @@ function initProbe(options, inputValues){
 		}
 
 
-		var waitAfterEventTrigger = -1;
 		var to = setInterval(function(){
 			//console.log(threadId+" waitingRecursion: "+waitingRecursion+" ajaxCompleted: "+ajaxCompleted+ " recursionReturned:"+recursionReturned)
 			if(waitAfterEventTrigger > 0 ){
@@ -815,13 +814,13 @@ function initProbe(options, inputValues){
 					try to find a logic to handle this
 				*/
 				if(waitAfterEventTrigger == 0){ // wait ends here
-					waitAfterEventTrigger = -1
+					waitAfterEventTrigger = -1;
 				} else {
 					_this.takeDOMSnapshot();
 					if(_this.options.triggerEvents){
 						_this.triggerElementEvent(elements[index]);
-						waitAfterEventTrigger = 5
-						return
+						waitAfterEventTrigger = 5;
+						return;
 					}
 				}
 				if(_this.pendingAjax.length > 0){
