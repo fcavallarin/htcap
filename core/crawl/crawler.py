@@ -67,7 +67,7 @@ class Crawler:
 			"http_auth": None,
 			"use_urllib_onerror": True,
 			"group_qs": False,
-			"process_timeout": 300, # when lots of element(~25000) are added dynamically it can take some time..
+			"process_timeout": 180, # when lots of element(~25000) are added dynamically it can take some time..
 			"set_referer": True,
 			"scope": CRAWLSCOPE_DOMAIN,
 			"mode": CRAWLMODE_AGGRESSIVE,

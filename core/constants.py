@@ -29,6 +29,7 @@ REQTYPE_WS = "websocket"
 REQTYPE_JSONP = "jsonp"
 REQTYPE_FORM = "form"
 REQTYPE_REDIRECT = "redirect"
+REQTYPE_IMAGE = "image"
 REQTYPE_UNKNOWN = "unknown"
 
 

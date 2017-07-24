@@ -152,9 +152,10 @@ class CrawlerThread(threading.Thread):
 
 			if jsn == None:
 				errors.append(ERROR_PROBEKILLED)
-				time.sleep(self.process_retries_interval) # ... ???
-				retries -= 1
-				continue
+				# time.sleep(self.process_retries_interval) # ... ???
+				# retries -= 1
+				# continue
+				break
 
 
 			# try to decode json also after an exception .. sometimes phantom crashes BUT returns a valid json ..
@@ -241,7 +242,7 @@ class CrawlerThread(threading.Thread):
 			adjust_requests(requests)
 
 			Shared.main_condition.acquire()
-			res = CrawlResult(request, requests, errors, probe.page_hash)
+			res = CrawlResult(request, requests, errors, probe.page_hash if probe else "")
 			Shared.crawl_results.append(res)
 			Shared.main_condition.notify()
 			Shared.main_condition.release()
