@@ -37,6 +37,7 @@ function initProbe(options, inputValues){
 		this.pendingAjax = [];
 		this.inputValues = inputValues;
 		this.currentUserScriptParameters = [];
+		this.domModifications = [];
 	};
 
 
@@ -148,7 +149,7 @@ function initProbe(options, inputValues){
 		var ueRet = null;
 		var newDom = Array.prototype.slice.call( document.getElementsByTagName("*"), 0 );
 
-		console.log('get added elements start dom len: ' + this.DOMSnapshot.length + ' new dom len: ' + newDom.length);
+		//*/console.log('get added elements start dom len: ' + this.DOMSnapshot.length + ' new dom len: ' + newDom.length);
 		// get all added elements
 		for(var a = 0;a < newDom.length;a++){
 			if(this.DOMSnapshot.indexOf(newDom[a]) == -1) {
@@ -159,7 +160,7 @@ function initProbe(options, inputValues){
 			}
 		}
 
-		console.log("elements get... (tot "+elements.length+") searching for root nodes")
+		//*/console.log("elements get... (tot "+elements.length+") searching for root nodes")
 
 		for(var a = 0; a < elements.length; a++){
 			var p = elements[a];
@@ -185,7 +186,7 @@ function initProbe(options, inputValues){
 			this.triggerUserEvent("onDomModified", [rootElements, elements]);
 		}
 
-		console.log("root elements found: " + rootElements.length);
+		//*/console.log("root elements found: " + rootElements.length);
 		return rootElements;
 	}
 
@@ -258,7 +259,6 @@ function initProbe(options, inputValues){
 	Probe.prototype.printRequest = function(req){
 		var k = req.key();
 		if(this.printedRequests.indexOf(k) == -1){
-			//var trigger = this.describeElement(this.curElement.element) + "." + this.curElement.event + "()";
 			var json = '["request",' + this.requestToJson(req) + "],";
 			this.print(json);
 			this.printedRequests.push(k);
@@ -767,6 +767,10 @@ function initProbe(options, inputValues){
 		return newelements;
 	}
 
+	Probe.prototype.isContentDuplicated = function(cont){
+		return this.domModifications.indexOf(cont) != -1;
+	}
+
 
 	window.lastThreadId = 0;
 	Probe.prototype.analyzeDOM = function(rootNode, counter, callback){
@@ -807,7 +811,7 @@ function initProbe(options, inputValues){
 				return;
 			}
 			if(lastIndex < index && !waitingRecursion){
-				console.log(threadId + " analysing "+_this.describeElement(elements[index].el)+ " "+elements[index].ev)
+				//*/console.log(threadId + " analysing "+_this.describeElement(elements[index].el)+ " "+elements[index].ev)
 
 				/*
 					here the element may have been detached, moved,  ecc
@@ -819,7 +823,7 @@ function initProbe(options, inputValues){
 					_this.takeDOMSnapshot();
 					if(_this.options.triggerEvents){
 						_this.triggerElementEvent(elements[index]);
-						waitAfterEventTrigger = 5;
+						waitAfterEventTrigger = 1; // perform 1 idle cycle (noop) after tiggering an event
 						return;
 					}
 				}
@@ -852,9 +856,22 @@ function initProbe(options, inputValues){
 
 						meIndex = 0;
 						lastMeIndex = -1;
+						//MOVE TO getAddedElements !!!
+						for(var a = me.length - 1; a >= 0; a--){
+							if(me[a].innerText && _this.isContentDuplicated(me[a].innerText))
+								me.splice(a,1);
+						}
+
 						// if ajax has been triggered and some elements are modified then recurse thru modified elements
 						///waitingRecursion = (me.length > 0 && xhrs);
 						waitingRecursion = (me.length > 0);
+						if(waitingRecursion){
+							//console.log("dom modified ("+me.length+") by " + _this.curElement.event + " "+_this.describeElement(_this.curElement.element));
+							for(var a = 0; a < me.length; a++){
+								if(me[a].innerText)
+									_this.domModifications.push(me[a].innerText);
+							}
+						}
 
 					} else {
 						console.log(">>>>RECURSON LIMIT REACHED :" + counter);

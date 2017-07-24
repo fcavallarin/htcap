@@ -285,7 +285,7 @@ class Crawler:
 							if self.request_is_duplicated(result.page_hash):
 								filtered_requests = []
 								for r in result.found_requests:
-									if not RequestPattern(r).pattern not in self.request_patterns:
+									if RequestPattern(r).pattern not in self.request_patterns:
 										filtered_requests.append(r)
 								result.found_requests = filtered_requests
 								if verbose:
@@ -299,9 +299,10 @@ class Crawler:
 
 							database.save_request(req)
 
-							if request_is_crawlable(req) and req not in Shared.requests and req not in req_to_crawl:
-								if verbose:
+							if verbose and req not in Shared.requests and req not in req_to_crawl:
 									print "  new request found %s" % req
+
+							if request_is_crawlable(req) and req not in Shared.requests and req not in req_to_crawl:
 
 								if request_depth(req) > Shared.options['max_depth'] or request_post_depth(req) > Shared.options['max_post_depth']:
 									if verbose:
