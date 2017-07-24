@@ -241,7 +241,7 @@ class CrawlerThread(threading.Thread):
 			adjust_requests(requests)
 
 			Shared.main_condition.acquire()
-			res = CrawlResult(request, requests, errors)
+			res = CrawlResult(request, requests, errors, probe.page_hash)
 			Shared.crawl_results.append(res)
 			Shared.main_condition.notify()
 			Shared.main_condition.release()

@@ -215,6 +215,10 @@ page.onCallback = function(data) {
 			}
 
 			page.evaluate(function(options){
+				window.__PROBE__.printPageHash();
+			}, options);
+
+			page.evaluate(function(options){
 				window.__PROBE__.triggerUserEvent("onEnd");
 			});
 
@@ -309,6 +313,4 @@ page.open(site, page_settings, function(status) {
 
 
 });
-
-
 

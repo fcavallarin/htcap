@@ -39,7 +39,8 @@ from core.lib.http_get import HttpGet
 from core.lib.shell import CommandExecutor
 
 from crawler_thread import CrawlerThread
-
+#from core.lib.shingleprint import ShinglePrint
+from core.lib.texthash import TextHash
 from core.lib.utils import *
 from core.constants import *
 
@@ -53,6 +54,8 @@ class Crawler:
 
 		self.crawl_start_time = int(time.time())
 		self.crawl_end_time = None
+		self.page_hashes = []
+		self.shingleprint_threshold = 0.93
 
 		self.defaults = {
 			"useragent": 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/53.0.2785.143 Safari/537.36',
@@ -224,6 +227,12 @@ class Crawler:
 		return random_string
 
 
+	def request_is_duplicated(self, page_hash):
+		for h in self.page_hashes:
+			if TextHash.compare(page_hash, h):
+				return True
+		return False
+
 
 	def main_loop(self, threads, start_requests, database, display_progress = True, verbose = False):
 		pending = len(start_requests)
@@ -268,14 +277,22 @@ class Crawler:
 								print "* crawler errors: %s" % ", ".join(result.errors)
 
 						database.save_crawl_result(result, True)
-						for req in result.found_requests:
 
+						if self.request_is_duplicated(result.page_hash):
 							if verbose:
-								print "  new request found %s" % req
+								print " * marked as duplicated and skipped"
+							result.found_requests = [] #DIRTY!!!
+
+						self.page_hashes.append(result.page_hash)
+
+						for req in result.found_requests:
 
 							database.save_request(req)
 
 							if request_is_crawlable(req) and req not in Shared.requests and req not in req_to_crawl:
+								if verbose:
+									print "  new request found %s" % req
+
 								if request_depth(req) > Shared.options['max_depth'] or request_post_depth(req) > Shared.options['max_post_depth']:
 									if verbose:
 										print "  * cannot crawl: %s : crawl depth limit reached" % req
@@ -567,5 +584,4 @@ class Crawler:
 		print "Crawl finished, %d pages analyzed in %d minutes" % (Shared.requests_index, (self.crawl_end_time - self.crawl_start_time) / 60)
 
 		database.save_crawl_info(end_date=self.crawl_end_time)
-
 

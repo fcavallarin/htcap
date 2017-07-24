@@ -14,6 +14,7 @@ version.
 from core.lib.request import Request
 from core.lib.cookie import Cookie
 from core.constants import *
+from core.lib.texthash import TextHash
 
 class Probe:
 
@@ -26,6 +27,7 @@ class Probe:
 		self.partialcontent = False
 		self.html = None
 		self.user_output = []
+		self.page_hash = 0
 
 		status = data.pop()
 
@@ -51,10 +53,16 @@ class Probe:
 		for key,val in data:
 			if key == "request":
 				trigger = val['trigger'] if 'trigger' in val else None
+				#try:
 				r = Request(val['type'], val['method'], val['url'], parent=parent, set_cookie=self.cookies, data=val['data'], trigger=trigger, parent_db_id=parent.db_id )
 				self.requests.append(r)
+				#except Exception as e:
+				#	pass
 			elif key == "html":
 				self.html = val
+			elif key == "page_hash":
+				page_hash = TextHash(val).hash
+				self.page_hash = page_hash if page_hash else 0
 			elif key == "user":
 				self.user_output.append(val)
 

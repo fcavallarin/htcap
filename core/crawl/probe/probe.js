@@ -319,6 +319,11 @@ function initProbe(options, inputValues){
 		this.print(json);
 	};
 
+	Probe.prototype.printPageHash = function(){
+		var hash = document.documentElement.innerText; // @todo ... 
+		var json = '["page_hash",' + JSON.stringify(hash) + '],';
+		this.print(json);
+	};
 
 	Probe.prototype.addRequestToPrintQueue = function(req){
 		this.requestsPrintQueue.push(req);
@@ -815,14 +820,14 @@ function initProbe(options, inputValues){
 					if(counter < _this.options.maximumRecursion){
 						// getAddedElement is slow and can take time if the DOM is big (~25000 nodes)
 						// so use it only if ajax
-						me = ajaxTriggered ? _this.getAddedElements() : [];
-						///me = _this.getAddedElements();
+						///me = ajaxTriggered ? _this.getAddedElements() : [];
+						me = _this.getAddedElements();
 
 						meIndex = 0;
 						lastMeIndex = -1;
 						// if ajax has been triggered and some elements are modified then recurse thru modified elements
-						waitingRecursion = (me.length > 0 && xhrs);
-						///waitingRecursion = (me.length > 0);
+						///waitingRecursion = (me.length > 0 && xhrs);
+						waitingRecursion = (me.length > 0);
 
 					} else {
 						console.log(">>>>RECURSON LIMIT REACHED :" + counter);
