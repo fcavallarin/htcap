@@ -41,6 +41,7 @@ from core.lib.shell import CommandExecutor
 from crawler_thread import CrawlerThread
 #from core.lib.shingleprint import ShinglePrint
 from core.lib.texthash import TextHash
+from core.lib.request_pattern import RequestPattern
 from core.lib.utils import *
 from core.constants import *
 
@@ -55,7 +56,7 @@ class Crawler:
 		self.crawl_start_time = int(time.time())
 		self.crawl_end_time = None
 		self.page_hashes = []
-		self.shingleprint_threshold = 0.93
+		self.request_patterns = []
 
 		self.defaults = {
 			"useragent": 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/53.0.2785.143 Safari/537.36',
@@ -73,7 +74,8 @@ class Crawler:
 			"max_depth": 100,
 			"max_post_depth": 10,
 			"override_timeout_functions": True,
-			'crawl_forms': True# only if mode == CRAWLMODE_AGGRESSIVE
+			'crawl_forms': True, # only if mode == CRAWLMODE_AGGRESSIVE
+			'deduplicate_pages': True
 		}
 
 
@@ -120,6 +122,7 @@ class Crawler:
 			   "  -I               ignore robots.txt\n"
 			   "  -O               dont't override timeout functions (setTimeout, setInterval)\n"
 			   "  -K               keep elements in the DOM (prevent removal)\n"
+			   "  -e               disable hEuristic page deduplication\n"
 			   )
 
 
@@ -278,12 +281,19 @@ class Crawler:
 
 						database.save_crawl_result(result, True)
 
-						if self.request_is_duplicated(result.page_hash):
-							if verbose:
-								print " * marked as duplicated and skipped"
-							result.found_requests = [] #DIRTY!!!
+						if Shared.options['deduplicate_pages']:
+							if self.request_is_duplicated(result.page_hash):
+								filtered_requests = []
+								for r in result.found_requests:
+									if not RequestPattern(r).pattern in self.request_patterns:
+										filtered_requests.append(r)
+								result.found_requests = filtered_requests
+								if verbose:
+									print " * marked as duplicated ... requests filtered"
 
-						self.page_hashes.append(result.page_hash)
+							self.page_hashes.append(result.page_hash)
+							for r in result.found_requests:
+								self.request_patterns.append(RequestPattern(r).pattern)
 
 						for req in result.found_requests:
 
@@ -387,7 +397,7 @@ class Crawler:
 		user_script = None
 
 		try:
-			opts, args = getopt.getopt(argv, 'hc:t:jn:x:A:p:d:BGR:U:wD:s:m:C:qr:SIHFP:Ovu:')
+			opts, args = getopt.getopt(argv, 'hc:t:jn:x:A:p:d:BGR:U:wD:s:m:C:qr:SIHFP:Ovu:e')
 		except getopt.GetoptError as err:
 			print str(err)
 			sys.exit(1)
@@ -478,6 +488,8 @@ class Crawler:
 				else:
 					print "error: unable to open USER_SCRIPT"
 					sys.exit(1)
+			elif o == "-e":
+				Shared.options['deduplicate_pages'] = False
 
 
 		if Shared.options['scope'] != CRAWLSCOPE_DOMAIN and len(Shared.allowed_domains) > 0:
