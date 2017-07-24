@@ -285,7 +285,7 @@ class Crawler:
 							if self.request_is_duplicated(result.page_hash):
 								filtered_requests = []
 								for r in result.found_requests:
-									if not RequestPattern(r).pattern in self.request_patterns:
+									if not RequestPattern(r).pattern not in self.request_patterns:
 										filtered_requests.append(r)
 								result.found_requests = filtered_requests
 								if verbose:

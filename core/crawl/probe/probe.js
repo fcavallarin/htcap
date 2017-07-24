@@ -543,12 +543,12 @@ function initProbe(options, inputValues){
 				events = events.concat(map[selector]);
 			}
 		}
-
+		//if(events.length >0 ) return ['click']
 		return events;
 	};
 
 
-
+	/* UNUSED */
 	Probe.prototype.triggerElementEvents = function(element){
 		//console.log("triggering events for " + this.describeElement(element));
 		var events = this.getEventsForElement(element);
@@ -566,9 +566,20 @@ function initProbe(options, inputValues){
 		}
 
 		this.curElement = {};
-
 	}
 
+
+	Probe.prototype.triggerElementEvent = function(teObj){
+		if(!teObj.ev)return
+		if(!this.isEventTriggerable(teObj.ev) || this.objectInArray(this.triggeredEvents, teObj))
+			return
+		this.curElement.element = teObj.el;
+		this.curElement.event = teObj.ev;
+		this.triggeredEvents.push(teObj);
+		this.trigger(teObj.el, teObj.ev);
+
+		this.curElement = {};
+	}
 
 	Probe.prototype.getTrigger = function(){
 		if(!this.curElement || !this.curElement.element)
@@ -744,14 +755,24 @@ function initProbe(options, inputValues){
 
 	};
 
-
+	Probe.prototype.getElementsToAnalyze = function(rootNode){
+		var elements = [rootNode == document ? document.documentElement : rootNode].concat(this.getDOMTreeAsArray(rootNode));
+		var newelements = [];
+		for(var a = 0; a < elements.length; a++){
+			var events = this.getEventsForElement(elements[a]);
+			for(var b = 0; b < events.length; b++){
+				newelements.push({el: elements[a], ev: events[b]});
+			}
+		}
+		return newelements;
+	}
 
 
 	window.lastThreadId = 0;
 	Probe.prototype.analyzeDOM = function(rootNode, counter, callback){
 		var _this = this;
-		var elements = [rootNode == document ? document.documentElement : rootNode].concat(this.getDOMTreeAsArray(rootNode));
-
+		///var elements = [rootNode == document ? document.documentElement : rootNode].concat(this.getDOMTreeAsArray(rootNode));
+		var elements = this.getElementsToAnalyze(rootNode);
 		var index = 0, lastIndex = -1;
 		var ajaxCompleted = false;
 		var recursionReturned = false;
@@ -779,23 +800,30 @@ function initProbe(options, inputValues){
 		}
 
 
-
+		var waitAfterEventTrigger = -1;
 		var to = setInterval(function(){
 			//console.log(threadId+" waitingRecursion: "+waitingRecursion+" ajaxCompleted: "+ajaxCompleted+ " recursionReturned:"+recursionReturned)
-
+			if(waitAfterEventTrigger > 0 ){
+				waitAfterEventTrigger--;
+				return;
+			}
 			if(lastIndex < index && !waitingRecursion){
-				//console.log(threadId + " analysing "+_this.describeElement(elements[index]))
+				console.log(threadId + " analysing "+_this.describeElement(elements[index].el)+ " "+elements[index].ev)
 
 				/*
 					here the element may have been detached, moved,  ecc
 					try to find a logic to handle this
 				*/
-
-				_this.takeDOMSnapshot();
-				if(_this.options.triggerEvents){
-					_this.triggerElementEvents(elements[index]);
+				if(waitAfterEventTrigger == 0){ // wait ends here
+					waitAfterEventTrigger = -1
+				} else {
+					_this.takeDOMSnapshot();
+					if(_this.options.triggerEvents){
+						_this.triggerElementEvent(elements[index]);
+						waitAfterEventTrigger = 5
+						return
+					}
 				}
-
 				if(_this.pendingAjax.length > 0){
 					xhrs = _this.waitAjax(function(){ajaxCompleted = true; ajaxTriggered = true});
 				} else {
