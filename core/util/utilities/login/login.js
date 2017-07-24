@@ -82,7 +82,6 @@ var buttonTxt = system.args[4] || null;
 var page = require('webpage').create();
 
 page.onConsoleMessage = function(msg, lineNum, sourceId) {
-
 	//console.log("console: " + msg);
 }
 
@@ -94,13 +93,14 @@ page.onResourceReceived = function(response) {
 };
 
 phantom.onError = function(msg, trace) {}
-page.onError = function(msg, trace) {}
+page.onError = function(msg, trace) {
+	//console.log("console err: " + msg);
+}
 
 page.onCallback = function(data) {
 	switch(data.cmd){
 		case "next":
 			step = 2;
-			//page.render("010101.png")
 			return;
 		case "end":
 			console.log(JSON.stringify(output))
@@ -172,42 +172,47 @@ page.open(url, {}, function(status){
 			}
 			return ad
 		}
-
-		var passw_el = document.querySelector("input[type=password]");
-		passw_el.value = password;
-		var login_el = getAdiacent(passw_el, "input[type=text],input[type=email],input:not([type])");
-		var button_el = null;
-		if(buttonTxt){
-			var els = document.getElementsByTagName("*");
-			for(var a = 0; a < els.length; a++){
-				for(var ch = els[a].firstChild; ch; ch = ch.nextSibling){
-					if(ch.nodeType != 3)continue; // skip non textNodes
-					if(ch.nodeValue.toLowerCase().trim() == buttonTxt.toLowerCase()){
-						button_el = els[a];
-						break;
+		setTimeout(function(){
+			var passw_el = document.querySelector("input[type=password]");
+			var login_el = getAdiacent(passw_el, "input[type=text],input[type=email],input:not([type])");
+			var button_el = null;
+			if(buttonTxt){
+				var els = document.getElementsByTagName("*");
+				for(var a = 0; a < els.length; a++){
+					for(var ch = els[a].firstChild; ch; ch = ch.nextSibling){
+						if(ch.nodeType != 3)continue; // skip non textNodes
+						if(ch.nodeValue.trim().toLowerCase().trim() == buttonTxt.toLowerCase()){
+							button_el = els[a];
+							break;
+						}
 					}
 				}
+			} else {
+				button_el = getAdiacent(passw_el, "input[type=submit],button");
+				if(!button_el){
+					button_el = getAdiacent(passw_el, "a");
+				}
 			}
-		} else {
-			button_el = getAdiacent(passw_el, "input[type=submit],button");
-			if(!button_el){
-				button_el = getAdiacent(passw_el, "a");
-			}
-		}
-		if(!login_el || ! button_el){
-			console.log("error")
-		}
-		login_el.value = login;
-		trigger(login_el, "blur")
-		trigger(login_el, "change")
-		trigger(passw_el, "blur")
-		trigger(passw_el, "change")
 
-		setTimeout(function(){
-			trigger(button_el, "click");
-			callPhantom({cmd:"next"});
-		},50);
+			if(!login_el || ! button_el){
+				console.log("error")
+				console.log(button_el)
+			}
+			var events = ["click","change","blur","keyup","keydown","keypress","input"];
+
+			login_el.value = login;
+			for(var a = 0; a < events.length; a++)
+				trigger(login_el, events[a]);
+
+			passw_el.value = password;
+			for(var a = 0; a < events.length; a++)
+				trigger(passw_el, events[a]);
+
+			setTimeout(function(){
+				trigger(button_el, "click");
+				callPhantom({cmd:"next"});
+			},50);
+		}, 500);
 
 	},login, password, buttonTxt);
 });
-
