@@ -62,5 +62,6 @@ window.options = {
 		'td':['click','mouseup','mousedown'],
 		'tr':['click','mouseup','mousedown'],
 		'div':['click','mouseup','mousedown']
-	}
+	},
+	staticInputValues:[]
 };

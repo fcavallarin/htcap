@@ -34,7 +34,8 @@ class TextHash:
 		self.text = text
 
 		if len(text) < 32:
-			self.hash = {"type": "textmatch", "value": text}
+			##self.hash = {"type": "textmatch", "value": text}
+			self.hash = {"type": "simhash", "value": Simhash(text).value}
 		elif len(text) < 256:
 			self.hash = {"type": "simhash", "value": Simhash(text).value}
 		else:

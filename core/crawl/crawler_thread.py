@@ -98,7 +98,7 @@ class CrawlerThread(threading.Thread):
 		try:
 			return json.loads(jsn)
 		except Exception:
-			#print "-- JSON DECODE ERROR %s" % jsn
+			print "-- JSON DECODE ERROR %s" % jsn
 			raise
 
 
@@ -146,15 +146,16 @@ class CrawlerThread(threading.Thread):
 
 			# print cmd_to_str(Shared.probe_cmd + params)
 			# print ""
+			
+			cmd = CommandExecutor(Shared.probe_cmd + params, True)
+			jsn, err = cmd.execute(Shared.options['process_timeout'] + 2)
 
-			cmd = CommandExecutor(Shared.probe_cmd + params)
-			jsn = cmd.execute(Shared.options['process_timeout'] + 2)
+			if err:
+				print err
+				jsn = None
 
 			if jsn == None:
 				errors.append(ERROR_PROBEKILLED)
-				# time.sleep(self.process_retries_interval) # ... ???
-				# retries -= 1
-				# continue
 				break
 
 

@@ -1,0 +1,11 @@
+{
+  "name": "htcap",
+  "version": "1.0.0",
+  "description": "crawler for single page applications",
+  "main": "main.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Filippo Cavallarin",
+  "license": "GPL-3.0"
+}

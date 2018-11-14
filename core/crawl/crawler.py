@@ -59,7 +59,7 @@ class Crawler:
 		self.request_patterns = []
 
 		self.defaults = {
-			"useragent": 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/53.0.2785.143 Safari/537.36',
+			"useragent": 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/72.0.3582.0 Safari/537.36',
 			"num_threads": 10,
 			"max_redirects": 10,
 			"out_file_overwrite": False,
@@ -75,7 +75,9 @@ class Crawler:
 			"max_post_depth": 10,
 			"override_timeout_functions": True,
 			'crawl_forms': True, # only if mode == CRAWLMODE_AGGRESSIVE
-			'deduplicate_pages': True
+			'deduplicate_pages': True,
+			'use_legacy_browser': False,
+			'headless_chrome': True
 		}
 
 
@@ -123,6 +125,8 @@ class Crawler:
 			   "  -O               dont't override timeout functions (setTimeout, setInterval)\n"
 			   "  -K               keep elements in the DOM (prevent removal)\n"
 			   "  -e               disable hEuristic page deduplication\n"
+			   "  -L               use Legacy browser (phantomjs) instead of chrome\n"
+			   "  -l               do not run chrome in headless mode\n"
 			   )
 
 
@@ -373,10 +377,11 @@ class Crawler:
 		Shared.th_condition = threading.Condition()
 		Shared.main_condition = threading.Condition()
 
-
-		probe_cmd = get_phantomjs_cmd()
-		if not probe_cmd:
-			print "Error: unable to find phantomjs executable"
+		deps_errors = check_dependences(self.base_dir)
+		if len(deps_errors) > 0:
+			print "Dependences errors: "
+			for err in deps_errors:
+				print "  %s" % err
 			sys.exit(1)
 
 		start_cookies = []
@@ -398,7 +403,7 @@ class Crawler:
 		user_script = None
 
 		try:
-			opts, args = getopt.getopt(argv, 'hc:t:jn:x:A:p:d:BGR:U:wD:s:m:C:qr:SIHFP:Ovu:e')
+			opts, args = getopt.getopt(argv, 'hc:t:jn:x:A:p:d:BGR:U:wD:s:m:C:qr:SIHFP:Ovu:eLl')
 		except getopt.GetoptError as err:
 			print str(err)
 			sys.exit(1)
@@ -491,6 +496,15 @@ class Crawler:
 					sys.exit(1)
 			elif o == "-e":
 				Shared.options['deduplicate_pages'] = False
+			elif o == "-L":
+				Shared.options['use_legacy_browser'] = True
+			elif o == "-l":
+				Shared.options['headless_chrome'] = False				
+
+		probe_cmd = get_phantomjs_cmd() if Shared.options['use_legacy_browser'] else get_node_cmd()		
+		if not probe_cmd: # maybe useless
+			print "Error: unable to find node (or phantomjs) executable"
+			sys.exit(1)
 
 
 		if Shared.options['scope'] != CRAWLSCOPE_DOMAIN and len(Shared.allowed_domains) > 0:
@@ -508,11 +522,18 @@ class Crawler:
 		if Shared.options['mode'] == CRAWLMODE_PASSIVE:
 			probe_options.append("-t") # dont trigger events
 
-		if Shared.options['proxy']:
-			probe_cmd.append("--proxy-type=%s" % Shared.options['proxy']['proto'])
-			probe_cmd.append("--proxy=%s:%s" % (Shared.options['proxy']['host'], Shared.options['proxy']['port']))
 
-		probe_cmd.append(self.base_dir + 'probe/analyze.js')
+		if Shared.options['use_legacy_browser']:
+			if Shared.options['proxy']:
+				probe_cmd.append("--proxy-type=%s" % Shared.options['proxy']['proto'])
+				probe_cmd.append("--proxy=%s:%s" % (Shared.options['proxy']['host'], Shared.options['proxy']['port']))
+			probe_cmd.append(self.base_dir + 'probe/analyze.js')
+		else:
+			if Shared.options['proxy']:
+				probe_options.extend(["-y", "%s:%s:%s" % (Shared.options['proxy']['proto'], Shared.options['proxy']['host'], Shared.options['proxy']['port'])])
+			if not Shared.options['headless_chrome']:
+				probe_options.append("-l")
+			probe_cmd.append(self.base_dir + 'probe/chrome-probe/analyze.js')
 
 
 		if len(Shared.excluded_urls) > 0:

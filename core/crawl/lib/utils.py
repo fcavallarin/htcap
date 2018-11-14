@@ -97,8 +97,8 @@ def request_is_crawlable(request):
 		return False
 
 	types = [REQTYPE_LINK, REQTYPE_REDIRECT]
-	if Shared.options['mode'] == CRAWLMODE_AGGRESSIVE and Shared.options['crawl_forms']:
-		types.append(REQTYPE_FORM)
+	# if Shared.options['mode'] == CRAWLMODE_AGGRESSIVE and Shared.options['crawl_forms']:
+	# 	types.append(REQTYPE_FORM)
 
 	return request.type in types and re.match("^https?://", request.url, re.I)
 

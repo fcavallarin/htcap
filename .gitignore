@@ -1,5 +1,8 @@
 *.py[cod]
 tmp.py
-.idea
 *.db
 tmp
+node_modules/
+.*
+!/.gitignore
+package-lock.json

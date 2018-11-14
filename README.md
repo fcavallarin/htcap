@@ -3,6 +3,9 @@
 Htcap is a web application scanner able to crawl single page application (SPA) in a recursive manner by intercepting ajax calls and DOM changes.  
 Htcap is not just another vulnerability scanner since it's focused mainly on the crawling process and uses external tools to discover vulnerabilities. It's designed to be a tool for both manual and automated penetration test of modern web applications.
 
+This is the very first release that uses headless chrome instead of phantomjs. 
+Htcap’s Javascript crawling engine has been rewritten to take advantage of the new async/await features of ecmascript and has been converted to a nodjes module build on top of [Puppetteer](https://github.com/GoogleChrome/puppeteer).
+          
 More infos at [htcap.org](http://htcap.org).
 
 ## SETUP
@@ -10,23 +13,20 @@ More infos at [htcap.org](http://htcap.org).
 ### Requirements
 
  1. Python 2.7
- 2. PhantomJS v2
+ 2. Nodejs and npm
  3. Sqlmap (for sqlmap scanner module)
  4. Arachni (for arachni scanner module)
 
 ### Download and Run
 
 ```console
-$ git clone https://github.com/segment-srl/htcap.git htcap
+$ git clone https://github.com/fcavallarin/htcap.git htcap
 $ htcap/htcap.py
 ```
 
-PhantomJs can be downloaded [here](http://phantomjs.org//download.html). It comes as a self-contained executable with all libraries linked statically, so there is no need to install or compile anything else.  
-
-
 ## DOCUMENTATION
 
-Documentation, examples and demos can be found at the official website [http://htcap.org](http://htcap.org).
+Documentation, examples and demos can be found at the official website [https://htcap.org](https://htcap.org).
 
 ## LICENSE
 

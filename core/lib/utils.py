@@ -16,6 +16,7 @@ import time
 import pipes
 import re
 import posixpath
+import subprocess
 
 from urlparse import urlsplit, urljoin, parse_qsl
 from core.lib.exception import *
@@ -177,11 +178,10 @@ def remove_tokens(query):
 
 
 
-def get_phantomjs_cmd():
+def get_cmd_path(exe_name):
 	standard_paths = [os.getcwd()]
 	envpath = os.environ['PATH'].split(os.pathsep)
-	exe_name = "phantomjs"
-
+	
 	if sys.platform != "win32":
 		# force check to standard paths in case $PATH is not set (ie crontab)
 		standard_paths.extend(["/usr/bin", "/usr/local/bin", "/usr/share/bin"])
@@ -192,10 +192,20 @@ def get_phantomjs_cmd():
 
 	for exe in exe_paths:
 		if os.path.isfile(exe):
-			return [exe, "--ignore-ssl-errors=yes", "--web-security=false", "--ssl-protocol=any", "--debug=false"]
+			return exe
 
 	return None
 
+
+def get_phantomjs_cmd():
+	return [get_cmd_path("phantomjs"), "--ignore-ssl-errors=yes", "--web-security=false", "--ssl-protocol=any", "--debug=false"]
+
+
+def get_node_cmd():
+	c = get_cmd_path("node")
+	if not c:
+		c = get_cmd_path("nodejs")
+	return [c]
 
 
 def url_is_valid(url):
@@ -210,3 +220,38 @@ def url_is_valid(url):
 		return False
 
 	return True
+
+
+
+def check_dependences(base_dir, usePhantomjs=False):
+	errors = []
+	if not get_cmd_path("node") and not get_cmd_path("nodejs"):
+		errors.append("nodejs")
+
+	npm = get_cmd_path("npm")
+	if not npm:
+		errors.append("npm")
+
+	probe_dir = os.path.join(base_dir, 'probe', 'chrome-probe')
+	node_deps = ""
+	try:
+		node_deps = subprocess.check_output(get_node_cmd() + [os.path.join(probe_dir, 'ckdeps.js')])
+	except:
+		pass
+
+	if node_deps != "":
+		#errors.append("puppeteer")
+		sys.stdout.write("Puppeteer is missing, install it via npm? [Y/n]: ")
+		if sys.stdin.read(1) != "n":		
+			print "Installing Puppeteer"
+			try:
+				npm_install = subprocess.call("cd %s && %s install" % (probe_dir, npm), shell=True)
+			except Exception as e:
+				errors.append("npm_install_exception")
+				
+			if not npm_install:
+				errors.append("npm_install")
+		else:
+			errors.append("puppeteer")				
+
+	return errors

@@ -38,6 +38,7 @@ function initProbe(options, inputValues){
 		this.inputValues = inputValues;
 		this.currentUserScriptParameters = [];
 		this.domModifications = [];
+
 	};
 
 
