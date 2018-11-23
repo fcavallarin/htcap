@@ -92,6 +92,16 @@ htcap.launch(targetUrl, options).then( crawler => {
 	});
 
 
+	crawler.on("fetch", async function(e, crawler){
+		utils.printRequest(e.params.request)
+		//await sleep(6000);
+		//return false
+	});
+
+	crawler.on("fetchCompleted", function(e, crawler){
+		//console.log("XHR completed")
+	});
+
 	crawler.on("jsonp", function(e, crawler){
 		utils.printRequest(e.params.request)
 	});

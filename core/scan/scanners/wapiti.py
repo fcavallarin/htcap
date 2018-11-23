@@ -33,7 +33,7 @@ class Wapiti(BaseScanner):
 	def get_settings(self):
 		return dict(
 			scanner_name = "wapiti",
-			request_types = "xhr,link,form,jsonp,redirect",
+			request_types = "xhr,link,form,jsonp,redirect,fetch",
 			num_threads = 10,
 			process_timeout = 180,
 			scanner_exe = "python /usr/local/bin/wapiti"

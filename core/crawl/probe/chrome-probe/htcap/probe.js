@@ -43,6 +43,7 @@ function initProbe(options, inputValues){
 		this.DOMSnapshot = [];
 		this._pendingAjax = [];
 		this._pendingJsonp = [];
+		this._pendingFetch = [];
 		this.inputValues = inputValues;
 		this.currentUserScriptParameters = [];
 		this.domModifications = [];
@@ -766,7 +767,7 @@ function initProbe(options, inputValues){
 		// __skipped requests.. todo
 
 		this._pendingJsonp.push(node);
-		
+
 		var ev = function(){
 			var i = _this._pendingJsonp.indexOf(node);
 			if(i == -1){
@@ -780,12 +781,12 @@ function initProbe(options, inputValues){
 				script: _this.describeElement(node)
 			});
 			node.removeEventListener("load", ev);
-			node.removeEventListener("error", ev);			
+			node.removeEventListener("error", ev);
 		}
 
 		node.addEventListener("load", ev);
 		node.addEventListener("error", ev);
-		
+
 		this.dispatchProbeEvent("jsonp", {
 			request: req
 		});
@@ -882,7 +883,7 @@ function initProbe(options, inputValues){
 				}
 				timeout -= 10;
 				reqPerformed = true;
-			}, 0);			
+			}, 0);
 		});
 	}
 
@@ -895,10 +896,53 @@ function initProbe(options, inputValues){
 		await this.waitRequests(this._pendingJsonp);
 	}
 
+	Probe.prototype.waitFetch = async function(){
+		await this.waitRequests(this._pendingFetch);
+	}
+
+	Probe.prototype.fetchHook = async function(originalFetch, url, options){
+		var _this = this;
+		var method = options && 'method' in options ? options.method.toUpperCase() : "GET";
+		var data = options && 'body' in options ? options.body : null;
+		var trigger = this.getTrigger();
+		var request = new this.Request("fetch", method, url, data, trigger);
+
+		var uRet = await this.dispatchProbeEvent("fetch", {
+			request: request
+		});
+		if(!uRet){
+			return new Promise( (resolve, reject) => reject(new Error("rejected"))); // @TODO
+		}
+		this._pendingFetch.push(request);
+
+		return new Promise( (resolve, reject) => {
+			originalFetch(url, options).then( resp => {
+				_this.dispatchProbeEvent("fetchCompleted", {
+					request: request,
+					//response: @ TODO
+				});
+				resolve(resp);
+			}).catch( e => {
+				_this.dispatchProbeEvent("fetchCompleted", {
+					request: request,
+					response: null,
+					error: "error" // @TODO
+				});
+				reject(e);
+			}).finally( () => {
+				var i = _this._pendingFetch.indexOf(request);
+				if(i == -1){
+					//ERROR!!!
+				} else {
+					_this._pendingFetch.splice(i, 1);
+				}
+			});
+		})
+	}
 
 	Probe.prototype.xhrOpenHook = function(xhr, method, url){
 		var _url = this.removeUrlParameter(url, "_");
-		xhr.__request = new window.__PROBE__.Request("xhr", method, _url, null, this.getTrigger());		
+		xhr.__request = new window.__PROBE__.Request("xhr", method, _url, null, this.getTrigger());
 	}
 
 
@@ -965,7 +1009,7 @@ function initProbe(options, inputValues){
 
 	Probe.prototype.isAttachedToDOM = function(node){
 		var p = node;
-		while(p) {		
+		while(p) {
 			if(p.nodeName.toLowerCase() == "html")
 				return true;
 			p = p.parentNode;
@@ -987,12 +1031,12 @@ function initProbe(options, inputValues){
 
 
 	Probe.prototype.crawlDOM = async function(node, layer){ // @TODO console.log(">>>>RECURSON LIMIT REACHED :" + counter);
-		
+
 		layer = typeof layer != 'undefined' ? layer : 0;
 		if(layer == this.options.maximumRecursion){
 			console.log(">>>>RECURSON LIMIT REACHED :" + layer)
 			return;
-		}		
+		}
 		//console.log(">>>>:" + layer)
 		var dom = [node == document ? document.documentElement : node].concat(this.getDOMTreeAsArray(node)),
 			newEls = [],
@@ -1031,14 +1075,15 @@ function initProbe(options, inputValues){
 					await this.sleep(0);
 				} while(await this.waitAjax());
 				
+				await this.waitFetch();	
 				await this.waitJsonp();	
 
 				newEls = this.getAddedElements();		
 				for(var a = newEls.length - 1; a >= 0; a--){
 					if(newEls[a].innerText && this.isContentDuplicated(newEls[a].innerText))
 						newEls.splice(a,1);
-				}			
-				if(newEls.length > 0){									
+				}
+				if(newEls.length > 0){
 					for(var a = 0; a < newEls.length; a++){
 						if(newEls[a].innerText){
 							this.domModifications.push(newEls[a].innerText);
@@ -1046,7 +1091,7 @@ function initProbe(options, inputValues){
 							console.log(this.textComparator.getValue(newEls[a].innerText))
 						}
 					}
-					
+
 					//console.log("added elements " + newEls.length)
 					for(let ne of newEls){
 						//console.log(ne)
@@ -1056,9 +1101,9 @@ function initProbe(options, inputValues){
 							layer: layer
 						});
 						if(uRet)		
-							await this.crawlDOM(ne, layer + 1);						
+							await this.crawlDOM(ne, layer + 1);
 					}		
-					
+
 				}
 			}
 

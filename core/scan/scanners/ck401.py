@@ -22,7 +22,7 @@ class Ck401(BaseScanner):
 	
 	def get_settings(self):
 		return dict(			
-			request_types = "link,redirect,xhr,form", 
+			request_types = "link,redirect,xhr,form,fetch", 
 			num_threads = 10,
 			process_timeout = 20 ,
 			scanner_exe = "/usr/bin/env curl"

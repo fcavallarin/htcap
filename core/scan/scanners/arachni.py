@@ -72,7 +72,7 @@ class Arachni(BaseScanner):
 
 	def get_settings(self):
 		return dict(
-			request_types = "xhr,link,form,jsonp,redirect",
+			request_types = "xhr,link,form,jsonp,redirect,fetch",
 			num_threads = 5,
 			process_timeout = 180,
 			scanner_exe = "/usr/share/arachni/bin/arachni"

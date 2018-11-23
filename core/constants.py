@@ -25,6 +25,7 @@ CRAWLMODE_AGGRESSIVE = "aggressive"
 
 REQTYPE_LINK = "link"
 REQTYPE_XHR = "xhr"
+REQTYPE_FETCH = "fetch"
 REQTYPE_WS = "websocket"
 REQTYPE_JSONP = "jsonp"
 REQTYPE_FORM = "form"

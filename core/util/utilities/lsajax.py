@@ -31,7 +31,7 @@ class Lsajax(BaseUtil):
 		qry = """
 			SELECT r.id, r.url as page, r.referer, a.method, a.url,a.data,a.trigger
 			FROM request r inner join request a on r.id=a.id_parent
-			WHERE (a.type='xhr')
+			WHERE (a.type='xhr' or a.type='fetch')
 			AND
 			%s
 		"""

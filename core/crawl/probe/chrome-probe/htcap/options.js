@@ -26,6 +26,7 @@ exports.options = {
 	getCookies:true,
 	mapEvents: true,
 	checkScriptInsertion: true,
+	checkFetch: true,
 	httpAuth: false,
 	triggerAllMappedEvents: true,
 	outputMappedEvents: false,
@@ -70,6 +71,8 @@ exports.options = {
 	staticInputValues:[
 		//['form[name="login"] input[name="mail"]', "bm1@rtom.fake"],
 		//['form[name="login"] input[name="password"]', "bm1"]
+		["#inputEmail", "filippo.cavallarin@wearesegment.com"],
+		["#inputPassword", "YhdgK83ksL.a"]
 	],
 	proxy: null,
 	loadWithPost: false,

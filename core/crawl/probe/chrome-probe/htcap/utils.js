@@ -49,6 +49,13 @@ exports.generateRandomValues = generateRandomValues;
 		})(window.addEventListener);
 	}
 
+
+	if(options.checkFetch){
+		window.fetch = ((_fetch) => async (url, options) => {
+			return await window.__PROBE__.fetchHook(_fetch, url, options);
+		})(window.fetch);
+	}
+
 	if(options.checkAjax){
 		XMLHttpRequest.prototype.originalOpen = XMLHttpRequest.prototype.open;
 		XMLHttpRequest.prototype.open = function(method, url, async, user, password){

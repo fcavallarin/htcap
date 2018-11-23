@@ -208,7 +208,8 @@ class Crawler:
 		except urllib2.HTTPError:
 			return []
 		except:
-			raise
+			return []
+			#raise
 
 		requests = []
 		for line in lines:

@@ -54,7 +54,7 @@ class Report(BaseUtil):
 			LEFT JOIN request ri ON ri.id = rc.id_child
 			WHERE
 			r.type IN ('link', 'redirect','form')
-			and (has_requests=0 OR req_type IN ('xhr','form','websocket') OR (req_type='jsonp' AND ri.trigger <> ''))
+			and (has_requests=0 OR req_type IN ('xhr','form','websocket','fetch') OR (req_type='jsonp' AND ri.trigger <> ''))
 		"""
 		try:
 			cur.execute(qry)
@@ -71,7 +71,7 @@ class Report(BaseUtil):
 			SELECT type, description FROM vulnerability WHERE id_request IN (
 				SELECT id FROM request WHERE (
 					id=? AND type IN ('link','redirect')) OR 
-					(id_parent=? AND type IN ('xhr','jsonp','form','websocket')
+					(id_parent=? AND type IN ('xhr','jsonp','form','websocket','fetch')
 				)
 			)
 		"""
@@ -118,7 +118,6 @@ class Report(BaseUtil):
 		report = self.get_report(cur)
 		infos = self.get_crawl_info(cur)
 
-	 
 		ret = dict(
 			infos= infos,
 			results = []
@@ -152,7 +151,7 @@ class Report(BaseUtil):
 					trigger = json.loads(r['trigger']) if 'trigger' in r and r['trigger'] else None # {'event':'ready','element':'[document]'}
 					req_obj['trigger'] = "%s.%s()" % (trigger['element'], trigger['event']) if trigger else ""
 
-					if r['req_type']=='xhr':
+					if r['req_type'] in ('xhr', 'fetch'):
 						req_obj['request'] = ["%s %s" % (r['req_method'], r['req_url'])]
 						if r['req_data']: req_obj['request'].append(r['req_data'])
 						d['xhr'].append(req_obj)
