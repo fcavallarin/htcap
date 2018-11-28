@@ -25,7 +25,7 @@ var sleep = function(n){
 
 
 
-var argv = utils.parseArgs(process.argv, "hVaftUJdICc:MSEp:Tsx:A:r:mHX:PD:R:Oi:u:vy:l", {});
+var argv = utils.parseArgs(process.argv, "hVaftUJdICc:MSp:Tsx:A:r:mHX:PD:R:Oi:u:vy:E:l", {});
 var options = argv.opts
 
 var targetUrl = argv.args[0];

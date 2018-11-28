@@ -77,7 +77,8 @@ class Crawler:
 			'crawl_forms': True, # only if mode == CRAWLMODE_AGGRESSIVE
 			'deduplicate_pages': True,
 			'use_legacy_browser': False,
-			'headless_chrome': True
+			'headless_chrome': True,
+			'extra_headers': False
 		}
 
 
@@ -127,6 +128,7 @@ class Crawler:
 			   "  -e               disable hEuristic page deduplication\n"
 			   "  -L               use Legacy browser (phantomjs) instead of chrome\n"
 			   "  -l               do not run chrome in headless mode\n"
+			   "  -E               set extra http headers (ex -E foo=bar -E bar=foo)\n"
 			   )
 
 
@@ -404,7 +406,7 @@ class Crawler:
 		user_script = None
 
 		try:
-			opts, args = getopt.getopt(argv, 'hc:t:jn:x:A:p:d:BGR:U:wD:s:m:C:qr:SIHFP:Ovu:eLl')
+			opts, args = getopt.getopt(argv, 'hc:t:jn:x:A:p:d:BGR:U:wD:s:m:C:qr:SIHFP:Ovu:eLlE:')
 		except getopt.GetoptError as err:
 			print str(err)
 			sys.exit(1)
@@ -500,7 +502,12 @@ class Crawler:
 			elif o == "-L":
 				Shared.options['use_legacy_browser'] = True
 			elif o == "-l":
-				Shared.options['headless_chrome'] = False				
+				Shared.options['headless_chrome'] = False
+			elif o == "-E":
+				if not Shared.options['extra_headers']:
+					Shared.options['extra_headers'] = {}
+				(hn, hv) = v.split("=", 1)
+				Shared.options['extra_headers'][hn] = hv
 
 		probe_cmd = get_phantomjs_cmd() if Shared.options['use_legacy_browser'] else get_node_cmd()		
 		if not probe_cmd: # maybe useless
@@ -551,6 +558,9 @@ class Crawler:
 
 		if not Shared.options['override_timeout_functions']:
 			probe_options.append("-O")
+
+		if Shared.options['extra_headers']:
+			probe_options.extend(["-E", json.dumps(Shared.options['extra_headers'])])
 
 		Shared.probe_cmd = probe_cmd + probe_options
 

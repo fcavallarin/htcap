@@ -77,5 +77,6 @@ exports.options = {
 	proxy: null,
 	loadWithPost: false,
 	postData: null,
-	headlessChrome: true
+	headlessChrome: true,
+	extraHeaders: false
 };

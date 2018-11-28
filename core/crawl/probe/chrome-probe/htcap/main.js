@@ -313,6 +313,9 @@ Crawler.prototype.loadPage = async function(browser){
 				'Referer': options.referer
 			});
 		}
+		if(options.extraHeaders){
+			await page.setExtraHTTPHeaders(options.extraHeaders);
+		}
     	for(let i=0; i < options.setCookies.length; i++){
     		if(!options.setCookies[i].expires)
     			options.setCookies[i].expires = parseInt((new Date()).getTime() / 1000) + (60*60*24*365);

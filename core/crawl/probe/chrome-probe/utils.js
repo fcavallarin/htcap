@@ -275,6 +275,9 @@ function parseArgsToOptions(args, defaults){
 			case "l":
 				options.headlessChrome = false;
 				break;
+			case "E":
+				options.extraHeaders = JSON.parse(args.opts[a][1]);
+				break;
 
 		}
 	}
@@ -346,6 +349,7 @@ function usage(){
 				"  -y <host:port>  use http proxY\n" +
 				"  -l              do not run chrome in headless mode\n" +
 				"  -v              exit after parsing options, used to verify user script";
+				"  -E              set extra http headers (json encoded {name:value}";
 	console.log(usage);
 }
 
