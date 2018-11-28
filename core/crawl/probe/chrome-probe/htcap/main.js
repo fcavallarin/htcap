@@ -183,6 +183,7 @@ Crawler.prototype.start = async function(){
 		})
 
 	}).catch(e => {
+		//console.log(e);
 		_this._errors.push(["navigation","navigation aborted"]);
 		_this.dispatchProbeEvent("end", {});
 	});
@@ -309,8 +310,8 @@ Crawler.prototype.loadPage = async function(browser){
 	try{
 		if(options.referer){
 			await page.setExtraHTTPHeaders({
-            	'Referer': options.referer
-        	});
+				'Referer': options.referer
+			});
 		}
     	for(let i=0; i < options.setCookies.length; i++){
     		if(!options.setCookies[i].expires)

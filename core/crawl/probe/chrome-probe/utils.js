@@ -11,12 +11,13 @@ version.
 
 //"use strict";
 
-const urlparser = require('url').parse
+//const urlparser = require('url').parse
+const { URL } = require('url');
 const fs = require('fs');
 
 
 exports.parseArgs = function(args, optstring, defaults){
-	var g = getopt(args, optstring);	
+	var g = getopt(args, optstring);
 	g.args.splice(0,2);
 	return {opts:parseArgsToOptions(g, defaults), args:g.args};
 }
@@ -44,7 +45,7 @@ function printRequest(req){
 		return;
 	printedRequests.push(jr);
 	console.log('["request",' + jr + "],");
-	
+
 }
 
 
@@ -52,23 +53,32 @@ function filterUrl(url){
 	url = url.split("#")[0];
 	if(url.match(/^[a-z0-9\-_]+\:/i) && !url.match(/(^https?)|(^ftps?)\:/i)){
 		return null;
-	} 
+	}
 
 	return url;
 }
 
 async function printLinks(rootNode, page){
-	var el = await page.$(rootNode);//.then(el => {
-	//page.evaluate(e => console.log(e.innerText), el)
+	var el = await page.$(rootNode);
+	var req, t;
 	if(!el)return;
-	var links = await el.$$("a");//.then(links => {
+	var links = await el.$$("a");
 	for(let l of links){
-		var v = await l.getProperty('href');//.then(v => v.jsonValue()).then(t =>{
-		//var t = await (await l.getProperty('href')).jsonValue();
-		var t = await v.jsonValue();
-		var req = { type: "link", url: t};
+		t = await (await l.getProperty('href')).jsonValue();
+		req = { type: "link", url: t};
 		printRequest(req);
-	}	
+	}
+	var metas = await el.$$('meta[http-equiv="refresh"]');
+	for(let m of metas){
+		t = await (await m.getProperty('content')).jsonValue();
+		t = t.split(";");
+		if(t.length > 1 && t[1] && t[1].toLowerCase().startsWith("url=")){
+			var purl = new URL(page.url());
+			var absurl = new URL(t[1].substr(4), purl.protocol + "//" + purl.hostname);
+			req = { type: "link", url: absurl.href};
+			printRequest(req);
+		}
+	}
 }
 
 async function printForms(rootNode, page){
@@ -105,27 +115,26 @@ function printStatus(crawler){
 async function getFormAsRequest(frm, page){
 
 	var formObj = {type:"form"};
-	var inputs = null;	
-	
+	var inputs = null;
 
-	formObj.method = await (await frm.getProperty("method")).jsonValue();	
-	
+	formObj.method = await (await frm.getProperty("method")).jsonValue();
+
 	if(!formObj.method){
 		formObj.method = "GET";
 	} else {
 		formObj.method = formObj.method.toUpperCase();
 	}
 
-	formObj.url = await (await frm.getProperty("action")).jsonValue();	
-	formObj.data = [];	
+	formObj.url = await (await frm.getProperty("action")).jsonValue();
+	formObj.data = [];
 	inputs = await frm.$$("input, select, textarea");
-	for(let input of inputs){	
+	for(let input of inputs){
 		let name = await (await input.getProperty("name")).jsonValue();
 		if(!name) continue;
 		let value = await (await input.getProperty("value")).jsonValue();
 		let tagName = await (await input.getProperty("tagName")).jsonValue();
 		let type = await (await input.getProperty("type")).jsonValue();
-		
+
 		let par = encodeURIComponent(name) + "=" + encodeURIComponent(value);
 		if(tagName == "INPUT" && type != null){
 
@@ -239,7 +248,7 @@ function parseArgsToOptions(args, defaults){
 				break;
 			case "O":
 				options.overrideTimeoutFunctions = false;
-				break;			
+				break;
 			case "i":
 				options.id = args.opts[a][1];
 				break;
@@ -253,10 +262,10 @@ function parseArgsToOptions(args, defaults){
 				options.loadWithPost = true;
 				break;
 			case "D":
-				options.postData = args.opts[a][1];				
+				options.postData = args.opts[a][1];
 				break;
 			case "y":
-				var tmp = args.opts[a][1].split(":");				
+				var tmp = args.opts[a][1].split(":");
 				if(tmp.length > 2){
 					options.proxy = tmp[0] + "://" + tmp[1] + ":" + tmp[2];
 				} else {
@@ -265,7 +274,7 @@ function parseArgsToOptions(args, defaults){
 				break;
 			case "l":
 				options.headlessChrome = false;
-				break;				
+				break;
 
 		}
 	}
@@ -330,7 +339,7 @@ function usage(){
 				"  -A <user agent> set user agent \n" +
 				"  -r <url>        set referer \n" +
 				"  -H              return generated html \n" +
-				"  -I              load images\n" + 
+				"  -I              load images\n" +
 				"  -O              dont't override timeout functions\n" +
 				"  -u              path to user script to inject\n" +
 				"  -K              keep elements in the DOM (prevent removal)\n" +
@@ -339,6 +348,9 @@ function usage(){
 				"  -v              exit after parsing options, used to verify user script";
 	console.log(usage);
 }
+
+
+
 
 
 

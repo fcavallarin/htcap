@@ -47,14 +47,14 @@ if(targetUrl.length < 4 || targetUrl.substring(0,4).toLowerCase() != "http"){
 htcap.launch(targetUrl, options).then( crawler => {
 	const page = crawler.page();
 	var execTO = null;
-	
+
 	console.log("[");
-	
+
 	function exit(){
 		clearTimeout(execTO);
-		crawler.browser().close();		
+		crawler.browser().close();
 	}
-	
+
 	crawler.on("redirect", async function(e, crawler){
 		// console.log(crawler.redirect());
 		// console.log(e.params.url);
@@ -68,12 +68,12 @@ htcap.launch(targetUrl, options).then( crawler => {
 		//utils.printCookies(crawler);
 		await utils.printLinks("html", crawler.page())
 		await utils.printForms("html", crawler.page())
-		
+
 		//await sleep(4000)
 	});
 
 	crawler.on("start", function(e, crawler){
-		//console.log("--->Start");	
+		//console.log("--->Start");
 	})
 
 
@@ -115,7 +115,7 @@ htcap.launch(targetUrl, options).then( crawler => {
 	});
 
 	crawler.on("websocketMessage", function(e, crawler){
-		
+
 	});
 
 	crawler.on("websocketSend", function(e, crawler){
@@ -131,15 +131,15 @@ htcap.launch(targetUrl, options).then( crawler => {
 		utils.printRequest(e.params.request)
 	});
 
-	crawler.on("eventtriggered", function(e, crawler){		
+	crawler.on("eventtriggered", function(e, crawler){
 		//console.log(e.params)
 	});
 
-	crawler.on("triggerevent", function(e, crawler){		
+	crawler.on("triggerevent", function(e, crawler){
 		//console.log(e.params)
 	});
 
-	crawler.on("earlydetach", function(e, crawler){	
+	crawler.on("earlydetach", function(e, crawler){
 		//console.log('["warning","earlydetach of element ' + e.params.node + '],')
 		//crawler.browser().close();
 	});
@@ -158,9 +158,9 @@ htcap.launch(targetUrl, options).then( crawler => {
 				console.log(json);
 			}
 		}
-		
+
 		utils.printStatus(crawler);
-		exit();		
+		exit();
 	}
 
 	crawler.on("end", end);
@@ -172,6 +172,6 @@ htcap.launch(targetUrl, options).then( crawler => {
 	}, options.maxExecTime);
 
 
-	crawler.start()	
+	crawler.start()
 
 })
