@@ -126,16 +126,14 @@ exports.generateRandomValues = generateRandomValues;
 
 	if(options.overrideTimeoutFunctions){
 		window.setTimeout = (function(setTimeout){
-			return function(func, time, setTime){
-				var t = setTime ? time : 0;
-				return setTimeout(func, t);
+			return function(func, time){
+				return setTimeout(func, 0, ...Array.from(arguments).slice(2));
 			}
 		})(window.setTimeout);
 
 		window.setInterval = (function(setInterval){
-			return function(func, time, setTime){
-				var t = setTime ? time : 0;
-				return setInterval(func, t);
+			return function(func, time){
+				return setInterval(func, 0, ...Array.from(arguments).slice(2));
 			}
 		})(window.setInterval);
 

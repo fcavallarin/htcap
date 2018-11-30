@@ -53,6 +53,9 @@ function initProbe(options, inputValues){
 
 		this.textComparator = null;
 
+		this.setTimeout = window.setTimeout.bind(window);
+		this.setInterval = window.setInterval.bind(window);
+
 	};
 
 
@@ -874,7 +877,7 @@ function initProbe(options, inputValues){
 		return new Promise( (resolve, reject) => {	
 			var timeout = _this.options.ajaxTimeout;			
 			
-			var t = setInterval(function(){			
+			var t = _this.setInterval(function(){
 				if(timeout <= 0 || requests.length == 0){					
 					clearInterval(t);
 					//console.log("waitajax reoslve()")
@@ -1111,8 +1114,9 @@ function initProbe(options, inputValues){
 	}
 
 	Probe.prototype.sleep = function(n){
+		var _this = this;
 		return new Promise(resolve => {
-			setTimeout(resolve, n, true);
+			_this.setTimeout(resolve, n);
 		});
 	};
 
