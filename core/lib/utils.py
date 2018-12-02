@@ -83,7 +83,7 @@ def getrealdir(path):
 
 def print_progressbar(tot, scanned, start_time, label):
 	perc = (scanned * 33) / (tot if tot > 0 else 1)
-	sys.stdout.write("\b"*150)
+	sys.stdout.write("\r")
 	out = "[%s%s]   %d of %d %s in %d minutes" % ("="*perc, " "*(33-perc), scanned, tot, label, int(time.time() - start_time) / 60)
 	stdoutw(out)
 
