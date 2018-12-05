@@ -79,6 +79,8 @@ class Sqlmap(BaseScanner):
 
 		#print request.url
 
+		self.lockprint("Scanning %s" % request.url)
+
 		out_dir = tmp_dir + "/tmp"
 		if not os.path.exists(out_dir):
 			os.makedirs(out_dir, 0700)
@@ -94,7 +96,7 @@ class Sqlmap(BaseScanner):
 			"-v", "0",
 			"--disable-coloring",
 			"--text-only",
-			"--purge-output",
+			"--purge",
 			"-o",
 			"--crawl=0",
 			"--output-dir", out_dir
@@ -111,7 +113,7 @@ class Sqlmap(BaseScanner):
 			if request.data:
 				cmd.extend(("--data",request.data))
 
-
+		#self.lockprint("cmd %s" % cmd_to_str(cmd))
 		return cmd
 
 	def scanner_executed(self, request, out, err, tmp_dir, cmd):

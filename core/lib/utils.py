@@ -24,7 +24,7 @@ from core.constants import *
 
 def get_program_infos():
 	infos = {
-		"version": "1.1.0 - dev",
+		"version": "1.1",
 		"author_name": "Filippo Cavallarin",
 		"author_email": "filippo.cavallarin@wearesegment.com"
 	}
@@ -78,14 +78,6 @@ def stdoutw(str):
 
 def getrealdir(path):
 	return os.path.dirname(os.path.realpath(path)) + os.sep 
-
-
-
-def print_progressbar(tot, scanned, start_time, label):
-	perc = (scanned * 33) / (tot if tot > 0 else 1)
-	sys.stdout.write("\b"*150)
-	out = "[%s%s]   %d of %d %s in %d minutes" % ("="*perc, " "*(33-perc), scanned, tot, label, int(time.time() - start_time) / 60)
-	stdoutw(out)
 
 
 def join_qsl(qs):

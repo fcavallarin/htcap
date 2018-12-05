@@ -144,7 +144,7 @@ class HttpGet:
 				for cookie in jar_response:
 					set_cookie.append(Cookie(cookie.__dict__, self.request.url))
 
-				ctype = res.info()['Content-Type']
+				ctype = res.info()['Content-Type'] # @TODO !! WRONG!! (check if wrong...not sure)
 				if ctype is not None:
 					if ctype.lower().split(";")[0] != "text/html":
 						opener.close()
@@ -186,12 +186,66 @@ class HttpGet:
 
 
 
-	def get_file(self): # Shared.options['process_timeout']
+	def send_request(self, url=None): # Shared.options['process_timeout']
 
 		if self.request.method == "POST":
 			raise Exception("get_file: POST method with urllib is not supported yet")
 
 
+		if not url:
+			url = self.request.url
+
+		jar_request = cookielib.LWPCookieJar()
+
+
+		ret = {
+			"code": None,
+			"url": None,
+			"headers": None,
+			"body": None,
+			"time": None
+		}
+
+		while True:
+			try :
+
+				for cookie in self.request.cookies:
+					jar_request.set_cookie(cookie.get_cookielib_cookie())
+
+				opener = self.urllib2_opener(self.request, None, True)
+				req = urllib2.Request(url=url)
+				jar_request.add_cookie_header(req)
+				now = time.time()
+				res = opener.open(req, None, self.timeout)
+				opener.close()
+
+				ret['code'] = res.getcode()
+				ret['url'] = res.geturl()
+				ret['headers'] = [x.strip() for x in res.info().headers]
+				ret['body'] = res.read()
+				ret['time'] = time.time() - now
+
+				break
+
+			except Exception as e:
+				raise e
+				self.retries -= 1
+				if self.retries == 0: raise
+				time.sleep(self.retries_interval)
+
+		return ret
+
+
+
+	def get_file(self, url=None): # Shared.options['process_timeout']
+
+		if self.request.method == "POST":
+			raise Exception("get_file: POST method with urllib is not supported yet")
+
+		# return self.send_request().body << enable this eand test it
+
+		if not url:
+			url = self.request.url
 
 		jar_request = cookielib.LWPCookieJar()
 
@@ -204,7 +258,7 @@ class HttpGet:
 					jar_request.set_cookie(cookie.get_cookielib_cookie())
 
 				opener = self.urllib2_opener(self.request, None, True)
-				req = urllib2.Request(url=self.request.url)
+				req = urllib2.Request(url=url)
 				jar_request.add_cookie_header(req)
 				res = opener.open(req, None, self.timeout)
 
@@ -219,6 +273,7 @@ class HttpGet:
 				time.sleep(self.retries_interval)
 
 		return cont
+
 
 
 

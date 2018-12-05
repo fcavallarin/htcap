@@ -44,8 +44,8 @@ from core.lib.texthash import TextHash
 from core.lib.request_pattern import RequestPattern
 from core.lib.utils import *
 from core.constants import *
-
 from lib.utils import *
+from core.lib.progressbar import Progressbar
 
 class Crawler:
 
@@ -247,14 +247,14 @@ class Crawler:
 	def main_loop(self, threads, start_requests, database, display_progress = True, verbose = False):
 		pending = len(start_requests)
 		crawled = 0
-
+		pb = Progressbar(self.crawl_start_time, "pages processed")
 		req_to_crawl = start_requests
 		try:
 			while True:
 
 				if display_progress and not verbose:
 					tot = (crawled + pending)
-					print_progressbar(tot, crawled, self.crawl_start_time, "pages processed")
+					pb.out(tot, crawled)
 
 				if pending == 0:
 					# is the check of running threads really needed?

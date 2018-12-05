@@ -46,7 +46,7 @@ from core.lib.database import Database
 
 from core.lib.utils import *
 from core.constants import *
-
+from core.lib.progressbar import Progressbar
 from core.lib.request_pattern import RequestPattern
 
 
@@ -63,15 +63,18 @@ class BaseScanner:
 		self.scanner_name = self.__class__.__name__.lower()
 		self._running = False
 		self.settings = self.get_settings()
-
+		self._type = self.settings['scanner_type'] if 'scanner_type' in self.settings else "external"
+		self.exit_requested = False
+		self.print_queue = []
+		self.display_progress = display_progress
 		#override default settings
 		if num_threads: self.settings['num_threads'] = num_threads
 		if request_types: self.settings['request_types'] = request_types
 		if process_timeout: self.settings['process_timeout'] = process_timeout
 		if scanner_exe: self.settings['scanner_exe'] = scanner_exe
-		self.settings['scanner_exe'] = self.settings['scanner_exe'].split(" ")
 
-
+		if self._type == "external":
+			self.settings['scanner_exe'] = self.settings['scanner_exe'].split(" ")
 
 		self.db = Database(db_file)
 		self.id_assessment = self.db.create_assessment(self.scanner_name, int(time.time()))
@@ -89,6 +92,9 @@ class BaseScanner:
 
 		init = self.init(scanner_argv if scanner_argv else [])
 
+		if self._type == "external" and not os.path.isfile(self.settings['scanner_exe'][0]):
+			raise Exception("scanner_exe not found")
+
 		self._running = True
 		print "Scanner %s started with %d threads" % (self.scanner_name, self.settings['num_threads']) 
 
@@ -97,11 +103,11 @@ class BaseScanner:
 			self.threads.append(thread)
 			thread.start()
 
-		try:
-			self.wait_executor(self.threads, display_progress)
-		except KeyboardInterrupt:
-			print "\nTerminated by user"
-			self.kill_threads()
+	#	try:
+		self.wait_executor(self.threads)
+		# except KeyboardInterrupt:
+		# 	print "\nTerminated by user"
+		# 	self.kill_threads()
 
 		self.save_assessment()
 		sys.exit(self._exitcode)
@@ -125,44 +131,101 @@ class BaseScanner:
 		return
 
 
-	def wait_executor(self, threads, display_progress):
+	def wait_executor(self, threads):
 		executor_done = False
+		pb = Progressbar(self.scan_start_time, "requests scanned")
+
 		while not executor_done:
-			executor_done = True
-			for th in threads:
-				if th.isAlive():
-					executor_done = False
-				th.join(1)
+			try:
+				executor_done = True
+				for th in threads:
+					# if th.isAlive():
+					# 	executor_done = False
+					# th.join(1)
+					if self.display_progress:
+						self._th_lock.acquire()
+						scanned = self.performed_requests
+						pending = len(self.pending_requests)
+						tot = self.tot_requests
+						self._th_lock.release()
+						pb.out(tot, scanned)
+					else:
+						self._th_lock.acquire()
+						for out in self.print_queue:
+							print out
+						self.print_queue = []
+						self._th_lock.release()
 
-				if display_progress:
-					self._th_lock.acquire()
-					scanned = self.performed_requests
-					pending = len(self.pending_requests)
-					tot = self.tot_requests
-					self._th_lock.release()
-
-					print_progressbar(tot, scanned, self.scan_start_time, "requests scanned")
-		if display_progress:
+					if th.isAlive():
+						executor_done = False
+					th.join(1)
+			except KeyboardInterrupt:
+				self.pause_threads(True)
+				if not self.get_user_command():
+					print "Exiting . . ."
+					self.kill_threads()
+					return
+				self.pause_threads(False)
+		if self.display_progress:
 			print ""
 
 
+	def get_user_command(self):
+		while True:
+			print (
+				"\nScan is paused. Choose what to do:\n"
+				"   r    resume scan\n"
+				"   v    verbose mode\n"
+				"   p    show progress bar\n"
+				"Hit ctrl-c again to exit\n"
+			)
+			try:
+				ui = raw_input("> ").strip()
+			except KeyboardInterrupt:
+				print ""
+				return False
+
+			if ui == "r":
+				break
+			elif ui == "v":
+				self.display_progress = False
+				break
+			elif ui == "p":
+				self.display_progress = True
+				break
+
+			print "	"
+
+		return True
+
 	def kill_threads(self):
+		self.exit_requested = True;
 		self._th_lock.acquire()
 		for th in self.threads:
 			if th.isAlive(): th.exit = True
 		self._th_lock.release()
 
+	def pause_threads(self, pause):
+		self._th_lock.acquire()
+		for th in self.threads:
+			if th.isAlive(): th.pause = pause
+		self._th_lock.release()
 
-	def exit(self, code):
-		if self._running:
-			self._th_lock.acquire()
-			self._exitcode = code
-			self._th_lock.release()
-			self.kill_threads()
-			print "kill thread"
-			print ""
-		else :
-			sys.exit(code)
+	def lockprint(self, str):
+		self._th_lock.acquire()
+		self.print_queue.append(str)
+		self._th_lock.release()
+
+	# def exit(self, code):
+	# 	if self._running:
+	# 		self._th_lock.acquire()
+	# 		self._exitcode = code
+	# 		self._th_lock.release()
+	# 		self.kill_threads()
+	# 		print "kill thread"
+	# 		print ""
+	# 	else :
+	# 		sys.exit(code)
 
 
 	def save_vulnerability(self, request, type, description):
@@ -187,6 +250,7 @@ class BaseScanner:
 			threading.Thread.__init__(self)
 			self.scanner = scanner
 			self.exit = False
+			self.pause = False
 			self.thread_uuid = uuid.uuid4()
 			self.tmp_dir = "%s%shtcap_tempdir-%s" % (tempfile.gettempdir(), os.sep, self.thread_uuid)
 			os.makedirs(self.tmp_dir, 0700)
@@ -205,25 +269,30 @@ class BaseScanner:
 					self.scanner._th_lock.release()
 					shutil.rmtree(self.tmp_dir)
 					return
-
+				if self.pause == True:
+					self.scanner._th_lock.release()
+					time.sleep(1)
+					continue
 				req = self.scanner.pending_requests.pop()
-
 				self.scanner._th_lock.release()
 
-
-				cmd_options = self.scanner.get_cmd(req, self.tmp_dir)
-				if cmd_options == False: 
+				if self.scanner._type == "native":
+					self.scanner.scan(req)
 					self.inc_counter()
-					continue
 
-				cmd = self.scanner.settings['scanner_exe'] + cmd_options
+				else:
+					cmd_options = self.scanner.get_cmd(req, self.tmp_dir)
+					if cmd_options == False:
+						self.inc_counter()
+						continue
 
+					cmd = self.scanner.settings['scanner_exe'] + cmd_options
 
-				exe = CommandExecutor(cmd, True)
-				out, err = exe.execute(self.scanner.settings['process_timeout'])
-				# if err: print "\nError: \n%s\n%s\n%s\n" % (err," ".join(cmd),out)
+					exe = CommandExecutor(cmd, True)
+					out, err = exe.execute(self.scanner.settings['process_timeout'])
+					# if err: print "\nError: \n%s\n%s\n%s\n" % (err," ".join(cmd),out)
 
-				self.inc_counter()
+					self.inc_counter()
 
-				self.scanner.scanner_executed(req, out,err, self.tmp_dir, cmd)
+					self.scanner.scanner_executed(req, out,err, self.tmp_dir, cmd)
 

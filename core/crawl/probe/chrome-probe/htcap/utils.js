@@ -1,5 +1,5 @@
 /*
-HTCAP - 1.2
+HTCAP - 1.1
 http://htcap.org
 Author: filippo.cavallarin@wearesegment.com
 
