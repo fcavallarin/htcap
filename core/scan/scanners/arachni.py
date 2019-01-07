@@ -25,25 +25,23 @@ import datetime
 from core.lib.exception import *
 from core.lib.cookie import Cookie
 
-from core.scan.base_scanner import BaseScanner
+from core.scan.base_scanner import BaseScanner, ScannerThread
 from core.lib.shell import CommandExecutor
 from core.lib.utils import *
 
 class Arachni(BaseScanner):
 
 	def init(self, argv):
-		# scanner_exe is converted to array to handle something like "python /usr/bin/scanner"
-		self.reporter = "%s%sarachni_reporter" % (os.path.dirname(self.settings['scanner_exe'][-1]), os.sep)
-		if not os.path.exists(self.reporter):
-			print "Error finding arachni_reporter: %s" % self.reporter
-			self.exit(1)
 
 		self.skip_duplicates = True
 		self.execute_command = True
 		self.audit_both_methods = False
+		self.arachni_bin = None
+		self.acmd = "arachni"
+		self.rcmd = "arachni_reporter"
 
 		try:
-			opts, args = getopt.getopt(argv, 'hspb')
+			opts, args = getopt.getopt(argv, 'hspbx:')
 		except getopt.GetoptError as err:
 			print str(err)
 			self.exit(1)
@@ -58,16 +56,34 @@ class Arachni(BaseScanner):
 				self.execute_command = False
 			elif o == '-b':
 				self.audit_both_methods = False
+			elif o == '-x':
+				self.arachni_bin = v
 
+
+		if self.arachni_bin:
+			self.acmd = os.path.join(self.arachni_bin, self.acmd)
+			self.rcmd = os.path.join(self.arachni_bin, self.rcmd)
+
+		try:
+			self.utils.execmd(self.acmd)
+		except:
+			print "arachni executable not found"
+			self.exit(1)
+		try:
+			self.utils.execmd(self.rcmd)
+		except:
+			print "arachni_reporter executable not found"
+			self.exit(1)
 
 
 	def usage(self):
 		print (	"htcap arachni module\nusage: scan arachni <db_file> [options]\n"
 				"Options are:\n"
-				"  -h   this help\n"
-				"  -s   do not skip duplicated urls\n"
-				"  -p   print first command and exit\n"
-				"  -b   set audit-with-both-methods arachni option\n"
+				"  -h       this help\n"
+				"  -s       do not skip duplicated urls\n"
+				"  -p       print first command and exit\n"
+				"  -b       set audit-with-both-methods arachni option\n"
+				"  -x PATH  set arachni bin dir"
 			)
 
 	def get_settings(self):
@@ -80,96 +96,106 @@ class Arachni(BaseScanner):
 		)
 
 	# return False to skip current request
-	def get_cmd(self, request, tmp_dir):
-		out_file = tmp_dir + "/report"
+	#def get_cmd(self, request, tmp_dir):
+	class Scan(ScannerThread):
 
-		if self.skip_duplicates and self.is_request_duplicated(request):
-			return False
+		#def scan(self, request):
+		def run(self):
+			out_file = self.tmp_dir + "/report"
 
-		timeout = str(datetime.timedelta(seconds=(self.settings['process_timeout']-5)))
+			if self.scanner.skip_duplicates and self.is_request_duplicated():
+				return False
 
-		cmd = [
-			#"--checks", "sql_injection*",
-			"--checks", "code_injection*,file_inclusion*,path_traversal*,rfi*,xss*,xxe*", # "xss*",
-			"--output-only-positives",
-			"--http-request-concurrency", "1",
-			"--http-request-timeout", "10000",
-			"--timeout", timeout, #"00:03:00",
-			"--scope-dom-depth-limit", "0",
-			"--scope-directory-depth-limit", "0",
-			"--scope-page-limit", "1",
-			"--report-save-path", out_file,
-			"--snapshot-save-path", "/dev/null",
-			#"--http-proxy-type", "socks5",
-			#"--http-proxy","127.0.0.1:9150"
-			]
+			timeout = str(datetime.timedelta(seconds=(self.scanner.settings['process_timeout'] - 5)))
 
-		if self.audit_both_methods:
-			cmd.append("--audit-with-both-methods")
+			cmd = [
+				#"--checks", "sql_injection*",
+				"--checks", "code_injection*,file_inclusion*,path_traversal*,rfi*,xss*,xxe*", # "xss*",
+				"--output-only-positives",
+				"--http-request-concurrency", "1",
+				"--http-request-timeout", "10000",
+				"--timeout", timeout, #"00:03:00",
+				"--scope-dom-depth-limit", "0",
+				"--scope-directory-depth-limit", "0",
+				"--scope-page-limit", "1",
+				"--report-save-path", out_file,
+				"--snapshot-save-path", "/dev/null",
+				#"--http-proxy-type", "socks5",
+				#"--http-proxy","127.0.0.1:9150"
+				]
 
-		if request.referer:
-			cmd.extend(['--http-request-header', 'Referer=%s' % request.referer])
+			if self.scanner.audit_both_methods:
+				cmd.append("--audit-with-both-methods")
 
-		if len(request.cookies) > 0:
-			cmd.extend(["--http-cookie-string", "; ".join(["%s=%s" % (c.name,c.value) for c in request.cookies])])
+			if self.request.referer:
+				cmd.extend(['--http-request-header', 'Referer=%s' % self.request.referer])
 
-		cmd.append(request.url)
+			if len(self.request.cookies) > 0:
+				cmd.extend(["--http-cookie-string", "; ".join(["%s=%s" % (c.name, c.value) for c in self.request.cookies])])
 
-		if not self.execute_command:
-			print cmd_to_str(self.settings['scanner_exe'] + cmd)
-			self.exit(0)
-			return False
+			cmd.append(self.request.url)
 
-		return cmd
+			if not self.scanner.execute_command:
+				print cmd_to_str(self.settings['scanner_exe'] + cmd)
+				self.exit(0)
+				return False
 
-	def scanner_executed(self, request, out, err, tmp_dir, cmd):
-		out_file = tmp_dir + "/report"
+			out = None
+			self.sprint(cmd_to_str(cmd))
+			try:
+				cmd_out = self.utils.execmd(self.scanner.acmd, cmd)
+				self.sprint(cmd_out['out'])
+				self.sprint(cmd_out['err'])
+				self.sprint(cmd_out['returncode'])
+				out = cmd_out['out']
+			except Exception as e:
+				self.sprint(e)
 
-		if not os.path.isfile(out_file):
-			return
+			if not os.path.isfile(out_file):
+				return
 
-		json_file = tmp_dir + "/report.json"
+			json_file = self.tmp_dir + "/report.json"
+			try:
+				cmd_out = self.utils.execmd(self.scanner.rcmd, ["--reporter", "json:outfile=%s" % json_file, out_file])
+			except Exception as e:
+				print "%s" % e
 
-		cmd = [self.reporter, "--reporter", "json:outfile=%s" % json_file, out_file]
-		exe = CommandExecutor(cmd, True)
-		out, err = exe.execute(30)
+			if cmd_out['err']:
+				print ">>> error exporting arachni to json: %s %s" % (cmd_out['err'], self.request.url)
+				return
 
-		if err:
-			print ">>> error exporting arachni to json: %s %s" % (err, request.url)
-			return
+			if not os.path.isfile(json_file):
+				return
 
-		if not os.path.isfile(json_file):
-			return
+			with open(json_file,'r') as fil:
+				jsn = fil.read()
 
-		with open(json_file,'r') as fil:
-			jsn = fil.read()
+			report = []
+			try:
+				report = json.loads(jsn)
+			except Exception as e:
+				print err
 
-		report = []
-		try:
-			report = json.loads(jsn)
-		except Exception as e:
-			print err
+			issues = report['issues']
 
-		issues = report['issues']
+			for i in issues:
+				ref = i['references']['OWASP'] if i['references'] and 'OWASP' in i['references'] else "N/A"
+				req = "N/A"
+				req = None
 
-		for i in issues:
-			ref = i['references']['OWASP'] if i['references'] and 'OWASP' in i['references'] else "N/A"
-			req = "N/A"
-			req = None
-
-			if 'request' in i:
-				req = i['request']
-			elif 'variations' in i and len(i['variations']) > 0:
-				req = i['variations'][0]['request']
+				if 'request' in i:
+					req = i['request']
+				elif 'variations' in i and len(i['variations']) > 0:
+					req = i['variations'][0]['request']
 
 
-			fields = (i['name'], ref, i['severity'], req['headers_string'] if req else "N/A")
-			descr = "D E T A I L S\n\nName:       %s\nReference:  %s\nSeverity:   %s\n\n\nR E Q U E S T\n\n%s" % fields
+				fields = (i['name'], ref, i['severity'], req['headers_string'] if req else "N/A")
+				descr = "D E T A I L S\n\nName:       %s\nReference:  %s\nSeverity:   %s\n\n\nR E Q U E S T\n\n%s" % fields
 
-			if req and req['method'] == "post":
-				descr += "%s" % urllib.urlencode(req['body'])
-
-			self.save_vulnerability(request, i['check']['shortname'], descr)
+				if req and req['method'] == "post":
+					descr += "%s" % urllib.urlencode(req['body'])
+				self.save_vulnerabilities([{"type":i['check']['shortname'], "description": descr}])
+				#self.save_vulnerability(request, i['check']['shortname'], descr)
 
 
 

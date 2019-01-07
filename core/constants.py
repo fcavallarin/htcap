@@ -44,3 +44,6 @@ ERROR_MAXREDIRECTS = "too_many_redirects"
 ERROR_CRAWLDEPTH = "crawler_depth_limit_reached"
 VULNTYPE_SQLI = "sqli"
 VULNTYPE_XSS = "xss"
+
+METHOD_GET = "GET"
+METHOD_POST = "POST"

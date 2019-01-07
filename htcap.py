@@ -27,11 +27,25 @@ from core.util.util import Util
 reload(sys)
 sys.setdefaultencoding('utf8')
 
+def split_argv(argv):
+	argvs = []
+	tmp = []
+	cur = 0
+	for a in argv:
+		if a == ";":
+			cur += 1
+			continue
+		if len(argvs) == cur:
+			argvs.append([])
+		argvs[cur].append(a)
+	return argvs
 
 def usage():
 	infos = get_program_infos()
 	print ("htcap ver " + infos['version'] + "\n"
-		   "usage: htcap <command>\n" 
+		   "usage: htcap <command>\n"
+		   "commands are chainable using '\;' and they share the same database\n"
+		   "  ex: htcap crawl http://htcap.org htcap.db \\; scan sqlmap \\; util report htcap.html\n"
 		   "Commands: \n"
 		   "  crawl                  run crawler\n"
 		   "  scan                   run scanner\n"
@@ -41,18 +55,30 @@ def usage():
 
 if __name__ == '__main__':
 
+	os.environ["NODE_PATH"] = "{cd}{p}:{cd}{p}node_modules".format(cd=getrealdir(__file__), p='core/nodejs/')
+
 	if len(sys.argv) < 2:
 		usage()
 		sys.exit(1)
 
-	elif sys.argv[1] == "crawl":
-		Crawler(sys.argv[2:])
-	elif sys.argv[1] == "scan":
-		Scanner(sys.argv[2:])
-	elif sys.argv[1] == "util":
-		Util(sys.argv[2:])
-	else:
-		usage();
-		sys.exit(1)
+	argvs = split_argv(sys.argv[1:])
+	for argv in argvs:
+		if argv[0] not in ('crawl', 'scan', 'util'):
+			print "Command not found: %s" % argv[0]
+			sys.exit(1)
+	cr = None
+	sc = None
+	for argv in argvs:
 
+		if argv[0] == "crawl":
+			cr = Crawler(argv[1:])
+		elif argv[0] == "scan":
+			if sc:
+				dbfile = sc.db_file
+			else:
+				dbfile = cr.db_file if cr else None
+			sc = Scanner(argv[1:], dbfile)
+		elif argv[0] == "util":
+			dbfile = cr.db_fname if cr else None
+			Util(argv[1:], dbfile)
 	sys.exit(0)

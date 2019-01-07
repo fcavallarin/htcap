@@ -40,13 +40,14 @@ from core.constants import *
 
 class HttpGet:
 
-	def __init__(self, request, timeout, retries=None, useragent=None, proxy=None):
+	def __init__(self, request, timeout, retries=None, useragent=None, proxy=None, extra_headers=None):
 		self.request = request
 		self.timeout = timeout
 		self.retries = retries if retries else 1
-		self.proxy = proxy
+		self.proxy = parse_proxy_string(proxy) if isinstance(proxy, basestring) else proxy
 		self.retries_interval = 0.5
 		self.useragent = useragent
+		self.extra_headers = extra_headers
 
 	def urllib2_opener(self, request, jar_response, follow_redirect = None):
 		url = request.url
@@ -186,14 +187,20 @@ class HttpGet:
 
 
 
-	def send_request(self, url=None): # Shared.options['process_timeout']
+	def send_request(self, method=None, url=None, data=None, cookies=None, ignore_errors=False): # Shared.options['process_timeout']
 
-		if self.request.method == "POST":
-			raise Exception("get_file: POST method with urllib is not supported yet")
-
+		if not method:
+			method = self.request.method
 
 		if not url:
 			url = self.request.url
+
+		if method == "POST":
+			if not data:
+				data = self.request.data if self.request.data else ""
+
+		if not cookies:
+			cookies = []
 
 		jar_request = cookielib.LWPCookieJar()
 
@@ -208,15 +215,32 @@ class HttpGet:
 
 		while True:
 			try :
-
+				existing_cookies = []
 				for cookie in self.request.cookies:
-					jar_request.set_cookie(cookie.get_cookielib_cookie())
+					clc = cookie.get_cookielib_cookie()
+					for c in cookies:
+						if c['name'] == cookie.name:
+							clc.value = c['value']
+							existing_cookies.append(c)
+					jar_request.set_cookie(clc)
+
+				for cookie in [x for x in cookies if x not in existing_cookies]:
+				 	c = Cookie(cookie) # check what to do with cookie.setter
+					jar_request.set_cookie(c.get_cookielib_cookie())
 
 				opener = self.urllib2_opener(self.request, None, True)
-				req = urllib2.Request(url=url)
+				req = urllib2.Request(url=url, data=data)
 				jar_request.add_cookie_header(req)
+				if self.extra_headers:
+					for hn in self.extra_headers:
+						req.add_header(hn, self.extra_headers[hn])
 				now = time.time()
-				res = opener.open(req, None, self.timeout)
+				try:
+					res = opener.open(req, None, self.timeout)
+				except urllib2.HTTPError as e:
+					if not ignore_errors:
+						raise
+					res = e
 				opener.close()
 
 				ret['code'] = res.getcode()
@@ -228,9 +252,8 @@ class HttpGet:
 				break
 
 			except Exception as e:
-				raise e
 				self.retries -= 1
-				if self.retries == 0: raise
+				if self.retries == 0:raise
 				time.sleep(self.retries_interval)
 
 		return ret

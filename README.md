@@ -1,11 +1,14 @@
 ## HTCAP
 
-Htcap is a web application scanner able to crawl single page application (SPA) in a recursive manner by intercepting ajax calls and DOM changes.  
-Htcap is not just another vulnerability scanner since it's focused on the crawling process and uses external tools to discover vulnerabilities. It's designed to be a tool for both manual and automated penetration test of modern web applications.
+Htcap is a web application scanner able to crawl single page application (SPA) in a recursive manner by intercepting ajax calls and DOM changes.
+Htcap is not just another vulnerability scanner since it's focused on the crawling process and it's aimed to detect and intercept ajax/fetch calls, websockets, jsonp ecc. It uses its own fuzzers plus a set of external tools to discover vulnerabilities and it's designed to be a tool for both manual and automated penetration test of modern web applications.
 
-This is the very first release that uses headless chrome instead of phantomjs. 
+It also features a small but powerful framework to quickly develop custom fuzzers with less than 60 lines of python.
+The fuzzers developed on top of htcap's framework can work with GET/POST data, XML and JSON payloads and switch between POST and GET. Of course, fuzzers run in parallel in a multi-threaded environment.
+
+This is the very first release that uses headless chrome instead of phantomjs.
 Htcap’s Javascript crawling engine has been rewritten to take advantage of the new async/await features of ecmascript and has been converted to a nodjes module build on top of [Puppetteer](https://github.com/GoogleChrome/puppeteer).
-          
+
 More infos at [htcap.org](http://htcap.org).
 
 ## SETUP

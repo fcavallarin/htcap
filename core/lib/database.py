@@ -29,7 +29,10 @@ class Database:
 				start_date INTEGER,
 				end_date INTEGER,
 				commandline TEXT,
-				user_agent TEXT
+				user_agent TEXT,
+				cookies TEXT,
+				proxy TEXT,
+				extra_headers TEXT
 			)
 		"""
 
@@ -127,16 +130,16 @@ class Database:
 			cur.execute(self.qry_create_assessment)
 			cur.execute(self.qry_create_vulnerability)
 
-			cur.execute("INSERT INTO crawl_info values (NULL, NULL, NULL, NULL, NULL, NULL)")
+			cur.execute("INSERT INTO crawl_info values (NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL)")
 
 			self.conn.commit()
 			self.close()
 
 		except Exception as e:
-			print str(e)
+			print "flecci %s" % str(e)
 
 
-	def save_crawl_info(self, htcap_version=None, target=None, start_date=None, end_date=None, commandline=None, user_agent=None):
+	def save_crawl_info(self, htcap_version=None, target=None, start_date=None, end_date=None, commandline=None, user_agent=None, proxy=None, extra_headers=None, cookies=None):
 		values = []
 		pars = []
 
@@ -165,6 +168,19 @@ class Database:
 			pars.append(" user_agent=?")
 			values.append(user_agent)
 
+		if proxy:
+			pars.append(" proxy=?")
+			values.append(proxy)
+
+		if extra_headers:
+			pars.append(" extra_headers=?")
+			values.append(extra_headers)
+
+		if cookies:
+			pars.append(" cookies=?")
+			values.append(cookies)
+
+
 		qry = "UPDATE crawl_info SET %s" % ",".join(pars) 
 
 		try:
@@ -175,7 +191,24 @@ class Database:
 			self.close()
 
 		except Exception as e:
-			print str(e)
+			print "flecci %s" % str(e)
+
+
+	def get_crawl_info(self):
+		info = None
+		qry = "SELECT * FROM crawl_info"
+		try:
+			self.connect()
+			cur = self.conn.cursor()
+			cur.execute(qry)
+			info = self.dict_from_row(cur.fetchone())
+			self.close()
+		except Exception as e:
+			raise
+
+		return info
+
+
 
 
 
@@ -231,7 +264,7 @@ class Database:
 				cur.execute(qry_child, (request.parent_db_id, req_id))
 
 		except Exception as e:
-			print str(e)
+			print "flecci %s" % str(e)
 
 
 
@@ -252,7 +285,7 @@ class Database:
 			cur = self.conn.cursor()
 			cur.execute(qry, values)
 		except Exception as e:
-			print str(e)
+			print "flecci %s" % str(e)
 
 
 
@@ -260,7 +293,7 @@ class Database:
 	def get_requests(self, types = "xhr"):
 		types = types.split(",")
 		ret = []
-		qry = "SELECT * FROM request WHERE out_of_scope=0 AND type IN (%s)" % ",".join("?"*len(types))
+		qry = "SELECT * FROM request WHERE out_of_scope=0 AND type IN (%s) order by id desc" % ",".join("?"*len(types))
 		try:
 			self.connect()
 			cur = self.conn.cursor()
@@ -271,10 +304,29 @@ class Database:
 			 	ret.append(req)
 			self.close()
 		except Exception as e:
-			print str(e)
+			print "flecci 114 %s" % str(e)
 
 		return ret
 
+
+
+	def get_request(self, id):
+		req = None
+		qry = "SELECT * FROM request WHERE out_of_scope=0 AND id=?"
+		try:
+			self.connect()
+			cur = self.conn.cursor()
+			cur.execute(qry, (str(id),))
+			r = cur.fetchone()
+			# !! parent must be null (or unset)
+			if r:
+				req = Request(r['type'], r['method'], r['url'], referer=r['referer'], data=r['data'], json_cookies=r['cookies'], db_id=r['id'], parent_db_id=r['id_parent'])
+			self.close()
+		except Exception as e:
+			raise
+			print "flecci 44 %s" % str(e)
+
+		return req
 
 	def create_assessment(self,scanner, date):
 
@@ -291,7 +343,7 @@ class Database:
 			self.close()
 			return id
 		except Exception as e:
-			print str(e)
+			print "flecci 33%s" % str(e)
 
 
 
@@ -305,7 +357,7 @@ class Database:
 			self.conn.commit()
 			self.close()
 		except Exception as e:
-			print str(e)
+			print "flecci 2 %s" % str(e)
 
 
 
@@ -322,4 +374,19 @@ class Database:
 			self.close()
 
 		except Exception as e:
-			print str(e)
+			print "flecci 1 %s" % str(e)
+
+
+	def insert_vulnerabilities(self, id_assessment, id_request, vulnerabilities):
+		error = "" # @TODO
+		qry = "INSERT INTO vulnerability (id_assessment, id_request, type, description, error) values (?,?,?,?,?)"
+		try:
+			self.connect()
+			cur = self.conn.cursor()
+			for v in vulnerabilities:
+				cur.execute(qry, (id_assessment, id_request, v['type'], v['description'], error))
+			self.conn.commit()
+			self.close()
+
+		except Exception as e:
+			print "insert vulns %s" % str(e)

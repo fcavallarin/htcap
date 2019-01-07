@@ -31,7 +31,7 @@ class BaseUtil:
 			% (self.get_settings()['descr'], self.utilname)
 		)
 
-	def __init__(self, argv):
+	def __init__(self, argv, db_file=None):
 		self.utilname = argv[0]
 		settings = self.get_settings()
 
@@ -45,4 +45,4 @@ class BaseUtil:
 			print str(err)
 			sys.exit(1)
 
-		self.main(args, opts)
+		self.main(args, opts, db_file)

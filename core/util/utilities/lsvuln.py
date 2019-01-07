@@ -25,7 +25,7 @@ class Lsvuln(BaseUtil):
 			% (self.get_settings()['descr'], self.utilname)
 		)
 
-	def main(self, args, opts):
+	def main(self, args, opts, db_file=None):
 		qry = """
 			SELECT scanner,start_date,end_date,id_request,type,description FROM assessment a 
 			INNER JOIN vulnerability av ON a.id=av.id_assessment
@@ -33,7 +33,7 @@ class Lsvuln(BaseUtil):
 			%s
 		"""
 
-		dbfile = args[0]
+		dbfile = args[0] if not db_file else db_file
 		where = args[1] if len(args) > 1 else "1=1"
 
 		conn = sqlite3.connect(dbfile)

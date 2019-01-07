@@ -27,7 +27,7 @@ class Lsajax(BaseUtil):
 			% self.utilname
 		)
 
-	def main(self, args, opts):
+	def main(self, args, opts, db_file=None):
 		qry = """
 			SELECT r.id, r.url as page, r.referer, a.method, a.url,a.data,a.trigger
 			FROM request r inner join request a on r.id=a.id_parent
@@ -59,7 +59,7 @@ class Lsajax(BaseUtil):
 				print_post_data = True
 
 
-		dbfile = args[0]
+		dbfile = args[0] if not db_file else db_file
 
 		if not os.path.exists(dbfile):
 			print "No such file %s" % dbfile

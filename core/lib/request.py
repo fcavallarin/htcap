@@ -13,12 +13,13 @@ version.
 from urlparse import urljoin
 from core.lib.cookie import Cookie
 from core.lib.utils import *
-import json 
+from core.constants import *
+import json
 from core.lib.thirdparty.simhash import Simhash
 
 class Request(object):
 
-	def __init__(self, type, method, url, parent = None, referer = None, data = None, trigger=None, json_cookies = None, set_cookie = None, http_auth=None, db_id = None, parent_db_id = None, out_of_scope = None):
+	def __init__(self, type, method, url, parent=None, referer=None, data=None, trigger=None, json_cookies=None, set_cookie=None, http_auth=None, db_id=None, parent_db_id=None, out_of_scope=None, extra_headers=None):
 		self.type = type
 		self.method = method
 		self._html = None
@@ -56,12 +57,15 @@ class Request(object):
 
 
 		self.data = data if data else ""
+		if self.method == METHOD_GET and data:
+			self.url = merge_qs(self.url, data)
+			self.data = ""
 		self.trigger = trigger
 		self.db_id = db_id
 		self.parent_db_id = parent_db_id
 		self.out_of_scope = out_of_scope
 		self.cookies = []
-
+		self.extra_headers = extra_headers
 		self.http_auth = parent.http_auth if not http_auth and parent else http_auth
 
 		self.redirects = parent.redirects + 1 if type == REQTYPE_REDIRECT and parent else 0

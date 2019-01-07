@@ -57,7 +57,7 @@ class Crawler:
 		self.crawl_end_time = None
 		self.page_hashes = []
 		self.request_patterns = []
-
+		self.db_file = ""
 		self.defaults = {
 			"useragent": 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/72.0.3582.0 Safari/537.36',
 			"num_threads": 10,
@@ -128,7 +128,7 @@ class Crawler:
 			   "  -e               disable hEuristic page deduplication\n"
 			   "  -L               use Legacy browser (phantomjs) instead of chrome\n"
 			   "  -l               do not run chrome in headless mode\n"
-			   "  -E               set extra http headers (ex -E foo=bar -E bar=foo)\n"
+			   "  -E HEADER        set extra http headers (ex -E foo=bar -E bar=foo)\n"
 			   )
 
 
@@ -149,23 +149,6 @@ class Crawler:
 		Shared.th_condition.acquire()
 		Shared.th_condition.notifyAll()
 		Shared.th_condition.release()
-
-
-
-	def parse_cookie_string(self, string):
-
-		cookies = []
-		try:
-			cookies = json.loads(string)
-		except ValueError:
-			tok = re.split("; *", string)
-			for t in tok:
-				k, v = t.split("=", 1)
-				cookies.append({"name":k.strip(), "value":unquote(v.strip())})
-		except Exception as e:
-			raise
-
-		return cookies
 
 
 
@@ -441,12 +424,11 @@ class Crawler:
 			elif o == '-A':
 				http_auth = v
 			elif o == '-p':
-				if v == "tor": v = "socks5:127.0.0.1:9150"
-				proxy =  v.split(":")
-				if proxy[0] not in ("http", "socks5"):
-					print "only http and socks5 proxies are supported"
+				try:
+					Shared.options['proxy'] = parse_proxy_string(v)
+				except Exception as e:
+					print e
 					sys.exit(1)
-				Shared.options['proxy'] = {"proto":proxy[0], "host":proxy[1], "port":proxy[2]}
 			elif o == '-d':
 				for ad in v.split(","):
 					# convert *.domain.com to *.\.domain\.com
@@ -520,7 +502,7 @@ class Crawler:
 
 		if cookie_string:
 			try:
-				start_cookies = self.parse_cookie_string(cookie_string)
+				start_cookies = parse_cookie_string(cookie_string)
 			except Exception as e:
 				print "error decoding cookie string"
 				sys.exit(1)
@@ -553,7 +535,7 @@ class Crawler:
 		if user_script:
 			probe_options.extend(("-u", user_script))
 
-		probe_options.extend(("-x", str(Shared.options['process_timeout'])))
+		probe_options.extend(("-x", str(Shared.options['process_timeout'] - 1)))
 		probe_options.extend(("-A", Shared.options['useragent']))
 
 		if not Shared.options['override_timeout_functions']:
@@ -589,9 +571,9 @@ class Crawler:
 		start_requests = self.init_crawl(start_req, initial_checks, get_robots_txt)
 
 		database = None
-		fname = self.generate_filename(out_file, out_file_overwrite)
+		self.db_file = self.generate_filename(out_file, out_file_overwrite)
 		try:
-			database = self.init_db(fname, out_file)
+			database = self.init_db(self.db_file, out_file)
 		except Exception as e:
 			print str(e)
 			sys.exit(1)
@@ -601,7 +583,10 @@ class Crawler:
 			target = Shared.starturl,
 			start_date = self.crawl_start_time,
 			commandline = cmd_to_str(argv),
-			user_agent = Shared.options['useragent']
+			user_agent = Shared.options['useragent'],
+			proxy = json.dumps(Shared.options['proxy']),
+			extra_headers = json.dumps(Shared.options['extra_headers']),
+			cookies = json.dumps(start_cookies)
 		)
 
 		database.connect()
@@ -612,7 +597,7 @@ class Crawler:
 		database.close()
 
 		print "done"
-		print "Database %s initialized, crawl started with %d threads" % (fname, num_threads)
+		print "Database %s initialized, crawl started with %d threads" % (self.db_file, num_threads)
 
 		for n in range(0, num_threads):
 			thread = CrawlerThread()

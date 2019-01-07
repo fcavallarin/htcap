@@ -28,7 +28,7 @@ class Updcookie(BaseUtil):
 		)
 
 
-	def main(self, argv):
+	def main(self, argv, opts, db_file=None):
 		qry = """
 			SELECT id, cookies
 			FROM request 

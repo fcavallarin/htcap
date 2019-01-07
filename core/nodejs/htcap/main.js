@@ -285,7 +285,12 @@ Crawler.prototype.loadPage = async function(browser){
 			}
 
 			firstRun = false;
-		}
+		} /*else {
+			if (request.resourceType() === 'image'){
+				request.abort();
+				return;
+			}
+		}*/
 
 		req.continue(overrides);
 	});

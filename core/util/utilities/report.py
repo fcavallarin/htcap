@@ -181,7 +181,7 @@ class Report(BaseUtil):
 
 
 
-	def main(self, args, opts):
+	def main(self, args, opts, db_file=None):
 
 		base_dir = os.path.dirname(os.path.realpath(__file__)) + os.sep + "htmlreport" + os.sep
 
@@ -189,7 +189,7 @@ class Report(BaseUtil):
 		# 	print "usage: %s <dbfile> <outfile>" % args[0]
 		# 	sys.exit(1)
 
-		dbfile = args[0]
+		dbfile = args[0] if not db_file else db_file
 		outfile = args[1]
 
 		if not os.path.exists(dbfile):

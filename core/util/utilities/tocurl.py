@@ -27,7 +27,7 @@ class Tocurl(BaseUtil):
 			% (self.get_settings()['descr'], self.utilname)
 		)
 
-	def main(self, args, opts):
+	def main(self, args, opts, db_file=None):
 		qry = "SELECT method, url, data, referer, cookies FROM request WHERE %s"
 
 		dbfile = args[0]

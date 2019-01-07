@@ -12,7 +12,7 @@ version.
 
 "use strict";
 
-const htcap = require("./htcap");
+const htcap = require("htcap");
 const utils = require('./utils');
 const process = require('process');
 
@@ -47,6 +47,7 @@ if(targetUrl.length < 4 || targetUrl.substring(0,4).toLowerCase() != "http"){
 htcap.launch(targetUrl, options).then( crawler => {
 	const page = crawler.page();
 	var execTO = null;
+	var domLoaded = false;
 
 	console.log("[");
 
@@ -66,6 +67,7 @@ htcap.launch(targetUrl, options).then( crawler => {
 
 	crawler.on("domcontentloaded", async function(e, crawler){
 		//utils.printCookies(crawler);
+		domLoaded = true;
 		await utils.printLinks("html", crawler.page())
 		await utils.printForms("html", crawler.page())
 
@@ -146,7 +148,7 @@ htcap.launch(targetUrl, options).then( crawler => {
 
 
 	async function end(){
-		if(!crawler.redirect()){
+		if(domLoaded && !crawler.redirect()){
 			const el = await crawler.page().$("html");
 			const v = await el.getProperty('innerText');
 			const hash = await v.jsonValue();
@@ -169,9 +171,11 @@ htcap.launch(targetUrl, options).then( crawler => {
 		crawler.on("end", function(){});
 		crawler.errors().push(["probe_timeout", "maximum execution time reached"]);
 		end();
-	}, options.maxExecTime);
+	}, options.maxExecTime-2);
 
-
-	crawler.start()
+	setTimeout(()=>{
+		crawler.start()
+	},6000)
+		
 
 })

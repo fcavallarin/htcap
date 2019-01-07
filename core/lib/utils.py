@@ -1,12 +1,12 @@
-# -*- coding: utf-8 -*- 
+# -*- coding: utf-8 -*-
 
 """
 HTCAP - beta 1
 Author: filippo.cavallarin@wearesegment.com
 
-This program is free software; you can redistribute it and/or modify it under 
-the terms of the GNU General Public License as published by the Free Software 
-Foundation; either version 2 of the License, or (at your option) any later 
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; either version 2 of the License, or (at your option) any later
 version.
 """
 
@@ -17,10 +17,14 @@ import pipes
 import re
 import posixpath
 import subprocess
+import json
 
+from urllib import urlencode, unquote
 from urlparse import urlsplit, urljoin, parse_qsl
 from core.lib.exception import *
 from core.constants import *
+from HTMLParser import HTMLParser
+from core.lib.shell import CommandExecutor
 
 def get_program_infos():
 	infos = {
@@ -77,15 +81,22 @@ def stdoutw(str):
 
 
 def getrealdir(path):
-	return os.path.dirname(os.path.realpath(path)) + os.sep 
+	return os.path.dirname(os.path.realpath(path)) + os.sep
 
 
-def join_qsl(qs):
+def join_qsl(qs): # why not urlunsplit() ???
 	"""
 	join a list returned by parse_qsl
 	do not use urlencode since it will encode values and not just join tuples
 	"""
 	return "&".join(["%s=%s" % (k,v) for k,v in qs])
+
+
+def merge_qs(url, qs):
+	purl = urlsplit(url)
+	query = parse_qsl(purl.query, True) + parse_qsl(qs, True)
+	return purl._replace(query=urlencode(query)).geturl()
+
 
 
 # ?a=1&a=2&a=3 -> ?a=3, ?a[]=1&a[]=2&a[]=3 -> UNCHANGED
@@ -106,7 +117,7 @@ def group_qs_params(url):
 
 
 def normalize_url(url):
-	# add http if scheme is not present 
+	# add http if scheme is not present
 	# if an url like 'test.com:80//path' is passed to urlsplit the result is:
 	# (scheme='test.com',  path='80//path', ...)
 	if not re.match("^[a-z]+://", url, re.I):
@@ -173,7 +184,7 @@ def remove_tokens(query):
 def get_cmd_path(exe_name):
 	standard_paths = [os.getcwd()]
 	envpath = os.environ['PATH'].split(os.pathsep)
-	
+
 	if sys.platform != "win32":
 		# force check to standard paths in case $PATH is not set (ie crontab)
 		standard_paths.extend(["/usr/bin", "/usr/local/bin", "/usr/share/bin"])
@@ -234,16 +245,116 @@ def check_dependences(base_dir, usePhantomjs=False):
 	if node_deps != "":
 		#errors.append("puppeteer")
 		sys.stdout.write("Puppeteer is missing, install it via npm? [Y/n]: ")
-		if sys.stdin.read(1) != "n":		
+		if sys.stdin.read(1) != "n":
 			print "Installing Puppeteer"
 			try:
 				npm_install = subprocess.call("cd %s && %s install" % (probe_dir, npm), shell=True)
 			except Exception as e:
 				errors.append("npm_install_exception")
-				
+
 			if not npm_install:
 				errors.append("npm_install")
 		else:
-			errors.append("puppeteer")				
+			errors.append("puppeteer")
 
 	return errors
+
+
+
+
+def strip_html_tags(html):
+	"""
+	Remove html tags from string
+
+	Parameters
+	----------
+	html: string
+		Html input
+
+	Returns
+	_______
+	string
+		String without html tags
+
+	"""
+
+	class FetchText(HTMLParser):
+		def __init__(self):
+			HTMLParser.__init__(self)
+			self.txt = []
+
+		def handle_data(self, d):
+			self.txt.append(d)
+
+		def get(self):
+			return "".join(self.txt)
+
+
+	f = FetchText()
+	f.feed(html)
+	return f.get()
+
+
+def parse_proxy_string(str):
+	if str == "tor": str = "socks5:127.0.0.1:9150"
+	proxy =  str.split(":")
+	if proxy[0] not in ("http", "socks5"):
+		raise Exception("only http and socks5 proxies are supported")
+	return {"proto":proxy[0], "host":proxy[1], "port":proxy[2]}
+
+
+
+def parse_cookie_string(string):
+	try:
+		with open(v) as cf:
+			return json.loads(cf.read())
+	except Exception as e:
+		pass
+
+	try:
+		return json.loads(string)
+	except ValueError:
+		cookies = []
+		tok = re.split("; *", string)
+		for t in tok:
+			k, v = t.split("=", 1)
+			cookies.append({"name":k.strip(), "value":unquote(v.strip())})
+		return cookies
+	except Exception as e:
+		raise
+
+
+
+def execmd(cmd, params=None, timeout=None):
+	"""
+	Execute a shell command
+
+	Parameters
+	----------
+	cmd: string
+		Path to executable or executable name (if in $PATH)
+	params: array_like, optional
+		List of command arguments
+	timeout: int, optional
+		Execution timeout in seconds
+
+	Returns
+	-------
+	dict
+		Dictionary with fields:
+		 - out str: command output (stdout)
+		 - err str: command error or error string if timeout
+		 - returncode int: command return code
+
+	Raises
+	------
+
+	"""
+	if not re.search(r'^\.?/', cmd):
+		cmd = get_cmd_path(cmd)
+	if not cmd or not os.path.isfile(cmd):
+		raise Exception("Command not found")
+	cmd = [cmd] + params if params else [cmd]
+	exe = CommandExecutor(cmd, stderr=True)
+	out, err = exe.execute(timeout)
+	return {"out": out, "err": err, "returncode": exe.returncode}

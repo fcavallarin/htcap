@@ -120,7 +120,11 @@ class CrawlerThread(threading.Thread):
 
 		if len(request.cookies) > 0:
 			for cookie in request.cookies:
-				cookies.append(cookie.get_dict())
+				c = cookie.get_dict()
+				if not c['domain']:
+					purl = urlsplit(request.url)
+					c['domain'] = purl.netloc.split(":")[0]
+				cookies.append(c)
 
 			with open(self.cookie_file,'w') as fil:
 				fil.write(json.dumps(cookies))
@@ -233,7 +237,7 @@ class CrawlerThread(threading.Thread):
 				if Shared.options['use_urllib_onerror'] == False:
 					continue
 				try:
-					hr = HttpGet(request, Shared.options['process_timeout'], self.process_retries, Shared.options['useragent'], Shared.options['proxy'])
+					hr = HttpGet(request, Shared.options['process_timeout'], self.process_retries, Shared.options['useragent'], Shared.options['proxy'], Shared.options['extra_headers'])
 					requests = hr.get_requests()
 				except Exception as e:
 					errors.append(str(e))

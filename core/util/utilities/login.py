@@ -51,7 +51,7 @@ class Login(BaseUtil):
 		)
 
 
-	def main(self, args, opts):
+	def main(self, args, opts, db_file=None):
 		passw = None
 		format = None
 		out_cookies = True

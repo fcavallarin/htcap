@@ -39,7 +39,7 @@ exports.options = {
 	returnHtml: false,
 	setCookies: [],
 	excludedUrls: [],
-	maximumRecursion: 50,
+	maximumRecursion: 15,
 	printUnknownRequests: false, // unknown requests are for example mailto: and javascript: urls
 	maximumAjaxChain: 30,
 	preventElementRemoval: 1,
