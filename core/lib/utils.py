@@ -236,9 +236,10 @@ def check_dependences(base_dir, usePhantomjs=False):
 		errors.append("npm")
 
 	probe_dir = os.path.join(base_dir, 'probe', 'chrome-probe')
+	node_dir = os.path.join(base_dir, '..', 'nodejs')
 	node_deps = ""
 	try:
-		node_deps = subprocess.check_output(get_node_cmd() + [os.path.join(probe_dir, 'ckdeps.js')])
+		node_deps = subprocess.check_output(get_node_cmd() + [os.path.join(node_dir, 'ckdeps.js')])
 	except:
 		pass
 
@@ -248,7 +249,7 @@ def check_dependences(base_dir, usePhantomjs=False):
 		if sys.stdin.read(1) != "n":
 			print "Installing Puppeteer"
 			try:
-				npm_install = subprocess.call("cd %s && %s install" % (probe_dir, npm), shell=True)
+				npm_install = subprocess.call("cd %s && %s install" % (node_dir, npm), shell=True)
 			except Exception as e:
 				errors.append("npm_install_exception")
 
