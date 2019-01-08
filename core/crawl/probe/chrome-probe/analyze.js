@@ -173,9 +173,7 @@ htcap.launch(targetUrl, options).then( crawler => {
 		end();
 	}, options.maxExecTime-2);
 
-	setTimeout(()=>{
-		crawler.start()
-	},6000)
-		
+
+	crawler.start()
 
 })
