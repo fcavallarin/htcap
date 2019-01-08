@@ -56,38 +56,10 @@ class Scanner:
 			if o == '-h':
 				self.usage()
 				sys.exit(0)
-			elif o == '-n':
-				num_threads = int(v)
-			elif o == '-v':
-				display_progress = False
-			elif o == '-r':
-				request_types = v
 			elif o == '-m':
 				modules_path = v
 				self.scanners.extend(self.get_modules_file(modules_path))
 				sys.path.append(modules_path)
-			elif o == '-p':
-				if v == "0":
-					proxy = None
-				else:
-					try:
-						proxy = parse_proxy_string(v)
-					except Exception as e:
-						print e
-						sys.exit(1)
-			elif o == '-c':
-				try:
-					cookies = parse_cookie_string(v)
-				except:
-					print "Unable to decode cookies"
-					sys.exit(1)
-			elif o == '-U':
-				user_agent = v
-			elif o == '-E':
-				if not extra_headers:
-					extra_headers = {}
-				(hn, hv) = v.split("=", 1)
-				extra_headers[hn] = hv
 
 		if len(args) < 2:
 			if not db_file or len(args) == 0:
@@ -110,6 +82,35 @@ class Scanner:
 			print "Unable to read proxy, cookies and user_agent from db.. maybe db created vith an old version . . ."
 			pass
 
+		for o, v in opts:
+			if o == '-n':
+				num_threads = int(v)
+			elif o == '-v':
+				display_progress = False
+			elif o == '-r':
+				request_types = v
+			elif o == '-p':
+				if v == "0":
+					proxy = None
+				else:
+					try:
+						proxy = parse_proxy_string(v)
+					except Exception as e:
+						print e
+						sys.exit(1)
+			elif o == '-c':
+				try:
+					cookies = parse_cookie_string(v)
+				except:
+					print "Unable to decode cookies"
+					sys.exit(1)
+			elif o == '-U':
+				user_agent = v
+			elif o == '-E':
+				if not extra_headers:
+					extra_headers = {}
+				(hn, hv) = v.split("=", 1)
+				extra_headers[hn] = hv
 
 
 		scanner_argv = args[2:]

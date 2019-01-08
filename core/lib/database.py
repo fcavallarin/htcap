@@ -136,7 +136,7 @@ class Database:
 			self.close()
 
 		except Exception as e:
-			print "flecci %s" % str(e)
+			print "%s" % str(e)
 
 
 	def save_crawl_info(self, htcap_version=None, target=None, start_date=None, end_date=None, commandline=None, user_agent=None, proxy=None, extra_headers=None, cookies=None):
@@ -191,7 +191,7 @@ class Database:
 			self.close()
 
 		except Exception as e:
-			print "flecci %s" % str(e)
+			print "%s" % str(e)
 
 
 	def get_crawl_info(self):
@@ -264,7 +264,7 @@ class Database:
 				cur.execute(qry_child, (request.parent_db_id, req_id))
 
 		except Exception as e:
-			print "flecci %s" % str(e)
+			print "%s" % str(e)
 
 
 
@@ -285,15 +285,15 @@ class Database:
 			cur = self.conn.cursor()
 			cur.execute(qry, values)
 		except Exception as e:
-			print "flecci %s" % str(e)
+			print "%s" % str(e)
 
 
 
 
-	def get_requests(self, types = "xhr"):
+	def get_requests(self, types = "xhr", where=None):
 		types = types.split(",")
 		ret = []
-		qry = "SELECT * FROM request WHERE out_of_scope=0 AND type IN (%s) order by id desc" % ",".join("?"*len(types))
+		qry = "SELECT * FROM request WHERE out_of_scope=0 AND type IN (%s) and %s order by id desc" % (",".join("?"*len(types)), "1" if where is None else where)
 		try:
 			self.connect()
 			cur = self.conn.cursor()
@@ -304,7 +304,7 @@ class Database:
 			 	ret.append(req)
 			self.close()
 		except Exception as e:
-			print "flecci 114 %s" % str(e)
+			print "114 %s" % str(e)
 
 		return ret
 
@@ -324,7 +324,7 @@ class Database:
 			self.close()
 		except Exception as e:
 			raise
-			print "flecci 44 %s" % str(e)
+			print "44 %s" % str(e)
 
 		return req
 
@@ -343,7 +343,7 @@ class Database:
 			self.close()
 			return id
 		except Exception as e:
-			print "flecci 33%s" % str(e)
+			print "33%s" % str(e)
 
 
 
@@ -357,7 +357,7 @@ class Database:
 			self.conn.commit()
 			self.close()
 		except Exception as e:
-			print "flecci 2 %s" % str(e)
+			print "2 %s" % str(e)
 
 
 
@@ -374,7 +374,7 @@ class Database:
 			self.close()
 
 		except Exception as e:
-			print "flecci 1 %s" % str(e)
+			print "1 %s" % str(e)
 
 
 	def insert_vulnerabilities(self, id_assessment, id_request, vulnerabilities):
