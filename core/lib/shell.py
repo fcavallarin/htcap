@@ -37,10 +37,13 @@ class CommandExecutor:
 		self.process.kill()
 		pidfile = os.path.join(tempfile.gettempdir(), "htcap-pids-%s" % self.process.pid)
 		if os.path.isfile(pidfile):
-			with open(pidfile, "r") as f:
-				for p in f.read().split("\n"):
-					os.kill(int(p), signal.SIGKILL)
-			os.remove(pidfile)
+			try:
+				with open(pidfile, "r") as f:
+					for p in f.read().split("\n"):
+						os.kill(int(p), signal.SIGKILL)
+				os.remove(pidfile)
+			except:
+				pass
 		self.thread.join()
 
 

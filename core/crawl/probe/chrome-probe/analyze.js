@@ -86,6 +86,8 @@ htcap.launch(targetUrl, options).then( crawler => {
 
 
 	crawler.on("newdom", async function(e, crawler){
+		await utils.printLinks(e.params.rootNode, crawler.page())
+		await utils.printForms(e.params.rootNode, crawler.page())
 		//console.log(e.params)
 	})
 
