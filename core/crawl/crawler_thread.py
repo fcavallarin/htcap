@@ -56,6 +56,7 @@ class CrawlerThread(threading.Thread):
 		self.exit = False
 
 		self.cookie_file = "%s%shtcap_cookiefile-%s.json" % (tempfile.gettempdir(), os.sep, self.thread_uuid)
+		self.out_file = "%s%shtcap_output-%s.json" % (tempfile.gettempdir(), os.sep, self.thread_uuid)
 
 
 	def run(self):
@@ -142,6 +143,8 @@ class CrawlerThread(threading.Thread):
 
 		params.extend(("-i", str(request.db_id)))
 
+		params.extend(("-J", self.out_file))
+
 		params.append(url)
 
 
@@ -150,17 +153,19 @@ class CrawlerThread(threading.Thread):
 
 			# print cmd_to_str(Shared.probe_cmd + params)
 			# print ""
-			
+			jsn = None
 			cmd = CommandExecutor(Shared.probe_cmd + params, True)
-			jsn, err = cmd.execute(Shared.options['process_timeout'] + 2)
+			out, err = cmd.execute(Shared.options['process_timeout'] + 10)
 
-			if err:
-				print err
-				jsn = None
+			if os.path.isfile(self.out_file):
+				with open(self.out_file, "r") as f:
+					jsn = f.read()
+				os.unlink(self.out_file)
 
-			if jsn == None:
+			if err or not jsn:
 				errors.append(ERROR_PROBEKILLED)
-				break
+				if not jsn:
+					break
 
 
 			# try to decode json also after an exception .. sometimes phantom crashes BUT returns a valid json ..

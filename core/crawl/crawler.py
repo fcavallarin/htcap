@@ -67,7 +67,7 @@ class Crawler:
 			"http_auth": None,
 			"use_urllib_onerror": True,
 			"group_qs": False,
-			"process_timeout": 180, # when lots of element(~25000) are added dynamically it can take some time..
+			"process_timeout": 300,
 			"set_referer": True,
 			"scope": CRAWLSCOPE_DOMAIN,
 			"mode": CRAWLMODE_AGGRESSIVE,
@@ -117,7 +117,6 @@ class Crawler:
 			   "  -A CREDENTIALS   username and password used for HTTP authentication separated by a colon\n"
 			   "  -U USERAGENT     set user agent\n"
 			   "  -t TIMEOUT       maximum seconds spent to analyze a page (default " + str(self.defaults['process_timeout']) + ")\n"
-			   "  -u USER_SCRIPT   inject USER_SCRIPT into any loaded page\n"
 			   "  -S               skip initial checks\n"
 			   "  -G               group query_string parameters with the same name ('[]' ending excluded)\n"
 			   "  -N               don't normalize URL path (keep ../../)\n"
@@ -325,18 +324,6 @@ class Crawler:
 				pass
 
 
-	def check_user_script_syntax(self, probe_cmd, user_script):
-		try:
-			exe = CommandExecutor(probe_cmd + ["-u", user_script, "-v"] , False)
-			out = exe.execute(5)
-			if out:
-				print "\n* USER_SCRIPT error: %s" % out
-				sys.exit(1)
-			stdoutw(". ")
-		except KeyboardInterrupt:
-			print "\nAborted"
-			sys.exit(0)
-
 
 	def init_crawl(self, start_req, check_starturl, get_robots_txt):
 		start_requests = [start_req]
@@ -386,10 +373,9 @@ class Crawler:
 		http_auth = None
 		get_robots_txt = True
 		save_html = False
-		user_script = None
 
 		try:
-			opts, args = getopt.getopt(argv, 'hc:t:jn:x:A:p:d:BGR:U:wD:s:m:C:qr:SIHFP:Ovu:eLlE:')
+			opts, args = getopt.getopt(argv, 'hc:t:jn:x:A:p:d:BGR:U:wD:s:m:C:qr:SIHFP:OveLlE:')
 		except getopt.GetoptError as err:
 			print str(err)
 			sys.exit(1)
@@ -473,12 +459,6 @@ class Crawler:
 				Shared.options['crawl_forms'] = False
 			elif o == "-v":
 				verbose = True
-			elif o == "-u":
-				if os.path.isfile(v):
-					user_script = os.path.abspath(v)
-				else:
-					print "error: unable to open USER_SCRIPT"
-					sys.exit(1)
 			elif o == "-e":
 				Shared.options['deduplicate_pages'] = False
 			elif o == "-L":
@@ -491,7 +471,7 @@ class Crawler:
 				(hn, hv) = v.split("=", 1)
 				Shared.options['extra_headers'][hn] = hv
 
-		probe_cmd = get_phantomjs_cmd() if Shared.options['use_legacy_browser'] else get_node_cmd()		
+		probe_cmd = get_phantomjs_cmd() if Shared.options['use_legacy_browser'] else get_node_cmd()
 		if not probe_cmd: # maybe useless
 			print "Error: unable to find node (or phantomjs) executable"
 			sys.exit(1)
@@ -532,10 +512,8 @@ class Crawler:
 		if save_html:
 			probe_options.append("-H")
 
-		if user_script:
-			probe_options.extend(("-u", user_script))
 
-		probe_options.extend(("-x", str(Shared.options['process_timeout'] - 1)))
+		probe_options.extend(("-x", str(Shared.options['process_timeout'])))
 		probe_options.extend(("-A", Shared.options['useragent']))
 
 		if not Shared.options['override_timeout_functions']:
@@ -565,8 +543,6 @@ class Crawler:
 
 		stdoutw("Initializing . ")
 
-		if user_script and initial_checks:
-			self.check_user_script_syntax(probe_cmd, user_script)
 
 		start_requests = self.init_crawl(start_req, initial_checks, get_robots_txt)
 

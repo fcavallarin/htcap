@@ -15,6 +15,9 @@ version.
 const htcap = require("htcap");
 const utils = require('./utils');
 const process = require('process');
+const os = require('os');
+const fs = require('fs');
+const path = require('path');
 
 
 var sleep = function(n){
@@ -25,7 +28,7 @@ var sleep = function(n){
 
 
 
-var argv = utils.parseArgs(process.argv, "hVaftUJdICc:MSp:Tsx:A:r:mHX:PD:R:Oi:u:vy:E:l", {});
+var argv = utils.parseArgs(process.argv, "hVaftUdICc:MSp:Tsx:A:r:mHX:PD:R:Oi:u:vy:E:lJ:", {});
 var options = argv.opts
 
 var targetUrl = argv.args[0];
@@ -43,17 +46,21 @@ if(targetUrl.length < 4 || targetUrl.substring(0,4).toLowerCase() != "http"){
 }
 
 
-
 htcap.launch(targetUrl, options).then( crawler => {
 	const page = crawler.page();
 	var execTO = null;
 	var domLoaded = false;
 
-	console.log("[");
+
+	const pidfile = path.join(os.tmpdir(), "htcap-pids-" + process.pid)
+	fs.writeFileSync(pidfile, crawler.browser().process().pid)
+
+	utils.print_out("[");
 
 	function exit(){
 		clearTimeout(execTO);
 		crawler.browser().close();
+		fs.unlink(pidfile, (err) => {})
 	}
 
 	crawler.on("redirect", async function(e, crawler){
@@ -70,7 +77,6 @@ htcap.launch(targetUrl, options).then( crawler => {
 		domLoaded = true;
 		await utils.printLinks("html", crawler.page())
 		await utils.printForms("html", crawler.page())
-
 		//await sleep(4000)
 	});
 
@@ -80,6 +86,8 @@ htcap.launch(targetUrl, options).then( crawler => {
 
 
 	crawler.on("newdom", async function(e, crawler){
+		await utils.printLinks(e.params.rootNode, crawler.page())
+		await utils.printForms(e.params.rootNode, crawler.page())
 		//console.log(e.params)
 	})
 
@@ -153,15 +161,15 @@ htcap.launch(targetUrl, options).then( crawler => {
 			const v = await el.getProperty('innerText');
 			const hash = await v.jsonValue();
 			var json = '["page_hash",' + JSON.stringify(hash) + '],';
-			console.log(json);
+			utils.print_out(json);
 
 			if(options.returnHtml){
 				json = '["html",' + JSON.stringify(hash) + '],';
-				console.log(json);
+				utils.print_out(json);
 			}
 		}
 
-		utils.printStatus(crawler);
+		await utils.printStatus(crawler);
 		exit();
 	}
 
@@ -171,7 +179,7 @@ htcap.launch(targetUrl, options).then( crawler => {
 		crawler.on("end", function(){});
 		crawler.errors().push(["probe_timeout", "maximum execution time reached"]);
 		end();
-	}, options.maxExecTime-2);
+	}, options.maxExecTime);
 
 
 	crawler.start()

@@ -15,6 +15,7 @@ version.
 const { URL } = require('url');
 const fs = require('fs');
 
+var outfile = null;
 
 exports.parseArgs = function(args, optstring, defaults){
 	var g = getopt(args, optstring);
@@ -27,7 +28,7 @@ exports.printRequest = printRequest;
 exports.printLinks = printLinks;
 exports.printForms = printForms;
 exports.printStatus = printStatus;
-exports.printCookies = printCookies;
+exports.print_out = print_out;
 
 
 var printedRequests = [];
@@ -44,7 +45,7 @@ function printRequest(req){
 	if(printedRequests.indexOf(jr) != -1)
 		return;
 	printedRequests.push(jr);
-	console.log('["request",' + jr + "],");
+	print_out('["request",' + jr + "],");
 
 }
 
@@ -94,7 +95,7 @@ async function printForms(rootNode, page){
 
 
 
-function printStatus(crawler){
+async function printStatus(crawler){
 	var o = {
 		status: "ok"
 	};
@@ -108,8 +109,8 @@ function printStatus(crawler){
 		o.redirect = crawler.redirect();
 	}
 
-	printCookies(crawler);
-	console.log(JSON.stringify(o) + '\n]');
+	await printCookies(crawler);
+	print_out(JSON.stringify(o) + '\n]');
 }
 
 async function getFormAsRequest(frm, page){
@@ -164,8 +165,8 @@ async function getFormAsRequest(frm, page){
 };
 
 
-function printCookies(crawler){
-	console.log('["cookies",' + JSON.stringify(crawler.cookies()) + "],")
+async function printCookies(crawler){
+	print_out('["cookies",' + JSON.stringify(await crawler.cookies()) + "],")
 }
 
 
@@ -278,6 +279,12 @@ function parseArgsToOptions(args, defaults){
 			case "E":
 				options.extraHeaders = JSON.parse(args.opts[a][1]);
 				break;
+			case "J":
+				outfile = args.opts[a][1];
+				fs.writeFileSync(outfile, "", (err) => {
+					console.log("Error writing to outfile");
+				});
+				break;
 
 		}
 	}
@@ -320,6 +327,14 @@ function getopt(args, optstring){
 
 
 
+function print_out(str){
+	if(outfile){
+		fs.appendFileSync(outfile, str + "\n", (err) => {});
+	} else {
+		console.log(str);
+	}
+}
+
 
 function usage(){
 	var usage = "Usage: analyze.js [options] <url>\n" +
@@ -328,7 +343,7 @@ function usage(){
 				"  -f              don't fill values\n" +
 				"  -t              don't trigger events (onload only)\n" +
 				"  -s              don't check websockets\n" +
-				"  -M              dont' map events\n" +
+				"  -M              don't map events\n" +
 				"  -T              don't trigger mapped events\n" +
 				"  -S              don't check for <script> insertion\n" +
 				"  -P              load page with POST\n" +
@@ -348,8 +363,9 @@ function usage(){
 				"  -K              keep elements in the DOM (prevent removal)\n" +
 				"  -y <host:port>  use http proxY\n" +
 				"  -l              do not run chrome in headless mode\n" +
-				"  -v              exit after parsing options, used to verify user script";
-				"  -E              set extra http headers (json encoded {name:value}";
+				"  -v              exit after parsing options, used to verify user script\n" +
+				"  -E              set extra http headers (json encoded {name:value}\n" +
+				"  -J <path>       print json to file instead of stdout";
 	console.log(usage);
 }
 

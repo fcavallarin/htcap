@@ -83,16 +83,14 @@ class Arachni(BaseScanner):
 				"  -s       do not skip duplicated urls\n"
 				"  -p       print first command and exit\n"
 				"  -b       set audit-with-both-methods arachni option\n"
-				"  -x PATH  set arachni bin dir"
+				"  -x PATH  set arachni bin dir (by default is's supposed to be in $PATH)"
 			)
 
 	def get_settings(self):
 		return dict(
 			request_types = "xhr,link,form,jsonp,redirect,fetch",
 			num_threads = 5,
-			process_timeout = 180,
-			scanner_exe = "/usr/share/arachni/bin/arachni"
-			#scanner_exe = "/usr/bin/arachni"
+			process_timeout = 180
 		)
 
 	# return False to skip current request
@@ -136,7 +134,7 @@ class Arachni(BaseScanner):
 			cmd.append(self.request.url)
 
 			if not self.scanner.execute_command:
-				print cmd_to_str(self.settings['scanner_exe'] + cmd)
+				print cmd_to_str(self.scanner.acmd + cmd)
 				self.exit(0)
 				return False
 

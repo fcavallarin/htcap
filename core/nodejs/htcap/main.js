@@ -112,8 +112,28 @@ Crawler.prototype.page = function(){
 	return this._page;
 }
 
-Crawler.prototype.cookies = function(){
-	return this._cookies;
+Crawler.prototype.cookies = async function(){
+	var pcookies = [];
+	if(this._page){
+		let cookies = await this._page.cookies();
+		for(let c of cookies){
+			pcookies.push({
+				name: c.name,
+				value: c.value,
+				domain: c.domain,
+				path: c.path,
+				expires: c.expires,
+				httponly: c.httpOnly,
+				secure: c.secure
+			});
+			this._cookies = this._cookies.filter( (el) => {
+				if(el.name != c.name){
+					return el;
+				}
+			})
+		}
+	}
+	return this._cookies.concat(pcookies);
 }
 
 Crawler.prototype.redirect = function(){

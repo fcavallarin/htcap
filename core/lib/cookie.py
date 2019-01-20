@@ -37,7 +37,7 @@ class Cookie:
 
 
 	def update(self, cookie):
-		self.value = (quote(str(cookie['value'])) if 'value' in cookie and cookie['value'] else None)
+		self.value = (str(cookie['value']) if 'value' in cookie and cookie['value'] else None)
 		self.expires = (cookie['expires'] if 'expires' in cookie else None)
 		self.secure = (cookie['secure'] if 'secure' in cookie else False)
 		self.httponly = (cookie['httponly'] if 'httponly' in cookie else False)

@@ -319,7 +319,7 @@ def parse_cookie_string(string):
 		tok = re.split("; *", string)
 		for t in tok:
 			k, v = t.split("=", 1)
-			cookies.append({"name":k.strip(), "value":unquote(v.strip())})
+			cookies.append({"name":k.strip(), "value":v.strip()})
 		return cookies
 	except Exception as e:
 		raise

@@ -303,10 +303,10 @@ function parseCookiesFromHeaders(headers, url){
 				var ck = cookies[b].split(/; */);
 				var cookie = {domain: domain, path: "/", secure: false, httponly:false};
 				for(c = 0; c < ck.length; c++){
-					var kv = ck[c].split("=");
+					var kv = ck[c].split(/=(.+)/);
 					if(c == 0){
 						cookie.name = kv[0];
-						cookie.value = decodeURIComponent(kv[1]);
+						cookie.value = kv[1];
 						continue;
 					}
 					switch(kv[0].toLowerCase()){
@@ -328,8 +328,6 @@ function parseCookiesFromHeaders(headers, url){
 					}
 				}
 
-				//cookie.url = url;
-				//cookie.sameSite = "Lax";
 				if(!cookie.expires) // expires MUST be in seconds .. 
 					cookie.expires = parseInt((new Date()).getTime() / 1000) + (60*60*24*365);
 				ret.push(cookie);
