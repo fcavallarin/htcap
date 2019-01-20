@@ -39,7 +39,7 @@ class CommandExecutor:
 		if os.path.isfile(pidfile):
 			with open(pidfile, "r") as f:
 				for p in f.read().split("\n"):
-					os.kill(int(p), signal.SIGTERM)
+					os.kill(int(p), signal.SIGKILL)
 			os.remove(pidfile)
 		self.thread.join()
 

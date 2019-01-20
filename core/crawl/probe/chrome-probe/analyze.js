@@ -28,7 +28,7 @@ var sleep = function(n){
 
 
 
-var argv = utils.parseArgs(process.argv, "hVaftUJdICc:MSp:Tsx:A:r:mHX:PD:R:Oi:u:vy:E:l", {});
+var argv = utils.parseArgs(process.argv, "hVaftUdICc:MSp:Tsx:A:r:mHX:PD:R:Oi:u:vy:E:lJ:", {});
 var options = argv.opts
 
 var targetUrl = argv.args[0];
@@ -55,7 +55,7 @@ htcap.launch(targetUrl, options).then( crawler => {
 	const pidfile = path.join(os.tmpdir(), "htcap-pids-" + process.pid)
 	fs.writeFileSync(pidfile, crawler.browser().process().pid)
 
-	console.log("[");
+	utils.print_out("[");
 
 	function exit(){
 		clearTimeout(execTO);
@@ -159,11 +159,11 @@ htcap.launch(targetUrl, options).then( crawler => {
 			const v = await el.getProperty('innerText');
 			const hash = await v.jsonValue();
 			var json = '["page_hash",' + JSON.stringify(hash) + '],';
-			console.log(json);
+			utils.print_out(json);
 
 			if(options.returnHtml){
 				json = '["html",' + JSON.stringify(hash) + '],';
-				console.log(json);
+				utils.print_out(json);
 			}
 		}
 
@@ -177,7 +177,7 @@ htcap.launch(targetUrl, options).then( crawler => {
 		crawler.on("end", function(){});
 		crawler.errors().push(["probe_timeout", "maximum execution time reached"]);
 		end();
-	}, options.maxExecTime-2);
+	}, options.maxExecTime);
 
 
 	crawler.start()
