@@ -15,6 +15,9 @@ version.
 const htcap = require("htcap");
 const utils = require('./utils');
 const process = require('process');
+const os = require('os');
+const fs = require('fs');
+const path = require('path');
 
 
 var sleep = function(n){
@@ -43,17 +46,21 @@ if(targetUrl.length < 4 || targetUrl.substring(0,4).toLowerCase() != "http"){
 }
 
 
-
 htcap.launch(targetUrl, options).then( crawler => {
 	const page = crawler.page();
 	var execTO = null;
 	var domLoaded = false;
+
+
+	const pidfile = path.join(os.tmpdir(), "htcap-pids-" + process.pid)
+	fs.writeFileSync(pidfile, crawler.browser().process().pid)
 
 	console.log("[");
 
 	function exit(){
 		clearTimeout(execTO);
 		crawler.browser().close();
+		fs.unlink(pidfile, (err) => {})
 	}
 
 	crawler.on("redirect", async function(e, crawler){
@@ -70,7 +77,6 @@ htcap.launch(targetUrl, options).then( crawler => {
 		domLoaded = true;
 		await utils.printLinks("html", crawler.page())
 		await utils.printForms("html", crawler.page())
-
 		//await sleep(4000)
 	});
 

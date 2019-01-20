@@ -348,7 +348,7 @@ function usage(){
 				"  -K              keep elements in the DOM (prevent removal)\n" +
 				"  -y <host:port>  use http proxY\n" +
 				"  -l              do not run chrome in headless mode\n" +
-				"  -v              exit after parsing options, used to verify user script";
+				"  -v              exit after parsing options, used to verify user script" +
 				"  -E              set extra http headers (json encoded {name:value}";
 	console.log(usage);
 }
