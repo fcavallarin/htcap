@@ -167,7 +167,7 @@ htcap.launch(targetUrl, options).then( crawler => {
 			}
 		}
 
-		utils.printStatus(crawler);
+		await utils.printStatus(crawler);
 		exit();
 	}
 

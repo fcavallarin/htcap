@@ -27,7 +27,6 @@ exports.printRequest = printRequest;
 exports.printLinks = printLinks;
 exports.printForms = printForms;
 exports.printStatus = printStatus;
-exports.printCookies = printCookies;
 
 
 var printedRequests = [];
@@ -94,7 +93,7 @@ async function printForms(rootNode, page){
 
 
 
-function printStatus(crawler){
+async function printStatus(crawler){
 	var o = {
 		status: "ok"
 	};
@@ -108,7 +107,7 @@ function printStatus(crawler){
 		o.redirect = crawler.redirect();
 	}
 
-	printCookies(crawler);
+	await printCookies(crawler);
 	console.log(JSON.stringify(o) + '\n]');
 }
 
@@ -164,8 +163,8 @@ async function getFormAsRequest(frm, page){
 };
 
 
-function printCookies(crawler){
-	console.log('["cookies",' + JSON.stringify(crawler.cookies()) + "],")
+async function printCookies(crawler){
+	console.log('["cookies",' + JSON.stringify(await crawler.cookies()) + "],")
 }
 
 
