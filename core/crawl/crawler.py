@@ -497,13 +497,13 @@ class Crawler:
 			if Shared.options['proxy']:
 				probe_cmd.append("--proxy-type=%s" % Shared.options['proxy']['proto'])
 				probe_cmd.append("--proxy=%s:%s" % (Shared.options['proxy']['host'], Shared.options['proxy']['port']))
-			probe_cmd.append(self.base_dir + 'probe/analyze.js')
+			probe_cmd.append(os.path.join(self.base_dir, 'probe', 'analyze.js'))
 		else:
 			if Shared.options['proxy']:
 				probe_options.extend(["-y", "%s:%s:%s" % (Shared.options['proxy']['proto'], Shared.options['proxy']['host'], Shared.options['proxy']['port'])])
 			if not Shared.options['headless_chrome']:
 				probe_options.append("-l")
-			probe_cmd.append(self.base_dir + 'probe/chrome-probe/analyze.js')
+			probe_cmd.append(os.path.join(self.base_dir, 'probe', 'chrome-probe', 'analyze.js'))
 
 
 		if len(Shared.excluded_urls) > 0:
