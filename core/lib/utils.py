@@ -18,6 +18,7 @@ import re
 import posixpath
 import subprocess
 import json
+import xml.etree.ElementTree as XML
 
 from urllib import urlencode, unquote
 from urlparse import urlsplit, urljoin, parse_qsl
@@ -362,3 +363,22 @@ def execmd(cmd, params=None, timeout=None):
 	exe = CommandExecutor(cmd, stderr=True)
 	out, err = exe.execute(timeout)
 	return {"out": out, "err": err, "returncode": exe.returncode}
+
+
+
+def detect_content_type(str):
+	if not str:
+		return ""
+	try:
+		json.loads(str)
+		return "application/json"
+	except:
+		try:
+			XML.fromstring(str)
+			return "application/xml"
+		except:
+			try:
+				parse_qsl(str, True)
+				return "application/x-www-form-urlencoded"
+			except:
+				return "text"

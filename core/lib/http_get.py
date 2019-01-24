@@ -195,7 +195,7 @@ class HttpGet:
 		if not url:
 			url = self.request.url
 
-		if method == "POST":
+		if method in ("POST", "PUT"):
 			if not data:
 				data = self.request.data if self.request.data else ""
 
@@ -230,10 +230,14 @@ class HttpGet:
 
 				opener = self.urllib2_opener(self.request, None, True)
 				req = urllib2.Request(url=url, data=data)
+				req.get_method = lambda: method
 				jar_request.add_cookie_header(req)
 				if self.extra_headers:
 					for hn in self.extra_headers:
 						req.add_header(hn, self.extra_headers[hn])
+
+				if data and not 'Content-type' in req.headers:
+					req.add_header("Content-type", detect_content_type(data))
 				now = time.time()
 				try:
 					res = opener.open(req, None, self.timeout)
