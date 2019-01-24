@@ -381,4 +381,4 @@ def detect_content_type(str):
 				parse_qsl(str, True)
 				return "application/x-www-form-urlencoded"
 			except:
-				return "text"
+				return "text/plain"
