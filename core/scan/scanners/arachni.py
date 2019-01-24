@@ -67,7 +67,7 @@ class Arachni(BaseScanner):
 		try:
 			self.utils.execmd(self.acmd)
 		except:
-			print "arachni executable not found"
+			print "arachni executable not found %s" % self.acmd
 			self.exit(1)
 		try:
 			self.utils.execmd(self.rcmd)
@@ -118,6 +118,7 @@ class Arachni(BaseScanner):
 				"--scope-page-limit", "1",
 				"--report-save-path", out_file,
 				"--snapshot-save-path", "/dev/null",
+				"--daemon-friendly"
 				#"--http-proxy-type", "socks5",
 				#"--http-proxy","127.0.0.1:9150"
 				]
@@ -139,12 +140,13 @@ class Arachni(BaseScanner):
 				return False
 
 			out = None
-			self.sprint(cmd_to_str(cmd))
+			#self.sprint(cmd_to_str(cmd))
+			self.sprint("Scanning %s %s" % (self.request.method, self.request.url))
 			try:
 				cmd_out = self.utils.execmd(self.scanner.acmd, cmd)
-				self.sprint(cmd_out['out'])
-				self.sprint(cmd_out['err'])
-				self.sprint(cmd_out['returncode'])
+				# self.sprint(cmd_out['out'])
+				# self.sprint(cmd_out['err'])
+				# self.sprint(cmd_out['returncode'])
 				out = cmd_out['out']
 			except Exception as e:
 				self.sprint(e)

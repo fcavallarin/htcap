@@ -26,6 +26,7 @@ import subprocess
 from random import choice
 import string
 import ssl
+import signal
 
 
 from core.lib.exception import *
@@ -142,13 +143,27 @@ class Crawler:
 
 
 	def kill_threads(self, threads):
+		Shared.th_condition.acquire()
 		for th in threads:
-			if th.isAlive(): th.exit = True
+			if th.isAlive():
+				th.exit = True
+				th.pause = False
+				if th.cmd:
+					th.cmd.terminate()
+		Shared.th_condition.release()
+
 		# start notify() chain
 		Shared.th_condition.acquire()
 		Shared.th_condition.notifyAll()
 		Shared.th_condition.release()
 
+
+	def pause_threads(self, threads, pause):
+		Shared.th_condition.acquire()
+		for th in threads:
+			if th.isAlive():
+				th.pause = pause
+		Shared.th_condition.release()
 
 
 	def init_db(self, dbname, report_name):
@@ -231,8 +246,8 @@ class Crawler:
 		crawled = 0
 		pb = Progressbar(self.crawl_start_time, "pages processed")
 		req_to_crawl = start_requests
-		try:
-			while True:
+		while True:
+			try:
 
 				if display_progress and not verbose:
 					tot = (crawled + pending)
@@ -315,15 +330,43 @@ class Crawler:
 					database.close()
 				Shared.main_condition.release()
 
-		except KeyboardInterrupt:
-			print "\nTerminated by user"
+			except KeyboardInterrupt:
+				try:
+					Shared.main_condition.release()
+					Shared.th_condition.release()
+				except:
+					pass
+				self.pause_threads(threads, True)
+				if not self.get_runtime_command():
+					print "Exiting . . ."
+					return
+				print "Crawler is running"
+				self.pause_threads(threads, False)
+
+
+
+
+	def get_runtime_command(self):
+		while True:
+			print (
+				"\nCrawler is paused. Press enter to resume.\n"
+				# "   r    resume scan\n"
+				# "   v    verbose mode\n"
+				# "   p    show progress bar\n"
+				"Hit ctrl-c again to exit\n"
+			)
 			try:
-				Shared.main_condition.release()
-				Shared.th_condition.release()
-			except:
-				pass
+				ui = raw_input("> ").strip()
+			except KeyboardInterrupt:
+				print ""
+				return False
 
+			if ui == "":
+				break
 
+			print " "
+
+		return True
 
 	def init_crawl(self, start_req, check_starturl, get_robots_txt):
 		start_requests = [start_req]
