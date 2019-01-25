@@ -33,8 +33,9 @@ class CommandExecutor:
 		self.thread = None
 		self.returncode = -1
 
+	# @TODO implement locking (this method is called by other threads)
 	def kill(self):
-		self.process.kill()
+		self.terminate(True)
 		pidfile = os.path.join(tempfile.gettempdir(), "htcap-pids-%s" % self.process.pid)
 		if os.path.isfile(pidfile):
 			try:
@@ -46,16 +47,44 @@ class CommandExecutor:
 				pass
 		self.thread.join()
 
+	# @TODO implement locking (this method is called by other threads)
+	def terminate(self, kill=False):
+		if not self.process:
+			return
+		if sys.platform != "win32":
+			try:
+				os.killpg(self.process.pid, signal.SIGINT if not kill else signal.SIGKILL)
+			except:
+				pass
+		else:
+			if not kill:
+				self.process.terminate()
+			else:
+				self.process.kill()
+
 
 	def execute(self, timeout):
 
 		def executor():
 			try:
-				# close_fds=True is needed in threaded programs
-				self.process = subprocess.Popen(self.cmd,stderr=subprocess.PIPE, stdout=subprocess.PIPE, bufsize=0, close_fds=sys.platform != "win32")
+				kwargs = {
+					"stderr": subprocess.PIPE,
+					"stdout": subprocess.PIPE,
+					"bufsize": 0
+				}
+				if sys.platform != "win32":
+					# close_fds=True is needed in threaded programs
+					kwargs['close_fds'] = True
+					kwargs['preexec_fn'] = os.setsid
+				else:
+					kwargs['close_fds'] = False
+					kwargs['creationflags'] = subprocess.CREATE_NEW_PROCESS_GROUP
+
+				self.process = subprocess.Popen(self.cmd, **kwargs)
 				self.out, self.err = self.process.communicate()
 
 			except Exception as e:
+				print e
 				raise
 
 		self.thread = threading.Thread(target = executor)

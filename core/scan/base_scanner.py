@@ -62,6 +62,7 @@ class BaseScanner:
 		self.performed_requests = 0
 		self._urlpatterns = []
 		self._exitcode = 0
+		self._commands = []
 		self.scanner_name = self.__class__.__name__.lower()
 		self._running = False
 		self.settings = self.get_settings()
@@ -90,7 +91,7 @@ class BaseScanner:
 		self.user_agent = user_agent
 		self.extra_headers = extra_headers
 
-		self.utils = ScannerUtils(self.cookies, self.proxy, self.user_agent, self.extra_headers)
+		self.utils = ScannerUtils(self)
 
 		urlpatterns = []
 		for req in self.pending_requests:
@@ -117,6 +118,11 @@ class BaseScanner:
 		self.wait_executor(self.threads)
 
 		if not self.wait_threads_exit():
+			self._th_lock.acquire()
+			for cmd in self._commands:
+				if cmd:
+					cmd.kill()
+			self._th_lock.release()
 			os._exit(1)
 
 		self.end()
@@ -130,20 +136,11 @@ class BaseScanner:
 
 	def get_settings(self):
 		return dict(
-			request_types = "xhr,link,redirect,form,json",
+			request_types = "xhr,fetch,link,redirect,form,json",
 			num_threads = 10,
 			#process_timeout = 120,
 			#scanner_exe = ""
 		)
-
-
-	# def get_cmd(self, url, outfile):
-	# 	cmd = []
-	# 	return cmd
-
-
-	# def scanner_executed(self, id_parent, out, err, out_file):
-	# 	return
 
 
 	def wait_executor(self, threads):
@@ -172,6 +169,11 @@ class BaseScanner:
 						executor_done = False
 					th.join(1)
 			except KeyboardInterrupt:
+				try:
+					self._th_lock.release()
+					self._th_lock_stdout.release()
+				except:
+					pass
 				self.pause_threads(True)
 				if not self.get_runtime_command():
 					print "Exiting . . ."
@@ -197,7 +199,6 @@ class BaseScanner:
 			except KeyboardInterrupt:
 				print ""
 				return False
-
 			if ui == "r":
 				break
 			elif ui == "v":
@@ -219,6 +220,9 @@ class BaseScanner:
 			if th.isAlive():
 				th.exit = True
 				th.pause = False
+				for cmd in self._commands:
+					if cmd:
+						cmd.terminate()
 		self._th_lock.release()
 
 	def wait_threads_exit(self):
@@ -347,22 +351,6 @@ class BaseScanner:
 				sc.run()
 				self.inc_counter()
 
-				# else:
-				# 	cmd_options = self.scanner.get_cmd(req, self.tmp_dir)
-				# 	if cmd_options == False:
-				# 		self.inc_counter()
-				# 		continue
-
-				# 	cmd = self.scanner.settings['scanner_exe'] + cmd_options
-
-				# 	exe = CommandExecutor(cmd, True)
-				# 	out, err = exe.execute(self.scanner.settings['process_timeout'])
-				# 	# if err: print "\nError: \n%s\n%s\n%s\n" % (err," ".join(cmd),out)
-
-				# 	self.inc_counter()
-
-				# 	self.scanner.scanner_executed(req, out,err, self.tmp_dir, cmd)
-
 
 
 class ScannerThread:
@@ -389,11 +377,12 @@ class ScannerThread:
 
 class ScannerUtils:
 
-	def __init__(self, cookies, proxy, user_agent, extra_headers):
-		self.cookies = cookies
-		self.proxy = proxy
-		self.user_agent = user_agent
-		self.extra_headers = extra_headers
+	def __init__(self, scanner):
+		self.cookies = scanner.cookies
+		self.proxy = scanner.proxy
+		self.user_agent = scanner.user_agent
+		self.extra_headers = scanner.extra_headers
+		self.scanner = scanner
 
 	def send_request(self, req, url=None, method=None, data=None, cookies=None, user_agent=None, proxy=None, extra_headers=None, req_timeout=5, ignore_errors=False):
 		if not proxy:
@@ -427,5 +416,22 @@ class ScannerUtils:
 
 
 	def execmd(self, cmd, params=None, timeout=None):
-		return execmd(cmd, params, timeout)
+		if not re.search(r'^\.?/', cmd):
+			cmd = get_cmd_path(cmd)
+		if not cmd or not os.path.isfile(cmd):
+			raise Exception("Command not found")
+		cmd = [cmd] + params if params else [cmd]
+		exe = CommandExecutor(cmd, stderr=True)
+		self.scanner._th_lock.acquire()
+		self.scanner._commands.append(exe)
+		self.scanner._th_lock.release()
+
+		out, err = exe.execute(timeout)
+		ret = {"out": out, "err": err, "returncode": exe.returncode}
+
+		self.scanner._th_lock.acquire()
+		self.scanner._commands.remove(exe)
+		self.scanner._th_lock.release()
+
+		return ret
 

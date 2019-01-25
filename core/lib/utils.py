@@ -18,6 +18,7 @@ import re
 import posixpath
 import subprocess
 import json
+import xml.etree.ElementTree as XML
 
 from urllib import urlencode, unquote
 from urlparse import urlsplit, urljoin, parse_qsl
@@ -185,17 +186,19 @@ def get_cmd_path(exe_name):
 	standard_paths = [os.getcwd()]
 	envpath = os.environ['PATH'].split(os.pathsep)
 
+	fexts = ["exe", "cmd", "bat"]
 	if sys.platform != "win32":
 		# force check to standard paths in case $PATH is not set (ie crontab)
 		standard_paths.extend(["/usr/bin", "/usr/local/bin", "/usr/share/bin"])
-	else:
-		exe_name = "%s.exe" % exe_name
+		fexts = [None, 'sh']
 
-	exe_paths = ["%s%s%s" % (p, os.sep, exe_name) for p in standard_paths + envpath]
+	exe_paths = [os.path.join(p, exe_name) for p in standard_paths + envpath]
 
 	for exe in exe_paths:
-		if os.path.isfile(exe):
-			return exe
+		for fe in fexts:
+			e = "%s.%s" % (exe, fe) if fe else exe
+			if os.path.isfile(e):
+				return e
 
 	return None
 
@@ -249,11 +252,12 @@ def check_dependences(base_dir, usePhantomjs=False):
 		if sys.stdin.read(1) != "n":
 			print "Installing Puppeteer"
 			try:
-				npm_install = subprocess.call("cd %s && %s install" % (node_dir, npm), shell=True)
+				npm_install = subprocess.Popen([npm, "install"], cwd=node_dir)
+				npm_install.communicate()
 			except Exception as e:
 				errors.append("npm_install_exception")
 
-			if not npm_install:
+			if npm_install.returncode > 0:
 				errors.append("npm_install")
 		else:
 			errors.append("puppeteer")
@@ -359,3 +363,22 @@ def execmd(cmd, params=None, timeout=None):
 	exe = CommandExecutor(cmd, stderr=True)
 	out, err = exe.execute(timeout)
 	return {"out": out, "err": err, "returncode": exe.returncode}
+
+
+
+def detect_content_type(str):
+	if not str:
+		return ""
+	try:
+		json.loads(str)
+		return "application/json"
+	except:
+		try:
+			XML.fromstring(str)
+			return "application/xml"
+		except:
+			try:
+				parse_qsl(str, True)
+				return "application/x-www-form-urlencoded"
+			except:
+				return "text/plain"

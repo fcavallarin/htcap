@@ -54,10 +54,11 @@ class CrawlerThread(threading.Thread):
 
 		self.status = THSTAT_RUNNING
 		self.exit = False
+		self.pause = False
 
 		self.cookie_file = "%s%shtcap_cookiefile-%s.json" % (tempfile.gettempdir(), os.sep, self.thread_uuid)
 		self.out_file = "%s%shtcap_output-%s.json" % (tempfile.gettempdir(), os.sep, self.thread_uuid)
-
+		self.cmd = None
 
 	def run(self):
 		self.crawl()
@@ -154,8 +155,8 @@ class CrawlerThread(threading.Thread):
 			# print cmd_to_str(Shared.probe_cmd + params)
 			# print ""
 			jsn = None
-			cmd = CommandExecutor(Shared.probe_cmd + params, True)
-			out, err = cmd.execute(Shared.options['process_timeout'] + 10)
+			self.cmd = CommandExecutor(Shared.probe_cmd + params, True)
+			out, err = self.cmd.execute(Shared.options['process_timeout'] + 10)
 
 			if os.path.isfile(self.out_file):
 				with open(self.out_file, "r") as f:
@@ -194,6 +195,14 @@ class CrawlerThread(threading.Thread):
 		return probe
 
 
+	def wait_pause(self):
+		while True:
+			Shared.th_condition.acquire()
+			paused = self.pause
+			Shared.th_condition.release()
+			if not paused:
+				break
+			time.sleep(0.5)
 
 	def crawl(self):
 
@@ -257,7 +266,7 @@ class CrawlerThread(threading.Thread):
 			Shared.main_condition.notify()
 			Shared.main_condition.release()
 
-
+			self.wait_pause()
 
 
 

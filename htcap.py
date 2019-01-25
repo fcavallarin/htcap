@@ -54,8 +54,9 @@ def usage():
 
 
 if __name__ == '__main__':
-
-	os.environ["NODE_PATH"] = "{cd}{p}:{cd}{p}node_modules".format(cd=getrealdir(__file__), p='core/nodejs/')
+	node_dir = os.path.join(getrealdir(__file__), 'core', 'nodejs')
+	env_sep = ':' if sys.platform != "win32" else ';'
+	os.environ["NODE_PATH"] = env_sep.join([node_dir, os.path.join(node_dir, 'node_modules')])
 
 	if len(sys.argv) < 2:
 		usage()

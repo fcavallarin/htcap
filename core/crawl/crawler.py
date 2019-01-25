@@ -26,6 +26,7 @@ import subprocess
 from random import choice
 import string
 import ssl
+import signal
 
 
 from core.lib.exception import *
@@ -58,6 +59,8 @@ class Crawler:
 		self.page_hashes = []
 		self.request_patterns = []
 		self.db_file = ""
+		self.display_progress = True
+		self.verbose = False
 		self.defaults = {
 			"useragent": 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/72.0.3582.0 Safari/537.36',
 			"num_threads": 10,
@@ -89,7 +92,8 @@ class Crawler:
 	def usage(self):
 		infos = get_program_infos()
 		print ("htcap crawler ver " + infos['version'] + "\n"
-			   "usage: htcap [options] url outfile\n"
+			   "usage: crawl [options] url outfile\n"
+			   "hit ^C to pause the crawler or change verbosity\n"
 			   "Options: \n"
 			   "  -h               this help\n"
 			   "  -w               overwrite output file\n"
@@ -142,13 +146,27 @@ class Crawler:
 
 
 	def kill_threads(self, threads):
+		Shared.th_condition.acquire()
 		for th in threads:
-			if th.isAlive(): th.exit = True
+			if th.isAlive():
+				th.exit = True
+				th.pause = False
+				if th.cmd:
+					th.cmd.terminate()
+		Shared.th_condition.release()
+
 		# start notify() chain
 		Shared.th_condition.acquire()
 		Shared.th_condition.notifyAll()
 		Shared.th_condition.release()
 
+
+	def pause_threads(self, threads, pause):
+		Shared.th_condition.acquire()
+		for th in threads:
+			if th.isAlive():
+				th.pause = pause
+		Shared.th_condition.release()
 
 
 	def init_db(self, dbname, report_name):
@@ -226,15 +244,15 @@ class Crawler:
 		return False
 
 
-	def main_loop(self, threads, start_requests, database, display_progress = True, verbose = False):
+	def main_loop(self, threads, start_requests, database):
 		pending = len(start_requests)
 		crawled = 0
 		pb = Progressbar(self.crawl_start_time, "pages processed")
 		req_to_crawl = start_requests
-		try:
-			while True:
+		while True:
+			try:
 
-				if display_progress and not verbose:
+				if self.display_progress and not self.verbose:
 					tot = (crawled + pending)
 					pb.out(tot, crawled)
 
@@ -242,7 +260,7 @@ class Crawler:
 					# is the check of running threads really needed?
 					running_threads = [t for t in threads if t.status == THSTAT_RUNNING]
 					if len(running_threads) == 0:
-						if display_progress or verbose:
+						if self.display_progress or self.verbose:
 							print ""
 						break
 
@@ -261,7 +279,7 @@ class Crawler:
 					for result in Shared.crawl_results:
 						crawled += 1
 						pending -= 1
-						if verbose:
+						if self.verbose:
 							print "crawl result for: %s " % result.request
 							if len(result.request.user_output) > 0:
 								print "  user: %s" % json.dumps(result.request.user_output)
@@ -277,7 +295,7 @@ class Crawler:
 									if RequestPattern(r).pattern not in self.request_patterns:
 										filtered_requests.append(r)
 								result.found_requests = filtered_requests
-								if verbose:
+								if self.verbose:
 									print " * marked as duplicated ... requests filtered"
 
 							self.page_hashes.append(result.page_hash)
@@ -288,20 +306,20 @@ class Crawler:
 
 							database.save_request(req)
 
-							if verbose and req not in Shared.requests and req not in req_to_crawl:
+							if self.verbose and req not in Shared.requests and req not in req_to_crawl:
 									print "  new request found %s" % req
 
 							if request_is_crawlable(req) and req not in Shared.requests and req not in req_to_crawl:
 
 								if request_depth(req) > Shared.options['max_depth'] or request_post_depth(req) > Shared.options['max_post_depth']:
-									if verbose:
+									if self.verbose:
 										print "  * cannot crawl: %s : crawl depth limit reached" % req
 									result = CrawlResult(req, errors=[ERROR_CRAWLDEPTH])
 									database.save_crawl_result(result, False)
 									continue
 
 								if req.redirects > Shared.options['max_redirects']:
-									if verbose:
+									if self.verbose:
 										print "  * cannot crawl: %s : too many redirects" % req
 									result = CrawlResult(req, errors=[ERROR_MAXREDIRECTS])
 									database.save_crawl_result(result, False)
@@ -315,15 +333,54 @@ class Crawler:
 					database.close()
 				Shared.main_condition.release()
 
-		except KeyboardInterrupt:
-			print "\nTerminated by user"
+			except KeyboardInterrupt:
+				try:
+					Shared.main_condition.release()
+					Shared.th_condition.release()
+				except:
+					pass
+				self.pause_threads(threads, True)
+				if not self.get_runtime_command():
+					print "Exiting . . ."
+					return
+				print "Crawler is running"
+				self.pause_threads(threads, False)
+
+
+
+
+	def get_runtime_command(self):
+		while True:
+			print (
+				"\nCrawler is paused.\n"
+				"   r    resume scan\n"
+				"   v    verbose mode\n"
+				"   p    show progress bar\n"
+				"   q    quiet mode\n"
+				"Hit ctrl-c again to exit\n"
+			)
 			try:
-				Shared.main_condition.release()
-				Shared.th_condition.release()
-			except:
-				pass
+				ui = raw_input("> ").strip()
+			except KeyboardInterrupt:
+				print ""
+				return False
 
+			if ui == "r":
+				break
+			elif ui == "v":
+				self.verbose = True
+				break
+			elif ui == "p":
+				self.display_progress = True
+				self.verbose = False
+				break
+			elif ui == "q":
+				self.verbose = False
+				self.display_progress = False
+				break
+			print " "
 
+		return True
 
 	def init_crawl(self, start_req, check_starturl, get_robots_txt):
 		start_requests = [start_req]
@@ -367,8 +424,6 @@ class Crawler:
 		out_file = ""
 		out_file_overwrite = self.defaults['out_file_overwrite']
 		cookie_string = None
-		display_progress = True
-		verbose = False
 		initial_checks = True
 		http_auth = None
 		get_robots_txt = True
@@ -406,7 +461,7 @@ class Crawler:
 			elif o == '-t':
 				Shared.options['process_timeout'] = int(v)
 			elif o == '-q':
-				display_progress = False
+				self.display_progress = False
 			elif o == '-A':
 				http_auth = v
 			elif o == '-p':
@@ -458,7 +513,7 @@ class Crawler:
 			elif o == "-F":
 				Shared.options['crawl_forms'] = False
 			elif o == "-v":
-				verbose = True
+				self.verbose = True
 			elif o == "-e":
 				Shared.options['deduplicate_pages'] = False
 			elif o == "-L":
@@ -497,13 +552,13 @@ class Crawler:
 			if Shared.options['proxy']:
 				probe_cmd.append("--proxy-type=%s" % Shared.options['proxy']['proto'])
 				probe_cmd.append("--proxy=%s:%s" % (Shared.options['proxy']['host'], Shared.options['proxy']['port']))
-			probe_cmd.append(self.base_dir + 'probe/analyze.js')
+			probe_cmd.append(os.path.join(self.base_dir, 'probe', 'analyze.js'))
 		else:
 			if Shared.options['proxy']:
 				probe_options.extend(["-y", "%s:%s:%s" % (Shared.options['proxy']['proto'], Shared.options['proxy']['host'], Shared.options['proxy']['port'])])
 			if not Shared.options['headless_chrome']:
 				probe_options.append("-l")
-			probe_cmd.append(self.base_dir + 'probe/chrome-probe/analyze.js')
+			probe_cmd.append(os.path.join(self.base_dir, 'probe', 'chrome-probe', 'analyze.js'))
 
 
 		if len(Shared.excluded_urls) > 0:
@@ -581,7 +636,7 @@ class Crawler:
 			thread.start()
 
 
-		self.main_loop(threads, start_requests, database, display_progress, verbose)
+		self.main_loop(threads, start_requests, database)
 
 		self.kill_threads(threads)
 

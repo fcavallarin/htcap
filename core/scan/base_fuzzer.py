@@ -327,7 +327,7 @@ class Mutations:
 		try:
 			for e in obj:
 				cp = "%s%s" % (path+"/" if path else "post-json/", e)
-				if isinstance(obj[e], int) or isinstance(obj[e], float) or isinstance(obj[e], basestring):
+				if not obj[e] or isinstance(obj[e], int) or isinstance(obj[e], float) or isinstance(obj[e], basestring):
 					pars.append(cp)
 				else:
 					rp = self._get_json_parameters(obj[e], cp)
