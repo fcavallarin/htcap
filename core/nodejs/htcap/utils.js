@@ -63,10 +63,14 @@ exports.generateRandomValues = generateRandomValues;
 			return this.originalOpen(method, url, async, user, password);
 		}
 
+		XMLHttpRequest.prototype.originalSetRequestHeader = XMLHttpRequest.prototype.setRequestHeader;
+		XMLHttpRequest.prototype.setRequestHeader = async function(header, value){
+			this.__request.extra_headers[header] = value;
+			return this.originalSetRequestHeader(header, value);
+		};
 
 
 		XMLHttpRequest.prototype.originalSend = XMLHttpRequest.prototype.send;
-
 		XMLHttpRequest.prototype.send = async function(data){
 			var uRet = await window.__PROBE__.xhrSendHook(this, data);
 			if(!this.__skipped && uRet)

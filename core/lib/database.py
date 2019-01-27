@@ -49,6 +49,7 @@ class Database:
 				data  TEXT NOT NULL DEFAULT '',
 				cookies  TEXT NOT NULL DEFAULT '[]',
 				http_auth  TEXT,
+				extra_headers TEXT,
 				out_of_scope INTEGER NOT NULL DEFAULT 0,
 				trigger TEXT,
 				crawled INTEGER NOT NULL DEFAULT 0,
@@ -224,12 +225,13 @@ class Database:
 			request.data,
 			json.dumps([r.get_dict() for r in request.cookies]),
 			request.http_auth if request.http_auth else "",
+			json.dumps(request.extra_headers),
 			1 if request.out_of_scope else 0,
 			json.dumps(request.trigger) if request.trigger else "",
 			request.html if request.html else "",
 			json.dumps(request.user_output) if len(request.user_output) > 0 else ""
 		)
-		qry = "INSERT INTO request (id_parent, type, method, url, referer, redirects, data, cookies, http_auth, out_of_scope, trigger, html, user_output) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)"
+		qry = "INSERT INTO request (id_parent, type, method, url, referer, redirects, data, cookies, http_auth, extra_headers, out_of_scope, trigger, html, user_output) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
 
 		# ignore referer and cookies.. correct?
 		values_select = (
@@ -300,7 +302,7 @@ class Database:
 			cur.execute(qry, types)
 			for r in cur.fetchall():
 				# !! parent must be null (or unset)
-				req = Request(r['type'], r['method'], r['url'], referer=r['referer'], data=r['data'], json_cookies=r['cookies'], db_id=r['id'], parent_db_id=r['id_parent'])
+				req = Request(r['type'], r['method'], r['url'], referer=r['referer'], data=r['data'], json_cookies=r['cookies'], db_id=r['id'], parent_db_id=r['id_parent'], extra_headers=json.loads(r['extra_headers']))
 			 	ret.append(req)
 			self.close()
 		except Exception as e:
@@ -320,7 +322,7 @@ class Database:
 			r = cur.fetchone()
 			# !! parent must be null (or unset)
 			if r:
-				req = Request(r['type'], r['method'], r['url'], referer=r['referer'], data=r['data'], json_cookies=r['cookies'], db_id=r['id'], parent_db_id=r['id_parent'])
+				req = Request(r['type'], r['method'], r['url'], referer=r['referer'], data=r['data'], json_cookies=r['cookies'], db_id=r['id'], parent_db_id=r['id_parent'], extra_headers=json.loads(r['extra_headers']))
 			self.close()
 		except Exception as e:
 			raise

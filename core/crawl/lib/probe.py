@@ -10,7 +10,7 @@ Foundation; either version 2 of the License, or (at your option) any later
 version.
 """
 
-
+import json
 from core.lib.request import Request
 from core.lib.cookie import Cookie
 from core.constants import *
@@ -53,8 +53,9 @@ class Probe:
 		for key,val in data:
 			if key == "request":
 				trigger = val['trigger'] if 'trigger' in val else None
+				extra_headers = val['extra_headers'] if 'extra_headers' in val else None
 				#try:
-				r = Request(val['type'], val['method'], val['url'], parent=parent, set_cookie=self.cookies, data=val['data'], trigger=trigger, parent_db_id=parent.db_id )
+				r = Request(val['type'], val['method'], val['url'], parent=parent, set_cookie=self.cookies, data=val['data'], trigger=trigger, parent_db_id=parent.db_id, extra_headers=extra_headers)
 				self.requests.append(r)
 				#except Exception as e:
 				#	pass
