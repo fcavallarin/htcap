@@ -1,5 +1,5 @@
 {
-  "name": "htcap",
+  "name": "htcrawl",
   "version": "1.0.0",
   "description": "crawler for single page applications",
   "main": "main.js",

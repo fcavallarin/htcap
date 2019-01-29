@@ -1,6 +1,6 @@
 /*
-HTCAP - 1.2
-http://htcap.org
+HTCRAWL - 1.2
+http://htcrawl.org
 Author: filippo.cavallarin@wearesegment.com
 
 This program is free software; you can redistribute it and/or modify it under
@@ -273,12 +273,12 @@ function initProbe(options, inputValues){
 
 
 	// returns true if the value has been set
-	Probe.prototype.setVal = function(el, value){
+	Probe.prototype.setVal = async function(el, value){
 		var options = this.options;
 		var _this = this;
 
-		// var ueRet = this.triggerUserEvent("onFillInput", [el]);
-		// if(ueRet === false) return;
+		var ueRet = await this.dispatchProbeEvent("fillinput", {element: this.getElementSelector(el)});
+		if(ueRet === false) return;
 
 		var getv = function(type){
 			if(typeof value != 'undefined' && value !== null && value !== false){
@@ -402,7 +402,7 @@ function initProbe(options, inputValues){
 
 	};
 
-	Probe.prototype.fillInputValues = function(element){
+	Probe.prototype.fillInputValues = async function(element){
 		element = element || document;
 		var ret = false;
 		var els = element.querySelectorAll("input, select, textarea");
@@ -411,7 +411,7 @@ function initProbe(options, inputValues){
 		for(var a = 0; a < els.length; a++){
 			let sv = this.getStaticInputValue(els[a]);
 
-			if(this.setVal(els[a], sv))
+			if(await this.setVal(els[a], sv))
 				ret = true;
 		}
 		return ret;
@@ -608,7 +608,7 @@ function initProbe(options, inputValues){
 	}
 
 
-	Probe.prototype.initializeElement = function(element){
+	Probe.prototype.initializeElement = async function(element){
 		var options = this.options;
 
 		if(options.mapEvents){
@@ -625,7 +625,7 @@ function initProbe(options, inputValues){
 
 
 		if(options.fillValues){
-			this.fillInputValues(element);
+			await this.fillInputValues(element);
 		}
 	}
 
@@ -708,7 +708,7 @@ function initProbe(options, inputValues){
 
 
 	Probe.prototype.dispatchProbeEvent = async function(name, params){
-		return await window.__htcap_probe_event__(name, params);
+		return await window.__htcrawl_probe_event__(name, params);
 	};
 
 
@@ -719,8 +719,7 @@ function initProbe(options, inputValues){
 		this.started_at = (new Date()).getTime();
 		await this.crawlDOM(document, 0);
 		console.log("DOM analyzed ");
-		//window.__htcap_end__();
-		this.dispatchProbeEvent("end", {});
+		//await this.dispatchProbeEvent("end", {});
 
 	};
 
@@ -800,7 +799,7 @@ function initProbe(options, inputValues){
 
 
 
-	Probe.prototype.triggerXhrsEvent = function(requests){
+	Probe.prototype.triggerXhrsEvent = function(requests){ // unused ??
 
 		let reqarr = [];
 		for(let a of requests){
@@ -1051,7 +1050,7 @@ function initProbe(options, inputValues){
 			newEls = [],
 			uRet;
 		// map propety events and fill input values
-		this.initializeElement(node);
+		await this.initializeElement(node);
 
 		//let analyzed = 0;
 		for(let el of dom){

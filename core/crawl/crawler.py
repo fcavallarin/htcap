@@ -353,7 +353,7 @@ class Crawler:
 		while True:
 			print (
 				"\nCrawler is paused.\n"
-				"   r    resume scan\n"
+				"   r    resume\n"
 				"   v    verbose mode\n"
 				"   p    show progress bar\n"
 				"   q    quiet mode\n"

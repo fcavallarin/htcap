@@ -12,7 +12,7 @@ version.
 
 "use strict";
 
-const htcap = require("htcap");
+const htcrawl = require("htcrawl");
 const utils = require('./utils');
 const process = require('process');
 const os = require('os');
@@ -46,11 +46,11 @@ if(targetUrl.length < 4 || targetUrl.substring(0,4).toLowerCase() != "http"){
 }
 
 
-htcap.launch(targetUrl, options).then( crawler => {
+htcrawl.launch(targetUrl, options).then( crawler => {
 	const page = crawler.page();
 	var execTO = null;
 	var domLoaded = false;
-
+	var endRequested = false;
 
 	const pidfile = path.join(os.tmpdir(), "htcap-pids-" + process.pid)
 	fs.writeFileSync(pidfile, crawler.browser().process().pid)
@@ -156,6 +156,8 @@ htcap.launch(targetUrl, options).then( crawler => {
 
 
 	async function end(){
+		if(endRequested) return;
+		endRequested = true;
 		if(domLoaded && !crawler.redirect()){
 			const el = await crawler.page().$("html");
 			const v = await el.getProperty('innerText');
@@ -173,15 +175,13 @@ htcap.launch(targetUrl, options).then( crawler => {
 		exit();
 	}
 
-	crawler.on("end", end);
-
-	execTO = setTimeout(function(){ // (very dirty solution)
-		crawler.on("end", function(){});
+	execTO = setTimeout(function(){
 		crawler.errors().push(["probe_timeout", "maximum execution time reached"]);
 		end();
 	}, options.maxExecTime);
 
 
-	crawler.start()
+	crawler.start().then(end).catch(end);
 
 })
+

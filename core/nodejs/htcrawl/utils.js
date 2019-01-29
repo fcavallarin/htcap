@@ -1,6 +1,6 @@
 /*
-HTCAP - 1.1
-http://htcap.org
+htcrawl - 1.1
+http://htcrawl.org
 Author: filippo.cavallarin@wearesegment.com
 
 This program is free software; you can redistribute it and/or modify it under
@@ -15,15 +15,9 @@ const urlparser = require('url').parse;
 const fs = require('fs');
 
 
-
 exports.parseCookiesFromHeaders = parseCookiesFromHeaders;
 exports.hookNativeFunctions = hookNativeFunctions;
 exports.generateRandomValues = generateRandomValues;
-
-
-
-
-
 
 
  function hookNativeFunctions(options) {
