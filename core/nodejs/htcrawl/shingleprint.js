@@ -1,6 +1,6 @@
 /*
-HTCAP - 1.2
-http://htcap.org
+HTCRAWL - 1.2
+http://htcrawl.org
 Author: filippo.cavallarin@wearesegment.com
 
 This program is free software; you can redistribute it and/or modify it under

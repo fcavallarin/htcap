@@ -65,7 +65,7 @@ class Request(object):
 		self.parent_db_id = parent_db_id
 		self.out_of_scope = out_of_scope
 		self.cookies = []
-		self.extra_headers = extra_headers
+		self.extra_headers = extra_headers if extra_headers else {}
 		self.http_auth = parent.http_auth if not http_auth and parent else http_auth
 
 		self.redirects = parent.redirects + 1 if type == REQTYPE_REDIRECT and parent else 0

@@ -1,6 +1,6 @@
 /*
-HTCAP - 1.2
-http://htcap.org
+htcrawl - 1.1
+http://htcrawl.org
 Author: filippo.cavallarin@wearesegment.com
 
 This program is free software; you can redistribute it and/or modify it under
@@ -20,6 +20,7 @@ const utils = require('./utils');
 const process = require('process');
 
 exports.launch = async function(url, options){
+	options = options || {};
 	const chromeArgs = [
 		//'--proxy-server=127.0.0.1:8080',
 		'--no-sandbox',
@@ -34,7 +35,7 @@ exports.launch = async function(url, options){
 		'--disable-web-security',
 		'--allow-running-insecure-content',
 
-		//'--auto-open-devtools-for-tabs',
+		'--auto-open-devtools-for-tabs',
 		//`--load-extension=${__dirname}/chrome_extension/`,
 		//`--disable-extensions-except=${__dirname}/chrome_extension/`
 	];
@@ -82,6 +83,7 @@ function Crawler(targetUrl, options, browser){
 		websocketmessage: function(){},
 		websocketsend: function(){},
 		formsubmit: function(){},
+		fillinput: function(){},
 		//requestscompleted: function(){},
 		//dommodified: function(){},
 		newdom: function(){},
@@ -92,7 +94,7 @@ function Crawler(targetUrl, options, browser){
 		earlydetach: function(){},
 		triggerevent: function(){},
 		eventtriggered: function(){},
-		end: function(){}
+		//end: function(){}
 	}
 
 
@@ -154,7 +156,7 @@ Crawler.prototype.start = async function(){
 
 		if(ctype.toLowerCase().split(";")[0] != "text/html"){
 			_this._errors.push(["contentType", `content type is ${ctype}`]);
-			_this.dispatchProbeEvent("end", {});
+			//_this.dispatchProbeEvent("end", {});
 			return false;
 		}
 		return true;
@@ -170,45 +172,48 @@ Crawler.prototype.start = async function(){
 
 	await this._page.setDefaultNavigationTimeout(500000);
 
-	this._page.goto(this.targetUrl, {waitUntil:'load'}).then(async resp => {
+	//this._page.goto(this.targetUrl, {waitUntil:'load'}).then(async resp => {
+	try{
+		var resp = await this._page.goto(this.targetUrl, {waitUntil:'load'});
 
 		if(!resp.ok()){
 			_this._errors.push(["response", resp.request().url() + " status: " + resp.status()]);
-			_this.dispatchProbeEvent("end", {});
-			//console.log(resp)
-			return;
+			throw resp.status();
+			//_this.dispatchProbeEvent("end", {});
+			//return;
 		}
 		var hdrs = resp.headers();
 		_this._cookies = utils.parseCookiesFromHeaders(hdrs, resp.url())
 
 
-		if(!assertContentType(hdrs))
-			return;
+		if(!assertContentType(hdrs)){
+			//return;
+			throw "Content type is not text/html";
+		}
 
 
-		this._page.evaluate(async function(){
+		await this._page.evaluate(async function(){
 			window.__PROBE__.takeDOMSnapshot();
 		});
 
 
 		await _this.dispatchProbeEvent("domcontentloaded", {});
 
-		_this._page.evaluate(async function(){
-			await window.__PROBE__.waitAjax()
-			await window.__PROBE__.waitJsonp()
+		await _this._page.evaluate(async function(){
+			await window.__PROBE__.waitAjax();
+			await window.__PROBE__.waitJsonp();
 
-			window.__PROBE__.dispatchProbeEvent("start");
+			await window.__PROBE__.dispatchProbeEvent("start");
 			console.log("startAnalysis")
-			window.__PROBE__.startAnalysis();
-		})
+			await window.__PROBE__.startAnalysis();
+		});
 
-	}).catch(e => {
-		//console.log(e);
+		return _this;
+	}catch(e){
 		_this._errors.push(["navigation","navigation aborted"]);
-		_this.dispatchProbeEvent("end", {});
-	});
-
-
+		//_this.dispatchProbeEvent("end", {});
+		throw e;
+	};
 
 }
 
@@ -321,7 +326,7 @@ Crawler.prototype.loadPage = async function(browser){
 	});
 
 
-	page.exposeFunction("__htcap_probe_event__",   (name, params) =>  this.dispatchProbeEvent(name, params)); // <- automatically awaited.."If the puppeteerFunction returns a Promise, it will be awaited."
+	page.exposeFunction("__htcrawl_probe_event__",   (name, params) =>  this.dispatchProbeEvent(name, params)); // <- automatically awaited.."If the puppeteerFunction returns a Promise, it will be awaited."
 
 	 await page.setViewport({
 		width: 1366,

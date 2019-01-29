@@ -353,7 +353,7 @@ class Crawler:
 		while True:
 			print (
 				"\nCrawler is paused.\n"
-				"   r    resume scan\n"
+				"   r    resume\n"
 				"   v    verbose mode\n"
 				"   p    show progress bar\n"
 				"   q    quiet mode\n"
@@ -628,7 +628,7 @@ class Crawler:
 		database.close()
 
 		print "done"
-		print "Database %s initialized, crawl started with %d threads" % (self.db_file, num_threads)
+		print "Database %s initialized, crawl started with %d threads (^C to pause or change verbosity)" % (self.db_file, num_threads)
 
 		for n in range(0, num_threads):
 			thread = CrawlerThread()

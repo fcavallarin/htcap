@@ -232,9 +232,12 @@ class HttpGet:
 				req = urllib2.Request(url=url, data=data)
 				req.get_method = lambda: method
 				jar_request.add_cookie_header(req)
+				headers = self.request.extra_headers
 				if self.extra_headers:
-					for hn in self.extra_headers:
-						req.add_header(hn, self.extra_headers[hn])
+					for h in self.extra_headers:
+						headers[h] = self.extra_headers[h]
+				for hn in headers:
+					req.add_header(hn, headers[hn])
 
 				if data and not 'Content-type' in req.headers:
 					req.add_header("Content-type", detect_content_type(data))

@@ -1,6 +1,6 @@
 /*
-HTCAP - 1.1
-http://htcap.org
+htcrawl - 1.1
+http://htcrawl.org
 Author: filippo.cavallarin@wearesegment.com
 
 This program is free software; you can redistribute it and/or modify it under
@@ -15,15 +15,9 @@ const urlparser = require('url').parse;
 const fs = require('fs');
 
 
-
 exports.parseCookiesFromHeaders = parseCookiesFromHeaders;
 exports.hookNativeFunctions = hookNativeFunctions;
 exports.generateRandomValues = generateRandomValues;
-
-
-
-
-
 
 
  function hookNativeFunctions(options) {
@@ -63,10 +57,14 @@ exports.generateRandomValues = generateRandomValues;
 			return this.originalOpen(method, url, async, user, password);
 		}
 
+		XMLHttpRequest.prototype.originalSetRequestHeader = XMLHttpRequest.prototype.setRequestHeader;
+		XMLHttpRequest.prototype.setRequestHeader = async function(header, value){
+			this.__request.extra_headers[header] = value;
+			return this.originalSetRequestHeader(header, value);
+		};
 
 
 		XMLHttpRequest.prototype.originalSend = XMLHttpRequest.prototype.send;
-
 		XMLHttpRequest.prototype.send = async function(data){
 			var uRet = await window.__PROBE__.xhrSendHook(this, data);
 			if(!this.__skipped && uRet)

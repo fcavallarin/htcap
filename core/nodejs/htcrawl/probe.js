@@ -1,6 +1,6 @@
 /*
-HTCAP - 1.2
-http://htcap.org
+HTCRAWL - 1.2
+http://htcrawl.org
 Author: filippo.cavallarin@wearesegment.com
 
 This program is free software; you can redistribute it and/or modify it under
@@ -227,18 +227,20 @@ function initProbe(options, inputValues){
 
 	// class Request
 
-	Probe.prototype.Request = function(type, method, url, data, trigger){
+	Probe.prototype.Request = function(type, method, url, data, trigger, extra_headers){
 		this.type = type;
 		this.method = method;
 		this.url = url;
 		this.data = data || null;
 		this.trigger = trigger || null;
+		this.extra_headers = extra_headers || {};
 
 		//this.username = null; // todo
 		//this.password = null;
 	}
 
 	// returns a unique string represntation of the request. used for comparision
+	// should I also use extra_headers for comparisionn??
 	Probe.prototype.Request.prototype.key = function(){
 		var key = "" + this.type + this.method + this.url + (this.data ? this.data : "") + (this.trigger ? this.trigger : "")
 		return key;
@@ -246,7 +248,7 @@ function initProbe(options, inputValues){
 
 
 	Probe.prototype.requestToJson = function(req){
-		
+
 		return JSON.stringify(this.requestToObject(req));
 	}
 
@@ -255,7 +257,8 @@ function initProbe(options, inputValues){
 			type: req.type,
 			method: req.method,
 			url: req.url,
-			data: req.data || null
+			data: req.data || null,
+			extra_headers: req.extra_headers
 		};
 
 		if(req.trigger) obj.trigger = {element: this.describeElement(req.trigger.element), event:req.trigger.event};
@@ -270,12 +273,12 @@ function initProbe(options, inputValues){
 
 
 	// returns true if the value has been set
-	Probe.prototype.setVal = function(el, value){
+	Probe.prototype.setVal = async function(el, value){
 		var options = this.options;
 		var _this = this;
 
-		// var ueRet = this.triggerUserEvent("onFillInput", [el]);
-		// if(ueRet === false) return;
+		var ueRet = await this.dispatchProbeEvent("fillinput", {element: this.getElementSelector(el)});
+		if(ueRet === false) return;
 
 		var getv = function(type){
 			if(typeof value != 'undefined' && value !== null && value !== false){
@@ -300,7 +303,7 @@ function initProbe(options, inputValues){
 
 		// needed for example by angularjs
 		var triggerChange =  function(){
-			// update angular model			
+			// update angular model
 			_this.trigger(el, 'input');
 		}
 
@@ -389,9 +392,9 @@ function initProbe(options, inputValues){
 		if(!this.options.staticInputValues.length )
 			return null;
 
-		for(let val of this.options.staticInputValues){		
+		for(let val of this.options.staticInputValues){
 			if(input.matches(val[0])){
-				return val[1];				
+				return val[1];
 			}
 		}
 
@@ -399,7 +402,7 @@ function initProbe(options, inputValues){
 
 	};
 
-	Probe.prototype.fillInputValues = function(element){
+	Probe.prototype.fillInputValues = async function(element){
 		element = element || document;
 		var ret = false;
 		var els = element.querySelectorAll("input, select, textarea");
@@ -407,9 +410,9 @@ function initProbe(options, inputValues){
 
 		for(var a = 0; a < els.length; a++){
 			let sv = this.getStaticInputValue(els[a]);
-			
-			if(this.setVal(els[a], sv))
-				ret = true;	
+
+			if(await this.setVal(els[a], sv))
+				ret = true;
 		}
 		return ret;
 	};
@@ -437,7 +440,7 @@ function initProbe(options, inputValues){
 			} else { // button or submit
 				let url = document.createElement("a");
 				url.href = el.form.action;
-				urlproto = url.protocol;	
+				urlproto = url.protocol;
 				if(el.form.target == "_blank") el.form.target = "_self" // @workaround prevent new tabs
 			}
 
@@ -449,8 +452,8 @@ function initProbe(options, inputValues){
 		}
 
 		if ('createEvent' in document) {
-			
-			if(this.options.mouseEvents.indexOf(evname) != -1){				
+
+			if(this.options.mouseEvents.indexOf(evname) != -1){
 				var evt = new MouseEvent(evname, {view: window, bubbles: true, cancelable: true});
 				if(evname.toLowerCase() == "click" && el.matches('a, button, input[type="submit"]')){
 					el.addEventListener(evname, pdh);
@@ -459,8 +462,8 @@ function initProbe(options, inputValues){
 
 			} else {
 				var evt = document.createEvent('HTMLEvents');
-				evt.initEvent(evname, true, false);		
-	
+				evt.initEvent(evname, true, false);
+
 			}
 			el.dispatchEvent(evt);
 		} else {
@@ -528,7 +531,7 @@ function initProbe(options, inputValues){
 
 		//return {element: this.curElement.element, event: this.curElement.event};
 		return {
-			element: this.describeElement(this.curElement.element), 
+			element: this.describeElement(this.curElement.element),
 			event: this.curElement.event
 		};
 	};
@@ -578,11 +581,11 @@ function initProbe(options, inputValues){
 
 	Probe.prototype.getElementSelector = function(element){
 		if(!element || !(element instanceof HTMLElement))
-			return ""; 
+			return "";
 		var name = element.nodeName.toLowerCase();
-		var ret = [];    
+		var ret = [];
 		var selector = ""
-		//var elid = element.getAttribute('id');    
+		//var elid = element.getAttribute('id');
 
 
 		if(element.id){
@@ -594,7 +597,7 @@ function initProbe(options, inputValues){
 				if(p instanceof HTMLElement && p.nodeName.toLowerCase() == name){
 					cnt++;
 				}
-			}            
+			}
 			selector = name + (cnt > 1 ? `:nth-of-type(${cnt})` : "");
 			if(element != document.documentElement && name != "body" && element.parentNode){
 				ret.push(this.getElementSelector(element.parentNode));
@@ -605,7 +608,7 @@ function initProbe(options, inputValues){
 	}
 
 
-	Probe.prototype.initializeElement = function(element){
+	Probe.prototype.initializeElement = async function(element){
 		var options = this.options;
 
 		if(options.mapEvents){
@@ -622,7 +625,7 @@ function initProbe(options, inputValues){
 
 
 		if(options.fillValues){
-			this.fillInputValues(element);
+			await this.fillInputValues(element);
 		}
 	}
 
@@ -704,8 +707,8 @@ function initProbe(options, inputValues){
 
 
 
-	Probe.prototype.dispatchProbeEvent = async function(name, params){		
-		return await window.__htcap_probe_event__(name, params);		
+	Probe.prototype.dispatchProbeEvent = async function(name, params){
+		return await window.__htcrawl_probe_event__(name, params);
 	};
 
 
@@ -716,8 +719,7 @@ function initProbe(options, inputValues){
 		this.started_at = (new Date()).getTime();
 		await this.crawlDOM(document, 0);
 		console.log("DOM analyzed ");
-		//window.__htcap_end__();
-		this.dispatchProbeEvent("end", {});
+		//await this.dispatchProbeEvent("end", {});
 
 	};
 
@@ -734,7 +736,7 @@ function initProbe(options, inputValues){
 		// 	}
 		// }
 		// return false;
-		
+
 	}
 
 	Probe.prototype.simhashDistance = function(s1, s2){
@@ -797,8 +799,8 @@ function initProbe(options, inputValues){
 
 
 
-	Probe.prototype.triggerXhrsEvent = function(requests){
-			
+	Probe.prototype.triggerXhrsEvent = function(requests){ // unused ??
+
 		let reqarr = [];
 		for(let a of requests){
 			//reqarr.push(this.requestToObject(a.__request));
@@ -811,38 +813,38 @@ function initProbe(options, inputValues){
 			// 	event: this.curElement.event
 			// }
 		});
-			
+
 	}
 
 	Probe.prototype.triggerWebsocketEvent = function(url){
-		
+
 		var req  = new this.Request("websocket", "GET", url, null, this.getTrigger());
 		this.dispatchProbeEvent("websocket", { request: req});
-			
+
 	}
 
 	Probe.prototype.triggerWebsocketMessageEvent = function(url, message){
-		
+
 		var req  = new this.Request("websocket", "GET", url, null, null);
 		this.dispatchProbeEvent("websocketMessage", { request: req, message: message});
-			
+
 	}
 
 	Probe.prototype.triggerWebsocketSendEvent = function(url, message){
 		var req  = new this.Request("websocket", "GET", url, null, null);
 		this.dispatchProbeEvent("websocketSend", { request: req, message: message});
-			
+
 	}
 
 
 	Probe.prototype.triggerFormSubmitEvent = function(form){
-		
+
 		var req = this.getFormAsRequest(form);
 		this.dispatchProbeEvent("formSubmit", {
-			request: req, 
+			request: req,
 			form: this.describeElement(form)
 		});
-			
+
 	}
 
 
@@ -863,7 +865,7 @@ function initProbe(options, inputValues){
 		req = new this.Request("navigation", method, url, data);
 
 		this.dispatchProbeEvent("navigation", {
-			request: req			
+			request: req
 		});
 
 	};
@@ -871,14 +873,14 @@ function initProbe(options, inputValues){
 
 
 	// returns true if at least one request is performed
-	Probe.prototype.waitRequests = async function(requests){ 
-		var _this = this;		
+	Probe.prototype.waitRequests = async function(requests){
+		var _this = this;
 		var reqPerformed = false;
-		return new Promise( (resolve, reject) => {	
-			var timeout = _this.options.ajaxTimeout;			
-			
+		return new Promise( (resolve, reject) => {
+			var timeout = _this.options.ajaxTimeout;
+
 			var t = _this.setInterval(function(){
-				if(timeout <= 0 || requests.length == 0){					
+				if(timeout <= 0 || requests.length == 0){
 					clearInterval(t);
 					//console.log("waitajax reoslve()")
 					resolve(reqPerformed);
@@ -891,7 +893,7 @@ function initProbe(options, inputValues){
 	}
 
 
-	Probe.prototype.waitAjax = async function(){ 
+	Probe.prototype.waitAjax = async function(){
 		await this.waitRequests(this._pendingAjax);
 	}
 
@@ -908,7 +910,13 @@ function initProbe(options, inputValues){
 		var method = options && 'method' in options ? options.method.toUpperCase() : "GET";
 		var data = options && 'body' in options ? options.body : null;
 		var trigger = this.getTrigger();
-		var request = new this.Request("fetch", method, url, data, trigger);
+		var extra_headers = {};
+		if(options && 'headers' in options){
+			for(let h of options.headers){
+				extra_headers[h[0]] = h[1];
+			}
+		}
+		var request = new this.Request("fetch", method, url, data, trigger, extra_headers);
 
 		var uRet = await this.dispatchProbeEvent("fetch", {
 			request: request
@@ -973,20 +981,17 @@ function initProbe(options, inputValues){
 
 		// add to pending ajax before dispatchProbeEvent. Since dispatchProbeEvent can await for something (and take some time) we need to be sure that the current xhr is awaited from the main loop
 		if(!xhr.__skipped){
-			this._pendingAjax.push(xhr);	
+			this._pendingAjax.push(xhr);
 		}
 
-		//var ueRet = this.triggerUserEvent("onXhr",[xhr.__request]);
 		var uRet = await this.dispatchProbeEvent("xhr", {
 			request: xhr.__request
 		});
-		//console.log("----------adsdsd_---------------")
-		// console.log(uRet)
 
 		if(!uRet){
 			this._pendingAjax.splice(this._pendingAjax.indexOf(xhr), 1);
 			return false;
-		} 
+		}
 		xhr.addEventListener("readystatechange", function ev(e){
 			if(xhr.readyState != 4) return;
 			var i = _this._pendingAjax.indexOf(xhr);
@@ -1000,8 +1005,8 @@ function initProbe(options, inputValues){
 				response: xhr.responseText
 			});
 			xhr.removeEventListener("readystatechange", ev);
-		});	
-		
+		});
+
 		this.sentAjax.push(rk);
 
 		return true;
@@ -1045,13 +1050,13 @@ function initProbe(options, inputValues){
 			newEls = [],
 			uRet;
 		// map propety events and fill input values
-		this.initializeElement(node);
+		await this.initializeElement(node);
 
 		//let analyzed = 0;
 		for(let el of dom){
 			let elsel = this.getElementSelector(el);
 			if(!this.isAttachedToDOM(el)){
-				console.log("!!00>>> " + this.stringifyElement(el) + " detached before analysis !!! results may be incomplete") 
+				console.log("!!00>>> " + this.stringifyElement(el) + " detached before analysis !!! results may be incomplete")
 				uRet = await this.dispatchProbeEvent("earlydetach", { node: elsel });
 				if(!uRet) continue;
 			}
@@ -1063,12 +1068,12 @@ function initProbe(options, inputValues){
 					if(!uRet) continue;
 
 					this.triggerElementEvent(el, event);
-					// if click has been trigered stop mousedown /up !!! 
-					
+					// if click has been trigered stop mousedown /up !!!
+
 					await this.dispatchProbeEvent("eventtriggered", {node: elsel, event: event});
 				}
 
-				
+
 				let chainLimit = this.options.maximumAjaxChain;
 				do {
 					chainLimit--;
@@ -1077,11 +1082,11 @@ function initProbe(options, inputValues){
 					}
 					await this.sleep(0);
 				} while(await this.waitAjax());
-				
-				await this.waitFetch();	
-				await this.waitJsonp();	
 
-				newEls = this.getAddedElements();		
+				await this.waitFetch();
+				await this.waitJsonp();
+
+				newEls = this.getAddedElements();
 				for(var a = newEls.length - 1; a >= 0; a--){
 					if(newEls[a].innerText && this.isContentDuplicated(newEls[a].innerText))
 						newEls.splice(a,1);
@@ -1103,9 +1108,9 @@ function initProbe(options, inputValues){
 							trigger: this.getTrigger(),
 							layer: layer
 						});
-						if(uRet)		
+						if(uRet)
 							await this.crawlDOM(ne, layer + 1);
-					}		
+					}
 
 				}
 			}
