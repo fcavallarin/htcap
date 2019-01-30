@@ -1,5 +1,5 @@
 /*
-HTCRAWL - 1.2
+HTCRAWL - 1.0
 http://htcrawl.org
 Author: filippo.cavallarin@wearesegment.com
 
@@ -7,6 +7,34 @@ This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
 Foundation; either version 2 of the License, or (at your option) any later
 version.
+
+
+
+The shingleprint.py code has been converted from the c source code of the simhash linux command
+writted by Bart Massey.
+
+The algorithm used by simhash is Manassas' "shingleprinting" algorithm: take a
+hash of every m-byte subsequence of the file, and retain the n of these hashes
+that are numerically smallest. The size of the intersection of the hash sets of
+two files gives a statistically good estimate of the similarity of the files as
+a whole.
+
+References:
+Linux simhash man
+http://www.linuxcertif.com/man/1/simhash/
+
+Mark Manasse, Microsoft Research Silicon Valley. Finding similar things quickly
+in large collections. http://research.microsoft.com/research/sv/PageTurner/similarity.htm
+
+Andrei Z. Broder. On the resemblance and containment of documents.
+In Compression and Complexity of Sequences (SEQUENCES'97), pages 21-29. IEEE Computer Society,
+1998. ftp://ftp.digital.com/pub/DEC/SRC/publications/broder/positano-final-wpnums.pdf
+
+Andrei Z. Broder. Some applications of Rabin's fingerprinting method. Published in
+R. Capocelli, A. De Santis, U. Vaccaro eds., Sequences II: Methods in Communications,
+Security, and Computer Science, Springer-Verlag, 1993. http://athos.rutgers.edu/~muthu/broder.ps
+
+
 */
 
 exports.initTextComparator = function(){
@@ -31,13 +59,13 @@ exports.initTextComparator = function(){
 
 	ShinglePrint.prototype.compare = function(features){
 		var tfeatures = this.getFeatures();
-		
+
 		return this.score(tfeatures, features);
 	}
 
 	ShinglePrint.prototype.getFeatures = function(){
 		if(!this.features)
-			this.init();	
+			this.init();
 		return this.features;
 	}
 
@@ -46,7 +74,7 @@ exports.initTextComparator = function(){
 			var w = 4;
 			//s = this.text;
 			if(typeof s == 'string')
-				s =  Array.prototype.slice.call(s, 0);		
+				s =  Array.prototype.slice.call(s, 0);
 
 			var tks = s //.toLowerCase().trim().split(" ");
 			if (tks.length < w) return [s];
@@ -65,7 +93,7 @@ exports.initTextComparator = function(){
 			var w = 4;
 			s = this.text;
 			if(typeof s == 'string')
-				s =  Array.prototype.slice.call(s, 0);		
+				s =  Array.prototype.slice.call(s, 0);
 
 			var tks = s.toLowerCase().trim().split(" ");
 			if (tks.length < w) return [s];
@@ -136,7 +164,7 @@ exports.initTextComparator = function(){
 	}
 
 		//@staticmethod
-	ShinglePrint.prototype.score = function(f1, f2){	
+	ShinglePrint.prototype.score = function(f1, f2){
 		var unionsize = 0.0,
 			intersectsize = 0.0,
 			i1 = f1.length - 1,
@@ -166,7 +194,7 @@ exports.initTextComparator = function(){
 
 		// @staticmethod
 		// def similarity(x, y):
-	ShinglePrint.prototype.similarity = function(x, y){	
+	ShinglePrint.prototype.similarity = function(x, y){
 		var i = (x & y),
 			u = (x | y);
 		//# print "%x %x" % (x, y)
@@ -249,7 +277,7 @@ exports.initTextComparator = function(){
 
 
 	ShinglePrint.prototype.HeapMax.prototype.upheap = function(){
-		
+
 		var i = this.nheap - 1;
 			//assert(this.nheap > 0)
 		while(i > 0){
@@ -311,7 +339,7 @@ exports.initTextComparator = function(){
 	/*
 		# Since the input values are crc's, we don't
 		# try to hash them at all!  they're plenty random
-		# coming in, in principle. 
+		# coming in, in principle.
 	*/
 
 	ShinglePrint.prototype.HashQueue.prototype.do_hash_insert = function(crc){
@@ -336,7 +364,7 @@ exports.initTextComparator = function(){
 	ShinglePrint.prototype.HashQueue.prototype.gc = function(){
 		var oldhash = this.hash,
 			oldocc = this.occ;
-		
+
 		this.hash_alloc();
 
 		//for i in range(this.nhash):
@@ -354,7 +382,7 @@ exports.initTextComparator = function(){
 	ShinglePrint.prototype.HashQueue.prototype.hash_insert = function(crc){
 		if(this.do_hash_insert(crc))
 			return;
-		
+
 		this.gc();
 		if(this.do_hash_insert(crc))
 			return;
@@ -371,7 +399,7 @@ exports.initTextComparator = function(){
 				return 0;
 			if(this.occ[i] == this.FULL && this.hash[i] == crc)
 				return 1;
-			h += 2 * (this.nhash / 4) + 1;		
+			h += 2 * (this.nhash / 4) + 1;
 		}
 		return -1;
 	}
@@ -416,7 +444,7 @@ exports.initTextComparator = function(){
 		this.gc()
 		result = this.do_hash_delete(crc);
 		//if(this.result >= 0) /// <-?? wrong
-		if(result >= 0) 
+		if(result >= 0)
 			return result;
 		//print "internal error: delete failed, table full"
 	}
@@ -452,7 +480,7 @@ exports.initTextComparator = function(){
 			// @ todo
 		}
 		if(text.length >= 256){
-			this.type = "shingleprint";		
+			this.type = "shingleprint";
 			let s = new ShinglePrint(text);
 			this.comparator = s;
 			this.value = s.getFeatures();

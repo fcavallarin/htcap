@@ -79,7 +79,6 @@ class Crawler:
 			"override_timeout_functions": True,
 			'crawl_forms': True, # only if mode == CRAWLMODE_AGGRESSIVE
 			'deduplicate_pages': True,
-			'use_legacy_browser': False,
 			'headless_chrome': True,
 			'extra_headers': False
 		}
@@ -129,7 +128,6 @@ class Crawler:
 			   "  -O               dont't override timeout functions (setTimeout, setInterval)\n"
 			   "  -K               keep elements in the DOM (prevent removal)\n"
 			   "  -e               disable hEuristic page deduplication\n"
-			   "  -L               use Legacy browser (phantomjs) instead of chrome\n"
 			   "  -l               do not run chrome in headless mode\n"
 			   "  -E HEADER        set extra http headers (ex -E foo=bar -E bar=foo)\n"
 			   )
@@ -430,7 +428,7 @@ class Crawler:
 		save_html = False
 
 		try:
-			opts, args = getopt.getopt(argv, 'hc:t:jn:x:A:p:d:BGR:U:wD:s:m:C:qr:SIHFP:OveLlE:')
+			opts, args = getopt.getopt(argv, 'hc:t:jn:x:A:p:d:BGR:U:wD:s:m:C:qr:SIHFP:OvelE:')
 		except getopt.GetoptError as err:
 			print str(err)
 			sys.exit(1)
@@ -516,8 +514,6 @@ class Crawler:
 				self.verbose = True
 			elif o == "-e":
 				Shared.options['deduplicate_pages'] = False
-			elif o == "-L":
-				Shared.options['use_legacy_browser'] = True
 			elif o == "-l":
 				Shared.options['headless_chrome'] = False
 			elif o == "-E":
@@ -526,9 +522,9 @@ class Crawler:
 				(hn, hv) = v.split("=", 1)
 				Shared.options['extra_headers'][hn] = hv
 
-		probe_cmd = get_phantomjs_cmd() if Shared.options['use_legacy_browser'] else get_node_cmd()
+		probe_cmd = get_node_cmd()
 		if not probe_cmd: # maybe useless
-			print "Error: unable to find node (or phantomjs) executable"
+			print "Error: unable to find node executable"
 			sys.exit(1)
 
 
@@ -547,18 +543,11 @@ class Crawler:
 		if Shared.options['mode'] == CRAWLMODE_PASSIVE:
 			probe_options.append("-t") # dont trigger events
 
-
-		if Shared.options['use_legacy_browser']:
-			if Shared.options['proxy']:
-				probe_cmd.append("--proxy-type=%s" % Shared.options['proxy']['proto'])
-				probe_cmd.append("--proxy=%s:%s" % (Shared.options['proxy']['host'], Shared.options['proxy']['port']))
-			probe_cmd.append(os.path.join(self.base_dir, 'probe', 'analyze.js'))
-		else:
-			if Shared.options['proxy']:
-				probe_options.extend(["-y", "%s:%s:%s" % (Shared.options['proxy']['proto'], Shared.options['proxy']['host'], Shared.options['proxy']['port'])])
-			if not Shared.options['headless_chrome']:
-				probe_options.append("-l")
-			probe_cmd.append(os.path.join(self.base_dir, 'probe', 'chrome-probe', 'analyze.js'))
+		if Shared.options['proxy']:
+			probe_options.extend(["-y", "%s:%s:%s" % (Shared.options['proxy']['proto'], Shared.options['proxy']['host'], Shared.options['proxy']['port'])])
+		if not Shared.options['headless_chrome']:
+			probe_options.append("-l")
+		probe_cmd.append(os.path.join(self.base_dir, 'probe', 'analyze.js'))
 
 
 		if len(Shared.excluded_urls) > 0:

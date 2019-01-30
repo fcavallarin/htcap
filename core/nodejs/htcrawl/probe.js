@@ -1,5 +1,5 @@
 /*
-HTCRAWL - 1.2
+HTCRAWL - 1.0
 http://htcrawl.org
 Author: filippo.cavallarin@wearesegment.com
 
@@ -194,11 +194,6 @@ function initProbe(options, inputValues){
 			delete elements[a].__new;
 		}
 
-		// if(rootElements.length > 0){
-		// 	this.triggerUserEvent("onDomModified", [rootElements, elements]);
-		// }
-
-		//*/console.log("root elements found: " + rootElements.length);
 		return rootElements;
 	}
 
@@ -273,7 +268,7 @@ function initProbe(options, inputValues){
 
 
 	// returns true if the value has been set
-	Probe.prototype.setVal = async function(el, value){
+	Probe.prototype.setVal = async function(el){
 		var options = this.options;
 		var _this = this;
 
@@ -281,9 +276,6 @@ function initProbe(options, inputValues){
 		if(ueRet === false) return;
 
 		var getv = function(type){
-			if(typeof value != 'undefined' && value !== null && value !== false){
-				return value;
-			}
 			if(!(type in _this.inputValues))
 				type = "string";
 
@@ -316,7 +308,6 @@ function initProbe(options, inputValues){
 		if(el.nodeName.toLowerCase() == 'select'){
 			var opts = el.getElementsByTagName('option');
 			if(opts.length > 1){ // avoid to set the first (already selected) options
-				// @TODO .. qui seleziono l'ultimo val.. ma devo controllare che non fosse "selected"
 				el.value = opts[opts.length-1].value;
 			} else {
 				el.value = setv(el.name);
@@ -409,9 +400,7 @@ function initProbe(options, inputValues){
 
 
 		for(var a = 0; a < els.length; a++){
-			let sv = this.getStaticInputValue(els[a]);
-
-			if(await this.setVal(els[a], sv))
+			if(await this.setVal(els[a]))
 				ret = true;
 		}
 		return ret;
@@ -426,9 +415,6 @@ function initProbe(options, inputValues){
 		if(el.tagName == "INPUT" && el.type.toLowerCase()=='color' && evname=='click'){
 			return;
 		}
-
-		// var ueRet = this.triggerUserEvent("onTriggerEvent", [el, evname]);
-		// if(ueRet === false) return;
 
 		var pdh = function(e){
 			var el = e.target;
@@ -529,7 +515,6 @@ function initProbe(options, inputValues){
 		if(!this.curElement || !this.curElement.element)
 			return null;
 
-		//return {element: this.curElement.element, event: this.curElement.event};
 		return {
 			element: this.describeElement(this.curElement.element),
 			event: this.curElement.event
@@ -585,8 +570,6 @@ function initProbe(options, inputValues){
 		var name = element.nodeName.toLowerCase();
 		var ret = [];
 		var selector = ""
-		//var elid = element.getAttribute('id');
-
 
 		if(element.id){
 			selector = "#" + element.id;
@@ -719,16 +702,12 @@ function initProbe(options, inputValues){
 		this.started_at = (new Date()).getTime();
 		await this.crawlDOM(document, 0);
 		console.log("DOM analyzed ");
-		//await this.dispatchProbeEvent("end", {});
-
 	};
 
 
 
 	Probe.prototype.isContentDuplicated = function(cont){
 		return this.domModifications.indexOf(cont) != -1;
-
-
 
 		// for(let m of this.domModifications){
 		// 	if(this.textComparator.compare(cont, m)){
@@ -799,22 +778,6 @@ function initProbe(options, inputValues){
 
 
 
-	Probe.prototype.triggerXhrsEvent = function(requests){ // unused ??
-
-		let reqarr = [];
-		for(let a of requests){
-			//reqarr.push(this.requestToObject(a.__request));
-			reqarr.push(a.__request);
-		}
-		this.dispatchProbeEvent("requestsCompleted", {
-			requests: reqarr,
-			// trigger: {
-			// 	element: this.describeElement(_this.curElement.element),
-			// 	event: this.curElement.event
-			// }
-		});
-
-	}
 
 	Probe.prototype.triggerWebsocketEvent = function(url){
 
@@ -853,14 +816,6 @@ function initProbe(options, inputValues){
 		method = method || "GET";
 
 		url = url.split("#")[0];
-
-//		if(url.match(/^[a-z0-9\-_]+\:/i) && !url.match(/(^https?)|(^ftps?)\:/i)){
-		// 	if(this.options.printUnknownRequests){
-		// 		req = new this.Request("unknown", "GET", url);
-		// 	}
-		// } else {
-		// 	req = new this.Request("link", "GET", url);
-		// }
 
 		req = new this.Request("navigation", method, url, data);
 
@@ -968,10 +923,6 @@ function initProbe(options, inputValues){
 			}
 		}
 
-
-		//xhr.__request.trigger = this.getTrigger();
-
-
 		// check if request has already been sent
 		var rk = xhr.__request.key();
 		if(this.sentAjax.indexOf(rk) != -1){
@@ -1038,7 +989,7 @@ function initProbe(options, inputValues){
 
 
 
-	Probe.prototype.crawlDOM = async function(node, layer){ // @TODO console.log(">>>>RECURSON LIMIT REACHED :" + counter);
+	Probe.prototype.crawlDOM = async function(node, layer){
 
 		layer = typeof layer != 'undefined' ? layer : 0;
 		if(layer == this.options.maximumRecursion){
@@ -1102,7 +1053,6 @@ function initProbe(options, inputValues){
 
 					//console.log("added elements " + newEls.length)
 					for(let ne of newEls){
-						//console.log(ne)
 						uRet = await this.dispatchProbeEvent("newdom", {
 							rootNode: this.describeElement(ne),
 							trigger: this.getTrigger(),

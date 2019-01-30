@@ -1,5 +1,6 @@
 /*
-HTCAP - beta 1
+HTCAP - 1.2
+http://htcap.org
 Author: filippo.cavallarin@wearesegment.com
 
 This program is free software; you can redistribute it and/or modify it under
@@ -8,309 +9,179 @@ Foundation; either version 2 of the License, or (at your option) any later
 version.
 */
 
-var system = require('system');
-var fs = require('fs');
+
+"use strict";
+
+const htcrawl = require("htcrawl");
+const utils = require('./utils');
+const process = require('process');
+const os = require('os');
+const fs = require('fs');
+const path = require('path');
+
+
+var sleep = function(n){
+	return new Promise(resolve => {
+		setTimeout(resolve, n);
+	});
+};
 
 
 
-phantom.injectJs("functions.js");
-phantom.injectJs("options.js");
-phantom.injectJs("probe.js");
+var argv = utils.parseArgs(process.argv, "hVaftUdICc:MSp:Tsx:A:r:mHX:PD:R:Oi:u:vy:E:lJ:", {});
+var options = argv.opts
+
+var targetUrl = argv.args[0];
 
 
-var startTime = Date.now();
+
+if(!targetUrl){
+	utils.usage();
+	process.exit(-1);
+}
+
+targetUrl = targetUrl.trim();
+if(targetUrl.length < 4 || targetUrl.substring(0,4).toLowerCase() != "http"){
+	targetUrl = "http://" + targetUrl;
+}
 
 
-var site = "";
-var response = null;
-//var showHelp = false;
+htcrawl.launch(targetUrl, options).then( crawler => {
+	const page = crawler.page();
+	var execTO = null;
+	var domLoaded = false;
+	var endRequested = false;
 
-var headers = {};
+	const pidfile = path.join(os.tmpdir(), "htcap-pids-" + process.pid)
+	fs.writeFileSync(pidfile, crawler.browser().process().pid)
 
-var args = getopt(system.args,"hVaftUJdICc:MSEp:Tsx:A:r:mHX:PD:R:Oi:u:v");
+	utils.print_out("[");
 
-var page = require('webpage').create();
-var page_settings = {encoding: "utf8"};
-var random = "IsHOulDb34RaNd0MsTR1ngbUt1mN0t";
-//var injectScript = "{}";
-var US = null;
-
-var userInterface = {
-	id: null,
-	vars: {},
-	pageEval: function(fnc){
-		var sfnc = 'return (' + fnc.toString() + ').apply(null, arguments)';
-		return page.evaluate(function(fnc){
-			 return (new Function('', fnc)).apply(null, window.__PROBE__.currentUserScriptParameters)
-		}, sfnc);
-	},
-	render: function(file){
-		try {
-			page.render(file);
-			return true;
-		} catch(e){
-			return false;
-		}
-	},
-	print: function(str){
-		console.log('["user",' + JSON.stringify(str) + '],');
-	},
-	fread: function(file){
-		try{
-			return "" + fs.read(file);
-		} catch(e){
-			return false;
-		}
-	},
-	fwrite: function(file, content, mode){
-		try {
-			fs.write(file, content, mode || 'w');
-			return true;
-		} catch(e) {
-			console.log(e)
-			return false;
-		}
+	function exit(){
+		clearTimeout(execTO);
+		crawler.browser().close();
+		fs.unlink(pidfile, (err) => {})
 	}
-}
 
-if(typeof args == 'string'){
-	console.log("Error: " + args);
-	phantom.exit(-1);
-}
-
-for(var a = 0; a < args.opts.length; a++){
-	switch(args.opts[a][0]){
-		case "h":
-			usage();
-			phantom.exit(1);
-			break;
-		case "P":
-			page_settings.operation = "POST";
-			break;
-		case "D":
-			page_settings.data = args.opts[a][1];
-			break;
-		case "R":
-			random = args.opts[a][1];
-			break;
-		case "u":
-			if(!phantom.injectJs(args.opts[a][1])){
-				console.log("File not found: " + args.opts[a][1]);
-				phantom.exit(0);
-			}
-			if(!window.US){
-				phantom.exit(0);
-			}
-			break;
-		case "v":
-			phantom.exit(0);
-	}
-}
-
-
-parseArgsToOptions(args);
-userInterface.id = options.id;
-
-site = args.args[1];
-
-if(!site){
-	usage();
-	phantom.exit(-1);
-}
-
-site = site.trim();
-if(site.length < 4 || site.substring(0,4).toLowerCase() != "http"){
-	site = "http://" + site;
-}
-
-console.log("[");
-
-/* maximum execution time */
-setTimeout(execTimedOut,options.maxExecTime);
-
-
-
-phantom.onError = function(msg, trace) {
-  var msgStack = ['PHANTOM ERROR: ' + msg];
-  if (trace && trace.length) {
-    msgStack.push('TRACE:');
-    trace.forEach(function(t) {
-      msgStack.push(' -> ' + (t.file || t.sourceURL) + ': ' + t.line + (t.function ? ' (in function ' + t.function +')' : ''));
-    });
-  }
-  console.error(msgStack.join('\n'));
-  phantom.exit(1);
-};
-
-
-
-page.onConsoleMessage = function(msg, lineNum, sourceId) {
-	if(options.verbose)
-		console.log("console: " + msg);
-}
-page.onError = function(msg, lineNum, sourceId) {
-	if(options.verbose)
-		console.log("console error: on   " + JSON.stringify(lineNum) + " " + msg);
-}
-
-page.onAlert = function(msg) {
-	if(options.verbose)
-  		console.log('ALERT: ' + msg);
-};
-
-page.settings.userAgent = options.userAgent;
-page.settings.loadImages = options.loadImages;
-
-
-
-page.onResourceReceived = function(resource) {
-	if(window.response == null){
-		window.response = resource;
-		// @TODO sanytize response.contentType
-
-	}
-};
-
-
-page.onResourceRequested = function(requestData, networkRequest) {
-	//console.log(JSON.stringify(requestData))
-};
-
-// to detect window.location= / document.location.href=
-page.onNavigationRequested = onNavigationRequested;
-
-page.onConfirm = function(msg) {return true;} // recently changed
-
-/* phantomjs issue #11684 workaround */
-var isPageInitialized = false;
-page.onInitialized = function(){
-	if(isPageInitialized) return;
-	isPageInitialized = true;
-
-	// try to hide phantomjs
-	page.evaluate(function(){
-		window.__callPhantom = window.callPhantom;
-		delete window.callPhantom;
+	crawler.on("redirect", async function(e, crawler){
+		// console.log(crawler.redirect());
+		// console.log(e.params.url);
+		// utils.printCookies(crawler);
+		// utils.printRequest({type:'link',method:"GET",url:e.params.url});
+		// exit();
 	});
 
-	startProbe(random/*, injectScript*/);
 
-};
+	crawler.on("domcontentloaded", async function(e, crawler){
+		//utils.printCookies(crawler);
+		domLoaded = true;
+		await utils.printLinks("html", crawler.page())
+		await utils.printForms("html", crawler.page())
+		//await sleep(4000)
+	});
 
-
-page.onCallback = function(data) {
-	switch(data.cmd){
-		case "triggerUserEvent":
-			var ret = window.US[data.argument.name](window.userInterface)
-			return ret;
-		case "print":
-			console.log(data.argument);
-			break;
-
-		case "end":
-			if(options.returnHtml){
-				page.evaluate(function(options){
-					window.__PROBE__.printPageHTML();
-				}, options);
-			}
-
-			page.evaluate(function(options){
-				window.__PROBE__.printPageHash();
-			}, options);
-
-			page.evaluate(function(options){
-				window.__PROBE__.triggerUserEvent("onEnd");
-			});
-
-			printStatus("ok", window.response.contentType);
-			phantom.exit(0);
-			break;
-
-	}
-
-}
-
-
-
-if(options.httpAuth){
-	headers['Authorization'] = 'Basic ' + btoa(options.httpAuth[0] + ":" + options.httpAuth[1]);
-}
-
-if(options.referer){
-	headers['Referer'] = options.referer;
-}
-
-page.customHeaders = headers;
-
-
-for(var a = 0; a < options.setCookies.length; a++){
-	// maybe this is wrogn acconding to rfc .. but phantomjs cannot set cookie witout a domain...
-	if(!options.setCookies[a].domain){
-		var purl = document.createElement("a");
-		purl.href=site;
-		options.setCookies[a].domain = purl.hostname
-	}
-	if(options.setCookies[a].expires)
-		options.setCookies[a].expires *= 1000;
-
-	phantom.addCookie(options.setCookies[a]);
-
-}
-
-page.viewportSize = {
-  width: 1920,
-  height: 1080
-};
-
-
-
-
-page.open(site, page_settings, function(status) {
-	var response = window.response; // just to be clear
-	if (status !== 'success'){
-		var mess = "";
-		var out = {response: response};
-		if(!response || response.headers.length == 0){
-			printStatus("error", "load");
-			phantom.exit(1);
-		}
-
-		// check for redirect first
-		for(var a = 0; a < response.headers.length; a++){
-			if(response.headers[a].name.toLowerCase() == 'location'){
-
-				if(options.getCookies){
-					printCookies(response.headers, site);
-				}
-				printStatus("ok", null, null, response.headers[a].value);
-				phantom.exit(0);
-			}
-		}
-
-		assertContentTypeHtml(response);
-
-		phantom.exit(1);
-	}
-
-
-	if(options.getCookies){
-		printCookies(response.headers, site);
-	}
-
-	assertContentTypeHtml(response);
-
-	page.evaluate(function(){
-
-		window.__PROBE__.waitAjax(function(ajaxTriggered){
-			window.__PROBE__.triggerUserEvent("onStart");
-			if(ajaxTriggered){
-				window.__PROBE__.triggerUserEvent("onAllXhrsCompleted");
-			}
-			console.log("startAnalysis")
-			window.__PROBE__.startAnalysis();
-		});
+	crawler.on("start", function(e, crawler){
+		//console.log("--->Start");
 	})
 
 
-});
+	crawler.on("newdom", async function(e, crawler){
+		await utils.printLinks(e.params.rootNode, crawler.page())
+		await utils.printForms(e.params.rootNode, crawler.page())
+		//console.log(e.params)
+	})
+
+	crawler.on("xhr", async function(e, crawler){
+		utils.printRequest(e.params.request)
+
+		//return false
+	});
+
+	crawler.on("xhrCompleted", function(e, crawler){
+		//console.log("XHR completed")
+	});
+
+
+	crawler.on("fetch", async function(e, crawler){
+		utils.printRequest(e.params.request)
+		//await sleep(6000);
+		//return false
+	});
+
+	crawler.on("fetchCompleted", function(e, crawler){
+		//console.log("XHR completed")
+	});
+
+	crawler.on("jsonp", function(e, crawler){
+		utils.printRequest(e.params.request)
+	});
+
+	crawler.on("jsonpCompleted", function(e, crawler){
+
+	});
+
+	crawler.on("websocket", function(e, crawler){
+		utils.printRequest(e.params.request)
+	});
+
+	crawler.on("websocketMessage", function(e, crawler){
+
+	});
+
+	crawler.on("websocketSend", function(e, crawler){
+
+	});
+
+	crawler.on("formSubmit", function(e, crawler){
+		utils.printRequest(e.params.request)
+	});
+
+	crawler.on("navigation", function(e, crawler){
+		e.params.request.type="link";
+		utils.printRequest(e.params.request)
+	});
+
+	crawler.on("eventtriggered", function(e, crawler){
+		//console.log(e.params)
+	});
+
+	crawler.on("triggerevent", function(e, crawler){
+		//console.log(e.params)
+	});
+
+	crawler.on("earlydetach", function(e, crawler){
+		//console.log('["warning","earlydetach of element ' + e.params.node + '],')
+		//crawler.browser().close();
+	});
+
+
+	async function end(){
+		if(endRequested) return;
+		endRequested = true;
+		if(domLoaded && !crawler.redirect()){
+			const el = await crawler.page().$("html");
+			const v = await el.getProperty('innerText');
+			const hash = await v.jsonValue();
+			var json = '["page_hash",' + JSON.stringify(hash) + '],';
+			utils.print_out(json);
+
+			if(options.returnHtml){
+				json = '["html",' + JSON.stringify(hash) + '],';
+				utils.print_out(json);
+			}
+		}
+
+		await utils.printStatus(crawler);
+		exit();
+	}
+
+	execTO = setTimeout(function(){
+		crawler.errors().push(["probe_timeout", "maximum execution time reached"]);
+		end();
+	}, options.maxExecTime);
+
+
+	crawler.start().then(end).catch(end);
+
+})
 

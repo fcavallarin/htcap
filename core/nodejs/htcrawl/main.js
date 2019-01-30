@@ -22,7 +22,6 @@ const process = require('process');
 exports.launch = async function(url, options){
 	options = options || {};
 	const chromeArgs = [
-		//'--proxy-server=127.0.0.1:8080',
 		'--no-sandbox',
 		'--disable-setuid-sandbox',
 		'--disable-gpu',
@@ -33,11 +32,7 @@ exports.launch = async function(url, options){
 		'--ssl-version-max=tls1.3',
 		'--ssl-version-min=tls1',
 		'--disable-web-security',
-		'--allow-running-insecure-content',
-
-		'--auto-open-devtools-for-tabs',
-		//`--load-extension=${__dirname}/chrome_extension/`,
-		//`--disable-extensions-except=${__dirname}/chrome_extension/`
+		'--allow-running-insecure-content'
 	];
 	for(let a in defaults){
 		if(!(a in options)) options[a] = defaults[a];
@@ -45,6 +40,11 @@ exports.launch = async function(url, options){
 	if(options.proxy){
 		chromeArgs.push("--proxy-server=" + options.proxy);
 	}
+
+	if(options.openChromeDevtoos){
+		chromeArgs.push('--auto-open-devtools-for-tabs');
+	}
+
 	var browser = await puppeteer.launch({headless: options.headlessChrome, ignoreHTTPSErrors: true, args:chromeArgs});
 	var c = new Crawler(url, options, browser);
 	await c.loadPage(browser);
@@ -228,8 +228,6 @@ Crawler.prototype.on = function(eventName, handler){
 
 Crawler.prototype.probe = function(method, args){
 	var _this = this;
-	//if(this.publicProbeMethods.indexOf(method) == -1)
-	//	throw "Probe method not found";
 
 	return new Promise( (resolve, reject) => {
 		_this._page.evaluate( async (method, args) => {
@@ -246,8 +244,6 @@ Crawler.prototype.dispatchProbeEvent = async function(name, params) {
 		name: name,
 		params: params || {}
 	};
-	// console.log(name)
-	// console.log(evt)
 
 	ret = await this.probeEvents[name](evt, this);
 	if(ret === false){
@@ -283,7 +279,6 @@ Crawler.prototype.loadPage = async function(browser){
 	page.on('request', async req => {
 		const overrides = {};
 		if(req.isNavigationRequest()){
-			//console.log("NAV REQ " + (req.redirectChain().length ) + req.url())
 			if(req.redirectChain().length > 0){
 				crawler._redirect = req.url();
 				await crawler.dispatchProbeEvent("redirect", {url: crawler._redirect});
@@ -295,8 +290,6 @@ Crawler.prototype.loadPage = async function(browser){
 				page.evaluate(function(r){
 					window.__PROBE__.triggerNavigationEvent(r.url, r.method, r.data);
 				}, {method:req.method(), url:req.url(), data:req.postData()});
-
-				//console.log(req);
 
 				req.abort('aborted');
 				return;
@@ -310,12 +303,7 @@ Crawler.prototype.loadPage = async function(browser){
 			}
 
 			firstRun = false;
-		} /*else {
-			if (request.resourceType() === 'image'){
-				request.abort();
-				return;
-			}
-		}*/
+		}
 
 		req.continue(overrides);
 	});
@@ -360,7 +348,6 @@ Crawler.prototype.loadPage = async function(browser){
 		console.log(e)
 	}
 
-	//});
 };
 
 

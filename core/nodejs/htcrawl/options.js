@@ -1,5 +1,5 @@
 /*
-HTCRAWL - 1.2
+HTCRAWL - 1.0
 http://htcrawl.org
 Author: filippo.cavallarin@wearesegment.com
 
@@ -19,7 +19,6 @@ exports.options = {
 	searchUrls: true,
 	jsonOutput:true,
 	maxExecTime: 300000, // 300 seconds
-	//maxExecTime: 100000, // 100 seconds
 	ajaxTimeout:5000,
 	printAjaxPostData: true,
 	loadImages: false,
@@ -32,15 +31,13 @@ exports.options = {
 	outputMappedEvents: false,
 	overrideTimeoutFunctions: false,
 	referer: false,
-	userAgent: null, //'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/53.0.2785.143 Safari/537.36',
+	userAgent: null,
 	allEvents: ['abort', 'autocomplete', 'autocompleteerror', 'beforecopy', 'beforecut', 'beforepaste', 'blur', 'cancel', 'canplay', 'canplaythrough', 'change', /*'click',*/ 'close', 'contextmenu', 'copy', 'cuechange', 'cut', 'dblclick', 'drag', 'dragend', 'dragenter', 'dragleave', 'dragover', 'dragstart', 'drop', 'durationchange', 'emptied', 'ended', 'error', 'focus', 'input', 'invalid', 'keydown', 'keypress', 'keyup', 'load', 'loadeddata', 'loadedmetadata', 'loadstart', 'mousedown', 'mouseenter', 'mouseleave', 'mousemove', 'mouseout', 'mouseover', 'mouseup', 'mousewheel', 'paste', 'pause', 'play', 'playing', 'progress', 'ratechange', 'reset', 'resize', 'scroll', 'search', 'seeked', 'seeking', 'select', 'selectstart', 'show', 'stalled', 'submit', 'suspend', 'timeupdate', 'toggle', 'volumechange', 'waiting', 'webkitfullscreenchange', 'webkitfullscreenerror', 'wheel'],
 	mouseEvents: [],//['click','dblclick','mouseup','mousedown','mousemove','mouseover', 'mouseout'],
 	keyboardEvents: [], //['keydown', 'keypress', 'keydown', 'keypress', 'keyup'], 
-	returnHtml: false,
 	setCookies: [],
 	excludedUrls: [],
 	maximumRecursion: 15,
-	printUnknownRequests: false, // unknown requests are for example mailto: and javascript: urls
 	maximumAjaxChain: 30,
 	preventElementRemoval: 1,
 	randomSeed: "IsHOulDb34RaNd0MsTR1ngbUt1mN0t",
@@ -68,15 +65,10 @@ exports.options = {
 		'tr':['click','dblclick','mouseup','mousedown'],
 		'div':['click','dblclick','mouseup','mousedown']
 	},
-	staticInputValues:[
-		//['form[name="login"] input[name="mail"]', "bm1@rtom.fake"],
-		//['form[name="login"] input[name="password"]', "bm1"]
-		["#inputEmail", "filippo.cavallarin@wearesegment.com"],
-		["#inputPassword", "YhdgK83ksL.a"]
-	],
 	proxy: null,
 	loadWithPost: false,
 	postData: null,
 	headlessChrome: true,
-	extraHeaders: false
+	extraHeaders: false,
+	openChromeDevtoos: false
 };
