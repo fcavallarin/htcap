@@ -89,14 +89,14 @@ exports.generateRandomValues = generateRandomValues;
 		Node.prototype.originalinsertBefore = Node.prototype.insertBefore;
 		Node.prototype.insertBefore = function(node, element){
 			//window.__PROBE__.printJSONP(node);
-			window.__PROBE__.jsonpHook(node);			
+			window.__PROBE__.jsonpHook(node);
 			return this.originalinsertBefore(node, element);
 		}
 
 		Node.prototype.originalreplaceChild = Node.prototype.replaceChild;
 		Node.prototype.replaceChild = function(node, oldNode){
 			//window.__PROBE__.printJSONP(node);
-			window.__PROBE__.jsonpHook(node);		
+			window.__PROBE__.jsonpHook(node);
 			return this.originalreplaceChild(node, oldNode);
 		}
 	}
@@ -113,7 +113,7 @@ exports.generateRandomValues = generateRandomValues;
 					window.__PROBE__.triggerWebsocketSendEvent(url, message);
 					return ws.__originalSend(message);
 				}
-				ws.addEventListener("message", function(message){								
+				ws.addEventListener("message", function(message){
 					window.__PROBE__.triggerWebsocketMessageEvent(url, message.data);
 				});
 				return ws;
@@ -147,7 +147,7 @@ exports.generateRandomValues = generateRandomValues;
 	Node.prototype.removeChild = function(node){
 		if(!node.__analyzed){
 			//console.log("elem not analyzed "+ window.__PROBE__.stringifyElement(node) )
-			//console.log(window.__PROBE__.getTrigger());	
+			//console.log(window.__PROBE__.getTrigger());
 		}
 		this.__removed = true;
 		if(this instanceof HTMLElement){
@@ -326,7 +326,7 @@ function parseCookiesFromHeaders(headers, url){
 					}
 				}
 
-				if(!cookie.expires) // expires MUST be in seconds .. 
+				if(!cookie.expires) // expires MUST be in seconds ..
 					cookie.expires = parseInt((new Date()).getTime() / 1000) + (60*60*24*365);
 				ret.push(cookie);
 			}

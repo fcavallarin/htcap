@@ -3,6 +3,12 @@
   "version": "1.0.0",
   "description": "crawler for single page applications",
   "main": "main.js",
+  "dependencies": {
+    "puppeteer": "^1.10.0"
+  },
+  "devDependencies": {
+	"puppeteer": "^1.10.0"
+  },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
