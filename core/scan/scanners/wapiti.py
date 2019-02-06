@@ -61,14 +61,14 @@ class Wapiti(BaseScanner):
 
 
 			cmd = [
-				url,
+				"--url", url,
 				"--timeout", "30",
-				# Set the modules (and HTTP methods for each module) to use for attacks.
-				# Prefix a module name with a dash to deactivate the related module.
-				# To only browse the target (without sending any payloads), deactivate every module with -m "-all".
-				# If you don't specify the HTTP methods, GET and POST will be used.
-				# Example: -m "-all,xss:get,exec:post"
-				"--module", "-all,xss:get",
+				# Set the list of attack modules (modules names separated with commas) to launch against the target.
+				# Default behavior (when the option is not set) is to use the most common modules.
+				# Common modules can also be specified using the "common" keyword.
+				# To launch a scan without launching any attack, just give an empty value (-m "").
+				# You can filter on http methods too (only get or post). For example -m "xss:get,exec:post".
+				"--module", "xss:get",
 				"--scope", "page",
 				"--format", "json",
 				"--output", out_file,
