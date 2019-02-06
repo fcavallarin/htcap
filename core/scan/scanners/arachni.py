@@ -119,8 +119,6 @@ class Arachni(BaseScanner):
 				"--report-save-path", out_file,
 				"--snapshot-save-path", "/dev/null",
 				"--daemon-friendly"
-				#"--http-proxy-type", "socks5",
-				#"--http-proxy","127.0.0.1:9150"
 				]
 
 			if self.scanner.audit_both_methods:
@@ -131,6 +129,10 @@ class Arachni(BaseScanner):
 
 			if len(self.request.cookies) > 0:
 				cmd.extend(["--http-cookie-string", "; ".join(["%s=%s" % (c.name, c.value) for c in self.request.cookies])])
+
+			if self.scanner.proxy:
+				cmd.extend(['--http-proxy-type', self.scanner.proxy['proto']])
+				cmd.extend(['--http-proxy', '%s:%s' % (self.scanner.proxy['host'], self.scanner.proxy['port'])])
 
 			cmd.append(self.request.url)
 
