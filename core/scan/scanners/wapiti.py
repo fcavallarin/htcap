@@ -115,7 +115,7 @@ class Wapiti(BaseScanner):
 				domain = cookie.domain
 				if domain:
 					if not domain.startswith("."): domain = ".%s" % domain
-				else:
+				elif cookie.setter:
 					domain = cookie.setter.hostname
 
 				if not domain in wcookies.keys():
