@@ -114,9 +114,13 @@ class Sqlmap(BaseScanner):
 				cmd.extend(("--load-cookies", cookie_file))
 
 			if self.request.method == "POST":
-				cmd.extend(("--method","POST"))
+				cmd.extend(("--method", "POST"))
 				if self.request.data:
 					cmd.extend(("--data", self.request.data))
+
+			if self.scanner.proxy:
+				cmd.extend(("--proxy", "%s://%s:%s" % (self.scanner.proxy['proto'], self.scanner.proxy['host'], self.scanner.proxy['port'])))
+
 			out = None
 			#self.sprint(cmd_to_str(cmd))
 			try:
