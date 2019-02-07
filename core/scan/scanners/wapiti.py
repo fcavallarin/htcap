@@ -75,6 +75,11 @@ class Wapiti(BaseScanner):
 				"--verify-ssl", "0"
 				]
 
+			if self.scanner.proxy:
+				proto = self.scanner.proxy['proto']
+				if proto.startswith("socks"): proto = "socks"
+				cmd.extend(("--proxy", "%s://%s:%s/" % (proto, self.scanner.proxy['host'], self.scanner.proxy['port'])))
+
 			# ! no option to set referer ?
 
 			if len(request.cookies) > 0:
