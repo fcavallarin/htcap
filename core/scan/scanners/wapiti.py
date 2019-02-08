@@ -75,15 +75,28 @@ class Wapiti(BaseScanner):
 				"--verify-ssl", "0"
 				]
 
+			if self.request.referer:
+				cmd.extend(("--header", "Referer:%s" % self.request.referer))
+
 			if self.scanner.proxy:
 				proto = self.scanner.proxy['proto']
 				if proto.startswith("socks"): proto = "socks"
 				cmd.extend(("--proxy", "%s://%s:%s/" % (proto, self.scanner.proxy['host'], self.scanner.proxy['port'])))
 
-			# ! no option to set referer ?
+			extra_headers = []
+			for hn in self.request.extra_headers:
+				if hn not in self.scanner.extra_headers:
+					extra_headers.append(hn + ":" + self.request.extra_headers[hn])
+
+			for hn in self.scanner.extra_headers:
+				extra_headers.append(hn + ":" + self.scanner.extra_headers[hn])
+
+			for header in extra_headers:
+				cmd.extend(("--header", header))
 
 			if len(request.cookies) > 0:
 				cmd.extend(("--cookie", cookie_file))
+
 			out = None
 			try:
 				cmd_out = self.utils.execmd("wapiti", cmd)
