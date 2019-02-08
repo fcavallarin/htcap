@@ -121,6 +121,17 @@ class Sqlmap(BaseScanner):
 			if self.scanner.proxy:
 				cmd.extend(("--proxy", "%s://%s:%s" % (self.scanner.proxy['proto'], self.scanner.proxy['host'], self.scanner.proxy['port'])))
 
+			extra_headers = []
+			for hn in self.request.extra_headers:
+				if hn not in self.scanner.extra_headers:
+					extra_headers.append(hn + ":" + self.request.extra_headers[hn])
+
+			for hn in self.scanner.extra_headers:
+				extra_headers.append(hn + ":" + self.scanner.extra_headers[hn])
+
+			if len(extra_headers) > 0:
+				cmd.extend(("--headers", "\n".join(extra_headers)))
+
 			out = None
 			#self.sprint(cmd_to_str(cmd))
 			try:
