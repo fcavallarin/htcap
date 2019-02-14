@@ -134,6 +134,17 @@ class Arachni(BaseScanner):
 				cmd.extend(['--http-proxy-type', self.scanner.proxy['proto']])
 				cmd.extend(['--http-proxy', '%s:%s' % (self.scanner.proxy['host'], self.scanner.proxy['port'])])
 
+			extra_headers = []
+			for hn in self.request.extra_headers:
+				if hn not in self.scanner.extra_headers:
+					extra_headers.append(hn + "=" + self.request.extra_headers[hn])
+
+			for hn in self.scanner.extra_headers:
+				extra_headers.append(hn + "=" + self.scanner.extra_headers[hn])
+
+			for header in extra_headers:
+				cmd.extend(("--http-request-header", header))
+
 			cmd.append(self.request.url)
 
 			if not self.scanner.execute_command:
