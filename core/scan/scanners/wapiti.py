@@ -84,15 +84,16 @@ class Wapiti(BaseScanner):
 				cmd.extend(("--proxy", "%s://%s:%s/" % (proto, self.scanner.proxy['host'], self.scanner.proxy['port'])))
 
 			extra_headers = []
-			for hn in self.request.extra_headers:
-				if hn not in self.scanner.extra_headers:
-					extra_headers.append(hn + ":" + self.request.extra_headers[hn])
+			if self.request.extra_headers:
+				for hn in self.request.extra_headers:
+					if hn not in self.scanner.extra_headers:
+						extra_headers.append(hn + ":" + self.request.extra_headers[hn])
 
-			for hn in self.scanner.extra_headers:
-				extra_headers.append(hn + ":" + self.scanner.extra_headers[hn])
+				for hn in self.scanner.extra_headers:
+					extra_headers.append(hn + ":" + self.scanner.extra_headers[hn])
 
-			for header in extra_headers:
-				cmd.extend(("--header", header))
+				for header in extra_headers:
+					cmd.extend(("--header", header))
 
 			if len(request.cookies) > 0:
 				cmd.extend(("--cookie", cookie_file))
