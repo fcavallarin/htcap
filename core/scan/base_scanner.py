@@ -89,7 +89,7 @@ class BaseScanner:
 		self.proxy = proxy
 		self.cookies = cookies
 		self.user_agent = user_agent
-		self.extra_headers = extra_headers
+		self.extra_headers = extra_headers if extra_headers else []
 
 		self.utils = ScannerUtils(self)
 
