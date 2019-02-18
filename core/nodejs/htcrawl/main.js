@@ -202,6 +202,7 @@ Crawler.prototype.start = async function(){
 		await _this._page.evaluate(async function(){
 			await window.__PROBE__.waitAjax();
 			await window.__PROBE__.waitJsonp();
+			await window.__PROBE__.waitFetch();
 
 			await window.__PROBE__.dispatchProbeEvent("start");
 			console.log("startAnalysis")
@@ -278,11 +279,19 @@ Crawler.prototype.loadPage = async function(browser){
 
 	page.on('request', async req => {
 		const overrides = {};
-		if(req.isNavigationRequest()){
+		if(req.isNavigationRequest() && req.frame() == page.mainFrame()){
 			if(req.redirectChain().length > 0){
 				crawler._redirect = req.url();
-				await crawler.dispatchProbeEvent("redirect", {url: crawler._redirect});
-				req.abort('failed');
+				var uRet = await crawler.dispatchProbeEvent("redirect", {url: crawler._redirect});
+				if(!uRet){
+					req.abort('aborted'); // die silently
+					return;
+				}
+				if(options.exceptionOnRedirect){
+					req.abort('failed'); // throws exception
+					return;
+				}
+				req.continue();
 				return;
 			}
 
@@ -290,7 +299,6 @@ Crawler.prototype.loadPage = async function(browser){
 				page.evaluate(function(r){
 					window.__PROBE__.triggerNavigationEvent(r.url, r.method, r.data);
 				}, {method:req.method(), url:req.url(), data:req.postData()});
-
 				req.abort('aborted');
 				return;
 			} else {
@@ -314,7 +322,7 @@ Crawler.prototype.loadPage = async function(browser){
 	});
 
 
-	page.exposeFunction("__htcrawl_probe_event__",   (name, params) =>  this.dispatchProbeEvent(name, params)); // <- automatically awaited.."If the puppeteerFunction returns a Promise, it will be awaited."
+	page.exposeFunction("__htcrawl_probe_event__",   (name, params) =>  {return this.dispatchProbeEvent(name, params)}); // <- automatically awaited.."If the puppeteerFunction returns a Promise, it will be awaited."
 
 	 await page.setViewport({
 		width: 1366,
