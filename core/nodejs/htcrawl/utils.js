@@ -104,18 +104,8 @@ exports.generateRandomValues = generateRandomValues;
 	if(options.checkWebsockets){
 		window.WebSocket = (function(WebSocket){
 			return function(url, protocols){
-				//window.__PROBE__.printWebsocket(url); //websockets.push(url);
-				window.__PROBE__.triggerWebsocketEvent(url);
-				//return WebSocket.prototype;
-				var ws = new WebSocket(url);
-				ws.__originalSend = ws.send;
-				ws.send = function(message){
-					window.__PROBE__.triggerWebsocketSendEvent(url, message);
-					return ws.__originalSend(message);
-				}
-				ws.addEventListener("message", function(message){
-					window.__PROBE__.triggerWebsocketMessageEvent(url, message.data);
-				});
+				var ws = new WebSocket(url, protocols);
+				window.__PROBE__.websocketHook(ws, url);
 				return ws;
 			}
 		})(window.WebSocket);

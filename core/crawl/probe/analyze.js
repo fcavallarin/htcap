@@ -45,6 +45,7 @@ if(targetUrl.length < 4 || targetUrl.substring(0,4).toLowerCase() != "http"){
 	targetUrl = "http://" + targetUrl;
 }
 
+options.exceptionOnRedirect = true;
 
 htcrawl.launch(targetUrl, options).then( crawler => {
 	const page = crawler.page();
