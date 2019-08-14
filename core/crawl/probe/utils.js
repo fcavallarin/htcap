@@ -30,7 +30,6 @@ exports.printForms = printForms;
 exports.printStatus = printStatus;
 exports.print_out = print_out;
 
-
 var printedRequests = [];
 
 function printRequest(req){
@@ -60,6 +59,7 @@ function filterUrl(url){
 }
 
 async function printLinks(rootNode, page){
+	if(!rootNode)return;
 	var el = await page.$(rootNode);
 	var req, t;
 	if(!el)return;
@@ -83,6 +83,7 @@ async function printLinks(rootNode, page){
 }
 
 async function printForms(rootNode, page){
+	if(!rootNode)return;
 	var el = await page.$(rootNode);//.then(el => {
 	//page.evaluate(e => console.log(e.innerText), el)
 	if(!el)return;
@@ -215,7 +216,7 @@ function parseArgsToOptions(args, defaults){
 					options.setCookies = JSON.parse(cookie_file);
 				} catch(e){
 					console.log(e);
-					phantom.exit(1);
+					phantom.exit(1); // @TODO ????
 				}
 
 				break;
@@ -287,6 +288,20 @@ function parseArgsToOptions(args, defaults){
 				fs.writeFileSync(outfile, "", (err) => {
 					console.log("Error writing to outfile");
 				});
+				break;
+			case "L":
+				try{
+					options.loginSequence = JSON.parse(args.opts[a][1]);
+				} catch(e){
+					try{
+						options.loginSequence = JSON.parse(fs.readFileSync(args.opts[a][1]));
+					} catch(e){
+						throw e;
+					}
+				}
+				break;
+			case "z":
+				options.doNotCrawl = true;
 				break;
 
 		}
@@ -368,14 +383,9 @@ function usage(){
 				"  -l              do not run chrome in headless mode\n" +
 				"  -v              exit after parsing options, used to verify user script\n" +
 				"  -E              set extra http headers (json encoded {name:value}\n" +
+				"  -L              set login sequence\n" +
+				"  -z              do not crawl\n" +
 				"  -J <path>       print json to file instead of stdout";
 	console.log(usage);
 }
-
-
-
-
-
-
-
 

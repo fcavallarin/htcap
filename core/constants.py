@@ -34,7 +34,7 @@ REQTYPE_IMAGE = "image"
 REQTYPE_UNKNOWN = "unknown"
 
 
-ERROR_CONTENTTYPE = "contentType"
+ERROR_CONTENTTYPE = "content_type"
 ERROR_TIMEOUT = "timeout"
 ERROR_PROBE_TO = "probe_timeout"
 ERROR_LOAD = "loaderror"
@@ -42,8 +42,13 @@ ERROR_PROBEKILLED = "probe_killed"
 ERROR_PROBEFAILURE = "probe_failure"
 ERROR_MAXREDIRECTS = "too_many_redirects"
 ERROR_CRAWLDEPTH = "crawler_depth_limit_reached"
+ERROR_LOGINSEQ = "login_sequence"
+
 VULNTYPE_SQLI = "sqli"
 VULNTYPE_XSS = "xss"
 
 METHOD_GET = "GET"
 METHOD_POST = "POST"
+
+LOGSEQTYPE_STANDALONE = "standalone"
+LOGSEQTYPE_SHARED = "shared"

@@ -18,7 +18,7 @@ const fs = require('fs');
 exports.parseCookiesFromHeaders = parseCookiesFromHeaders;
 exports.hookNativeFunctions = hookNativeFunctions;
 exports.generateRandomValues = generateRandomValues;
-
+exports.Request = Request;
 
  function hookNativeFunctions(options) {
 	//alert(window.__PROBE__)
@@ -324,5 +324,17 @@ function parseCookiesFromHeaders(headers, url){
 	}
 	return ret;
 };
+
+
+function Request(type, method, url, data, trigger, extra_headers){
+	this.type = type;
+	this.method = method;
+	this.url = url;
+	this.data = data || null;
+	this.trigger = trigger || null;
+	this.extra_headers = extra_headers || {};
+}
+
+
 
 

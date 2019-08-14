@@ -58,7 +58,7 @@ class CrawlerThread(threading.Thread):
 
 		self.cookie_file = "%s%shtcap_cookiefile-%s.json" % (tempfile.gettempdir(), os.sep, self.thread_uuid)
 		self.out_file = "%s%shtcap_output-%s.json" % (tempfile.gettempdir(), os.sep, self.thread_uuid)
-		self.cmd = None
+		self.probe_executor = None
 
 	def run(self):
 		self.crawl()
@@ -91,109 +91,21 @@ class CrawlerThread(threading.Thread):
 		return request
 
 
-
-	def load_probe_json(self, jsn):
-		jsn = jsn.strip()
-		if not jsn: jsn = "["
-		if jsn[-1] != "]":
-			jsn += '{"status":"ok", "partialcontent":true}]'
-		try:
-			return json.loads(jsn)
-		except Exception:
-			print "-- JSON DECODE ERROR %s" % jsn
-			raise
-
-
 	def send_probe(self, request,  errors):
-
-		url = request.url
-		jsn = None
-		probe = None
-		retries = self.process_retries
-		params = []
-		cookies = []
-
-
-		if request.method == "POST":
-			params.append("-P")
-			if request.data:
-				params.extend(("-D", request.data))
-
-
-		if len(request.cookies) > 0:
-			for cookie in request.cookies:
-				c = cookie.get_dict()
-				if not c['domain']:
-					purl = urlsplit(request.url)
-					c['domain'] = purl.netloc.split(":")[0]
-				cookies.append(c)
-
-			with open(self.cookie_file,'w') as fil:
-				fil.write(json.dumps(cookies))
-
-			params.extend(("-c", self.cookie_file))
-
-
-
-		if request.http_auth:
-			params.extend(("-p" ,request.http_auth))
-
-		if Shared.options['set_referer'] and request.referer:
-			params.extend(("-r", request.referer))
-
-
-		params.extend(("-i", str(request.db_id)))
-
-		params.extend(("-J", self.out_file))
-
-		params.append(url)
-
-
-		while retries:
-		#while False:
-
-			# print cmd_to_str(Shared.probe_cmd + params)
-			# print ""
-			jsn = None
-			self.cmd = CommandExecutor(Shared.probe_cmd + params, True)
-			out, err = self.cmd.execute(Shared.options['process_timeout'] + 10)
-
-			if os.path.isfile(self.out_file):
-				with open(self.out_file, "r") as f:
-					jsn = f.read()
-				os.unlink(self.out_file)
-
-			if err or not jsn:
-				errors.append(ERROR_PROBEKILLED)
-				if not jsn:
-					break
-
-
-			# try to decode json also after an exception .. sometimes phantom crashes BUT returns a valid json ..
-			try:
-				if jsn and type(jsn) is not str:
-					jsn = jsn[0]
-				probeArray = self.load_probe_json(jsn)
-			except Exception as e:
-				raise
-
-
-			if probeArray:
-				probe = Probe(probeArray, request)
-
-				if probe.status == "ok":
-					break
-
-				errors.append(probe.errcode)
-
-				if probe.errcode in (ERROR_CONTENTTYPE, ERROR_PROBE_TO):
-					break
-
-			time.sleep(self.process_retries_interval)
-			retries -= 1
-
-		return probe
-
+		ls = Shared.options['login_sequence']
+		if ls and ls['type'] != LOGSEQTYPE_STANDALONE:
+			ls = None
+		self.probe_executor = ProbeExecutor(request, Shared.probe_cmd,
+			cookie_file=self.cookie_file,
+			out_file=self.out_file,
+			login_sequence=ls
+		)
+		probe = self.probe_executor.execute(
+			retries=self.process_retries,
+			process_timeout=Shared.options['process_timeout']
+		)
+		errors.extend(self.probe_executor.errors)
+		return probe;
 
 	def wait_pause(self):
 		while True:
