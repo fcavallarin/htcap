@@ -71,8 +71,11 @@ class Fileinclude(BaseFuzzer):
 			#print m
 			try:
 				resp = m.send(ignore_errors=True)
+			except RedirectException as e:
+				self.sprint("Redirect IGNORED (%s): %s" % (self.__class__.__name__, e))
+				continue
 			except Exception as e:
-				self.sprint("Error: %s" % e)
+				self.sprint("Error (%s): %s" % (self.__class__.__name__, e))
 				continue
 
 			if not resp.body:

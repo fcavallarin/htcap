@@ -107,10 +107,10 @@ class Mutation:
 	def send(self, req_timeout=5, ignore_errors=False):
 		http = HttpGet(self.request, req_timeout, proxy=self._scanner.proxy, useragent=self._scanner.user_agent, extra_headers=self._scanner.extra_headers)
 		cookies = []
-		if self.cookie:
-			cookies.extend(self.cookie)
 		if self._scanner.cookies:
 			cookies.extend(self._scanner.cookies)
+		if self.cookie:
+			cookies.extend(self.cookie)
 		#cookies = self.cookie + (self._scanner.cookies if self._scanner.cookies else [])
 		resp =  http.send_request(method=self.method, url=self.url, data=self.body, cookies=cookies, ignore_errors=ignore_errors)
 		return MutationResponse(self, resp)
