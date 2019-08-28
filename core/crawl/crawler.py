@@ -201,7 +201,7 @@ class Crawler:
 		purl = urlsplit(request.url)
 		url = "%s://%s/robots.txt" % (purl.scheme, purl.netloc)
 
-		getreq = Request(REQTYPE_LINK, "GET", url)
+		getreq = Request(REQTYPE_LINK, "GET", url, extra_headers=Shared.options['extra_headers'])
 		try:
 			# request, timeout, retries=None, useragent=None, proxy=None):
 			httpget = HttpGet(getreq, 10, 1, "Googlebot", Shared.options['proxy'])
@@ -591,7 +591,12 @@ class Crawler:
 
 
 		if Shared.options['login_sequence'] and Shared.options['login_sequence']['type'] == LOGSEQTYPE_SHARED:
-			login_req = Request(REQTYPE_LINK, "GET", Shared.options['login_sequence']['url'], set_cookie=Shared.start_cookies, http_auth=http_auth, referer=start_referer)
+			login_req = Request(REQTYPE_LINK, "GET", Shared.options['login_sequence']['url'],
+				set_cookie=Shared.start_cookies,
+				http_auth=http_auth,
+				referer=start_referer,
+				extra_headers=Shared.options['extra_headers']
+			)
 			stdoutw("Logging in . . . ")
 			try:
 				pe = ProbeExecutor(login_req, Shared.probe_cmd + ["-z"], login_sequence=Shared.options['login_sequence'])
@@ -617,14 +622,18 @@ class Crawler:
 			Shared.start_cookies.append(Cookie(sc, Shared.starturl))
 
 
-		start_req = Request(REQTYPE_LINK, "GET", Shared.starturl, set_cookie=Shared.start_cookies, http_auth=http_auth, referer=start_referer)
+		start_req = Request(REQTYPE_LINK, "GET", Shared.starturl,
+			set_cookie=Shared.start_cookies,
+			http_auth=http_auth,
+			referer=start_referer,
+			extra_headers=Shared.options['extra_headers']
+		)
 
 		if not hasattr(ssl, "SSLContext"):
 			print "* WARNING: SSLContext is not supported with this version of python, consider to upgrade to >= 2.7.9 in case of SSL errors"
 
 		stdoutw("Initializing . ")
 
-		# set out_of_scope, apply user-supplied filters to urls (ie group_qs)
 		start_requests = self.init_crawl(start_req, initial_checks, get_robots_txt)
 
 		database = None
