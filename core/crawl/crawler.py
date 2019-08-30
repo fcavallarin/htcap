@@ -71,7 +71,6 @@ class Crawler:
 			"use_urllib_onerror": True,
 			"group_qs": False,
 			"process_timeout": 300,
-			"set_referer": True,
 			"scope": CRAWLSCOPE_DOMAIN,
 			"mode": CRAWLMODE_AGGRESSIVE,
 			"max_depth": 100,
@@ -80,7 +79,8 @@ class Crawler:
 			'crawl_forms': True, # only if mode == CRAWLMODE_AGGRESSIVE
 			'deduplicate_pages': True,
 			'headless_chrome': True,
-			'extra_headers': False
+			'extra_headers': False,
+			'login_sequence': None
 		}
 
 
@@ -130,6 +130,7 @@ class Crawler:
 			   "  -e               disable hEuristic page deduplication\n"
 			   "  -l               do not run chrome in headless mode\n"
 			   "  -E HEADER        set extra http headers (ex -E foo=bar -E bar=foo)\n"
+			   "  -L SEQUENCE      set login sequence\n"
 			   )
 
 
@@ -149,8 +150,8 @@ class Crawler:
 			if th.isAlive():
 				th.exit = True
 				th.pause = False
-				if th.cmd:
-					th.cmd.terminate()
+				if th.probe_executor and th.probe_executor.cmd:
+					th.probe_executor.cmd.terminate()
 		Shared.th_condition.release()
 
 		# start notify() chain
@@ -200,7 +201,7 @@ class Crawler:
 		purl = urlsplit(request.url)
 		url = "%s://%s/robots.txt" % (purl.scheme, purl.netloc)
 
-		getreq = Request(REQTYPE_LINK, "GET", url)
+		getreq = Request(REQTYPE_LINK, "GET", url, extra_headers=Shared.options['extra_headers'])
 		try:
 			# request, timeout, retries=None, useragent=None, proxy=None):
 			httpget = HttpGet(getreq, 10, 1, "Googlebot", Shared.options['proxy'])
@@ -428,7 +429,7 @@ class Crawler:
 		save_html = False
 
 		try:
-			opts, args = getopt.getopt(argv, 'hc:t:jn:x:A:p:d:BGR:U:wD:s:m:C:qr:SIHFP:OvelE:')
+			opts, args = getopt.getopt(argv, 'hc:t:jn:x:A:p:d:BGR:U:wD:s:m:C:qr:SIHFP:OvelE:L:')
 		except getopt.GetoptError as err:
 			print str(err)
 			sys.exit(1)
@@ -475,6 +476,11 @@ class Crawler:
 					Shared.allowed_domains.add(pattern)
 			elif o == '-x':
 				for eu in v.split(","):
+					try:
+						re.match(eu, "")
+					except:
+						print "* ERROR: regex failed: %s" % eu
+						sys.exit(1)
 					Shared.excluded_urls.add(eu)
 			elif o == "-G":
 				Shared.options['group_qs'] = True
@@ -521,6 +527,18 @@ class Crawler:
 					Shared.options['extra_headers'] = {}
 				(hn, hv) = v.split("=", 1)
 				Shared.options['extra_headers'][hn] = hv
+			elif o == "-L":
+				try:
+					with open(v) as cf:
+						Shared.options['login_sequence'] = json.loads(cf.read())
+						Shared.options['login_sequence']["__file__"] = os.path.abspath(v)
+				except ValueError as e:
+					print "* ERROR: decoding login sequence"
+					sys.exit(1)
+				except Exception as e:
+					print "* ERROR: login sequence file not found"
+					sys.exit(1)
+
 
 		probe_cmd = get_node_cmd()
 		if not probe_cmd: # maybe useless
@@ -576,17 +594,50 @@ class Crawler:
 		Shared.allowed_domains.add(purl.hostname)
 
 
+
+		if Shared.options['login_sequence'] and Shared.options['login_sequence']['type'] == LOGSEQTYPE_SHARED:
+			login_req = Request(REQTYPE_LINK, "GET", Shared.options['login_sequence']['url'],
+				set_cookie=Shared.start_cookies,
+				http_auth=http_auth,
+				referer=start_referer,
+				extra_headers=Shared.options['extra_headers']
+			)
+			stdoutw("Logging in . . . ")
+			try:
+				pe = ProbeExecutor(login_req, Shared.probe_cmd + ["-z"], login_sequence=Shared.options['login_sequence'])
+				probe = pe.execute()
+				if not probe:
+					print "\n* ERROR: login sequence failed to execute probe"
+					sys.exit(1)
+				if probe.status == "ok":
+					for c in probe.cookies:
+						if not Shared.options['login_sequence']['cookies'] or c.name in Shared.options['login_sequence']['cookies']:
+							Shared.start_cookies.append(c)
+				else:
+					print "\n* ERROR: login sequence failed:\n   %s" % probe.errmessage
+					sys.exit(1)
+			except KeyboardInterrupt:
+				pe.terminate()
+				print "\nAborted"
+				sys.exit(0)
+			print "done"
+
+
 		for sc in start_cookies:
 			Shared.start_cookies.append(Cookie(sc, Shared.starturl))
 
 
-		start_req = Request(REQTYPE_LINK, "GET", Shared.starturl, set_cookie=Shared.start_cookies, http_auth=http_auth, referer=start_referer)
+		start_req = Request(REQTYPE_LINK, "GET", Shared.starturl,
+			set_cookie=Shared.start_cookies,
+			http_auth=http_auth,
+			referer=start_referer,
+			extra_headers=Shared.options['extra_headers']
+		)
 
 		if not hasattr(ssl, "SSLContext"):
 			print "* WARNING: SSLContext is not supported with this version of python, consider to upgrade to >= 2.7.9 in case of SSL errors"
 
 		stdoutw("Initializing . ")
-
 
 		start_requests = self.init_crawl(start_req, initial_checks, get_robots_txt)
 
@@ -606,7 +657,7 @@ class Crawler:
 			user_agent = Shared.options['useragent'],
 			proxy = json.dumps(Shared.options['proxy']),
 			extra_headers = json.dumps(Shared.options['extra_headers']),
-			cookies = json.dumps(start_cookies)
+			cookies = json.dumps([x.get_dict() for x in Shared.start_cookies])
 		)
 
 		database.connect()

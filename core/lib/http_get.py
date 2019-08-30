@@ -187,7 +187,7 @@ class HttpGet:
 
 
 
-	def send_request(self, method=None, url=None, data=None, cookies=None, ignore_errors=False): # Shared.options['process_timeout']
+	def send_request(self, method=None, url=None, data=None, cookies=None, ignore_errors=False, follow_redirect=False): # Shared.options['process_timeout']
 
 		if not method:
 			method = self.request.method
@@ -228,7 +228,7 @@ class HttpGet:
 				 	c = Cookie(cookie) # check what to do with cookie.setter
 					jar_request.set_cookie(c.get_cookielib_cookie())
 
-				opener = self.urllib2_opener(self.request, None, True)
+				opener = self.urllib2_opener(self.request, None, follow_redirect)
 				req = urllib2.Request(url=url, data=data)
 				req.get_method = lambda: method
 				jar_request.add_cookie_header(req)

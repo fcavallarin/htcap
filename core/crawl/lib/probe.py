@@ -34,6 +34,7 @@ class Probe:
 		if status['status'] == "error":
 			self.status = "error"
 			self.errcode = status['code']
+			self.errmessage = status['message']
 
 
 		if "partialcontent" in status:

@@ -47,7 +47,7 @@ exports.launch = async function(url, options){
 
 	var browser = await puppeteer.launch({headless: options.headlessChrome, ignoreHTTPSErrors: true, args:chromeArgs});
 	var c = new Crawler(url, options, browser);
-	await c.loadPage(browser);
+	await c.bootstrapPage(browser);
 	return c;
 };
 
@@ -68,7 +68,9 @@ function Crawler(targetUrl, options, browser){
 	this._cookies = [];
 	this._redirect = null;
 	this._errors = [];
-
+	this._loaded = false;
+	this._allowNavigation = false;
+	this._firstRun = true;
 	this.error_codes = ["contentType","navigation","response"];
 
 	this.probeEvents = {
@@ -94,6 +96,7 @@ function Crawler(targetUrl, options, browser){
 		earlydetach: function(){},
 		triggerevent: function(){},
 		eventtriggered: function(){},
+		pageinitialized: function(){}
 		//end: function(){}
 	}
 
@@ -103,7 +106,6 @@ function Crawler(targetUrl, options, browser){
 	this._browser = browser;
 	this._page = null;
 }
-
 
 
 Crawler.prototype.browser = function(){
@@ -145,37 +147,36 @@ Crawler.prototype.redirect = function(){
 Crawler.prototype.errors = function(){
 	return this._errors;
 }
+// returns after all ajax&c have been completed
+Crawler.prototype.load = async function(){
+	const resp = await this._goto(this.targetUrl);
+	return await this._afterNavigation(resp);
+};
 
-Crawler.prototype.start = async function(){
+Crawler.prototype._goto = async function(url){
 	var _this = this;
-
 	if(this.options.verbose)console.log("LOAD")
 
+	try{
+		return await this._page.goto(url, {waitUntil:'load'});
+	}catch(e){
+		_this._errors.push(["navigation","navigation aborted"]);
+		throw e;
+	};
+
+}
+Crawler.prototype._afterNavigation = async function(resp){
+	var _this = this;
 	var assertContentType = function(hdrs){
 		let ctype = 'content-type' in hdrs ? hdrs['content-type'] : "";
 
 		if(ctype.toLowerCase().split(";")[0] != "text/html"){
-			_this._errors.push(["contentType", `content type is ${ctype}`]);
-			//_this.dispatchProbeEvent("end", {});
+			_this._errors.push(["content_type", `content type is ${ctype}`]);
 			return false;
 		}
 		return true;
 	}
-
-	if(this.options.httpAuth){
-		await this._page.authenticate({username:this.options.httpAuth[0], password:this.options.httpAuth[1]});
-	}
-
-	if(this.options.userAgent){
-		await this._page.setUserAgent(this.options.userAgent);
-	}
-
-	await this._page.setDefaultNavigationTimeout(500000);
-
-	//this._page.goto(this.targetUrl, {waitUntil:'load'}).then(async resp => {
 	try{
-		var resp = await this._page.goto(this.targetUrl, {waitUntil:'load'});
-
 		if(!resp.ok()){
 			_this._errors.push(["response", resp.request().url() + " status: " + resp.status()]);
 			throw resp.status();
@@ -187,25 +188,49 @@ Crawler.prototype.start = async function(){
 
 
 		if(!assertContentType(hdrs)){
-			//return;
 			throw "Content type is not text/html";
 		}
 
-
-		await this._page.evaluate(async function(){
+		await _this._page.evaluate(async function(){
 			window.__PROBE__.takeDOMSnapshot();
 		});
 
+		_this._loaded = true;
 
 		await _this.dispatchProbeEvent("domcontentloaded", {});
 
-		await _this._page.evaluate(async function(){
-			await window.__PROBE__.waitAjax();
-			await window.__PROBE__.waitJsonp();
-			await window.__PROBE__.waitFetch();
+		await _this.waitForRequestsCompletion();
 
+		await _this.dispatchProbeEvent("pageinitialized", {});
+
+		
+
+		return _this;
+	}catch(e){
+		//;
+		throw e;
+	};
+};
+
+Crawler.prototype.waitForRequestsCompletion = async function(){
+	await this._page.evaluate(async function(){ // use Promise.all ??
+		await window.__PROBE__.waitAjax();
+		await window.__PROBE__.waitJsonp();
+		await window.__PROBE__.waitFetch();
+	});
+};
+
+Crawler.prototype.start = async function(){
+	var _this = this;
+
+	if(!this._loaded){
+		await this.load();
+	}
+
+	try {
+		await _this._page.evaluate(async function(){
 			await window.__PROBE__.dispatchProbeEvent("start");
-			console.log("startAnalysis")
+			console.log("startAnalysis");
 			await window.__PROBE__.startAnalysis();
 		});
 
@@ -217,6 +242,17 @@ Crawler.prototype.start = async function(){
 	};
 
 }
+
+
+
+
+Crawler.prototype.stop = function(){
+	var _this = this;
+	this._page.evaluate( () => {
+		window.__PROBE__._stop = true;
+	})
+}
+
 
 Crawler.prototype.on = function(eventName, handler){
 	eventName = eventName.toLowerCase();
@@ -251,17 +287,20 @@ Crawler.prototype.dispatchProbeEvent = async function(name, params) {
 		return false;
 	}
 
+	if(typeof ret == "object"){
+		return ret;
+	}
+
 	return true;
 }
 
 
-Crawler.prototype.loadPage = async function(browser){
+Crawler.prototype.bootstrapPage = async function(browser){
 	var options = this.options,
 		targetUrl = this.targetUrl,
 		pageCookies = this.pageCookies;
 
 	var crawler = this;
-
 	// generate a static map of random values using a "static" seed for input fields
 	// the same seed generates the same values
 	// generated values MUST be the same for all analyze.js call othewise the same form will look different
@@ -271,7 +310,6 @@ Crawler.prototype.loadPage = async function(browser){
 	// this process will lead to and infinite loop!
 	var inputValues = utils.generateRandomValues(this.options.randomSeed);
 
-	var firstRun = true;
 	const page = await browser.newPage();
 	crawler._page = page;
 	//if(options.verbose)console.log("new page")
@@ -280,7 +318,7 @@ Crawler.prototype.loadPage = async function(browser){
 	page.on('request', async req => {
 		const overrides = {};
 		if(req.isNavigationRequest() && req.frame() == page.mainFrame()){
-			if(req.redirectChain().length > 0){
+			if(req.redirectChain().length > 0 && !crawler._allowNavigation){
 				crawler._redirect = req.url();
 				var uRet = await crawler.dispatchProbeEvent("redirect", {url: crawler._redirect});
 				if(!uRet){
@@ -295,11 +333,15 @@ Crawler.prototype.loadPage = async function(browser){
 				return;
 			}
 
-			if(!firstRun){
-				page.evaluate(function(r){
-					window.__PROBE__.triggerNavigationEvent(r.url, r.method, r.data);
-				}, {method:req.method(), url:req.url(), data:req.postData()});
-				req.abort('aborted');
+			if(!crawler._firstRun){
+				let r = new utils.Request("navigation", req.method() || "GET", req.url().split("#")[0], req.postData());
+				await crawler.dispatchProbeEvent("navigation", {request:r});
+
+				if(crawler._allowNavigation){
+					req.continue();
+				} else {
+					req.abort('aborted');
+				}
 				return;
 			} else {
 				if(options.loadWithPost){
@@ -310,7 +352,7 @@ Crawler.prototype.loadPage = async function(browser){
 				}
 			}
 
-			firstRun = false;
+			crawler._firstRun = false;
 		}
 
 		req.continue(overrides);
@@ -342,12 +384,22 @@ Crawler.prototype.loadPage = async function(browser){
 		if(options.extraHeaders){
 			await page.setExtraHTTPHeaders(options.extraHeaders);
 		}
-    	for(let i=0; i < options.setCookies.length; i++){
-    		if(!options.setCookies[i].expires)
-    			options.setCookies[i].expires = parseInt((new Date()).getTime() / 1000) + (60*60*24*365);
-	    	//console.log(options.setCookies[i]);
-    		await page.setCookie(options.setCookies[i]);
-    	}
+		for(let i=0; i < options.setCookies.length; i++){
+			if(!options.setCookies[i].expires)
+				options.setCookies[i].expires = parseInt((new Date()).getTime() / 1000) + (60*60*24*365);
+			//console.log(options.setCookies[i]);
+			await page.setCookie(options.setCookies[i]);
+		}
+
+		if(options.httpAuth){
+			await page.authenticate({username:options.httpAuth[0], password:options.httpAuth[1]});
+		}
+
+		if(options.userAgent){
+			await page.setUserAgent(options.userAgent);
+		}
+
+		await this._page.setDefaultNavigationTimeout(this.options.navigationTimeout);
 
 		//if(options.verbose)console.log("goto returned")
 
@@ -359,3 +411,42 @@ Crawler.prototype.loadPage = async function(browser){
 };
 
 
+Crawler.prototype.navigate = async function(url){
+	if(!this._loaded){
+		throw("Crawler must be loaded before navigate");
+	}
+	this._allowNavigation = true;
+	const resp = await this._goto(url);
+	await this._afterNavigation(resp);
+
+	this._allowNavigation = false;
+};
+
+
+Crawler.prototype.clickToNavigate = async function(element, timeout){
+	const _this = this;
+	var pa;
+	if(typeof element == 'string') element = await this._page.$(element);
+	if(typeof timeout == 'undefined') timeout = 500;
+	if(!this._loaded){
+		throw("Crawler must be loaded before navigate");
+	}
+	this._allowNavigation = true;
+	try{
+		pa = await Promise.all([
+			element.click(),
+			this._page.waitForRequest(req => req.isNavigationRequest() && req.frame() == _this._page.mainFrame(), {timeout:timeout}),
+			this._page.waitForNavigation({waitUntil:'load'}),
+		]);
+
+	} catch(e){
+		pa = null;
+	}
+	this._allowNavigation = false;
+
+	if(pa != null){
+		await this._afterNavigation(pa[2]);
+		return true;
+	}
+	return false;
+};

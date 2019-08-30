@@ -87,15 +87,18 @@ class XssReflected(BaseFuzzer):
 	def init(self):
 		pass
 
-
+	# @TODO @FIX ignore content type != html, javascritp ecc..
 	def fuzz(self):
 		mutations = self.get_mutations(self.request, payloads)
 		vulnerabilities = []
 		for m in mutations:
 			try:
 				resp = m.send(ignore_errors=True)
+			except RedirectException as e:
+				self.sprint("Redirect IGNORED (%s): %s" % (self.__class__.__name__, e))
+				continue
 			except Exception as e:
-				self.sprint("Error: %s" % e)
+				self.sprint("Error (%s): %s" % (self.__class__.__name__, e))
 				continue
 			parser = None
 			if not resp.body:

@@ -57,51 +57,51 @@ responses = {
 		r'Fatal error\:[ ]* Uncaught Error\:'
 	],
 
-    "postgresql": [
-        r'PostgreSQL.*?ERROR',
-        r'Warning.*?\Wpg_',
-        r'valid PostgreSQL result',
-        r'Npgsql\.',
-        r'PG::SyntaxError:',
-        r'org\.postgresql\.util\.PSQLException',
-        r'ERROR:\s\ssyntax error at or near',
-        r'ERROR: parser: parse error at or near',
-        r'PostgreSQL query failed',
-        r'org\.postgresql\.jdbc',
-    ],
+	"postgresql": [
+		r'PostgreSQL.*?ERROR',
+		r'Warning.*?\Wpg_',
+		r'valid PostgreSQL result',
+		r'Npgsql\.',
+		r'PG::SyntaxError:',
+		r'org\.postgresql\.util\.PSQLException',
+		r'ERROR:\s\ssyntax error at or near',
+		r'ERROR: parser: parse error at or near',
+		r'PostgreSQL query failed',
+		r'org\.postgresql\.jdbc',
+	],
 
-    "mssql": [
-        r'Driver.*? SQL[\-\_\ ]*Server',
-        r'OLE DB.*? SQL Server',
-        r'\bSQL Server[^&lt;&quot;]+Driver',
-        r'Warning.*?(mssql|sqlsrv)_',
-        r'\bSQL Server[^&lt;&quot;]+[0-9a-fA-F]{8}',
-        r'System\.Data\.SqlClient\.SqlException',
-        r'(?s)Exception.*?\WRoadhouse\.Cms\.',
-        r'Microsoft SQL Native Client error \'[0-9a-fA-F]{8}',
-        r'\[SQL Server\]',
-        r'ODBC SQL Server Driver',
-        r'ODBC Driver \d+ for SQL Server',
-        r'SQLServer JDBC Driver',
-        r'com\.jnetdirect\.jsql',
-        r'SQLSrvException',
-        r'macromedia\.jdbc\.sqlserver',
-        r'com\.microsoft\.sqlserver\.jdbc',
-    ],
+	"mssql": [
+		r'Driver.*? SQL[\-\_\ ]*Server',
+		r'OLE DB.*? SQL Server',
+		r'\bSQL Server[^&lt;&quot;]+Driver',
+		r'Warning.*?(mssql|sqlsrv)_',
+		r'\bSQL Server[^&lt;&quot;]+[0-9a-fA-F]{8}',
+		r'System\.Data\.SqlClient\.SqlException',
+		r'(?s)Exception.*?\WRoadhouse\.Cms\.',
+		r'Microsoft SQL Native Client error \'[0-9a-fA-F]{8}',
+		r'\[SQL Server\]',
+		r'ODBC SQL Server Driver',
+		r'ODBC Driver \d+ for SQL Server',
+		r'SQLServer JDBC Driver',
+		r'com\.jnetdirect\.jsql',
+		r'SQLSrvException',
+		r'macromedia\.jdbc\.sqlserver',
+		r'com\.microsoft\.sqlserver\.jdbc',
+	],
 
 
-    "sqlite": [
-        r'SQLite/JDBCDriver',
-        r'SQLite\.Exception',
-        r'(Microsoft|System)\.Data\.SQLite\.SQLiteException',
-        r'Warning.*?sqlite_',
-        r'Warning.*?SQLite3::',
-        r'\[SQLITE_ERROR\]',
-        r'SQLite error \d+:',
-        r'sqlite3.OperationalError:',
-        r'SQLite3::SQLException',
-        r'org\.sqlite\.JDBC',
-    ]
+	"sqlite": [
+		r'SQLite/JDBCDriver',
+		r'SQLite\.Exception',
+		r'(Microsoft|System)\.Data\.SQLite\.SQLiteException',
+		r'Warning.*?sqlite_',
+		r'Warning.*?SQLite3::',
+		r'\[SQLITE_ERROR\]',
+		r'SQLite error \d+:',
+		r'sqlite3.OperationalError:',
+		r'SQLite3::SQLException',
+		r'org\.sqlite\.JDBC',
+	]
 
 
 
@@ -128,8 +128,11 @@ class Sqli_error(BaseFuzzer):
 		for m in mutations:
 			try:
 				resp = m.send(ignore_errors=True)
+			except RedirectException as e:
+				self.sprint("Redirect IGNORED (%s): %s" % (self.__class__.__name__, e))
+				continue
 			except Exception as e:
-				self.sprint("Error: %s" % e)
+				self.sprint("Error (%s): %s" % (self.__class__.__name__, e))
 				continue
 
 			if not resp or not resp.body:

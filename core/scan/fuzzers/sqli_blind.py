@@ -123,6 +123,9 @@ class Sqli_blind(BaseFuzzer):
 			start_time = time.time()
 			try:
 				resp = m.send()
+			except RedirectException as e:
+				self.sprint("Redirect IGNORED (%s): %s" % (self.__class__.__name__, e))
+				continue
 			except:
 				pass
 			finally:

@@ -27,8 +27,7 @@ var sleep = function(n){
 };
 
 
-
-var argv = utils.parseArgs(process.argv, "hVaftUdICc:MSp:Tsx:A:r:mHX:PD:R:Oi:u:vy:E:lJ:", {});
+var argv = utils.parseArgs(process.argv, "hVaftUdICc:MSp:Tsx:A:r:mHX:PD:R:Oi:u:vy:E:lJ:L:z", {});
 var options = argv.opts
 
 var targetUrl = argv.args[0];
@@ -45,31 +44,69 @@ if(targetUrl.length < 4 || targetUrl.substring(0,4).toLowerCase() != "http"){
 	targetUrl = "http://" + targetUrl;
 }
 
-options.exceptionOnRedirect = true;
 
-htcrawl.launch(targetUrl, options).then( crawler => {
+//options.openChromeDevtoos = true;
+(async () => {
+	const crawler = await htcrawl.launch(targetUrl, options);
 	const page = crawler.page();
 	var execTO = null;
 	var domLoaded = false;
 	var endRequested = false;
+	var loginSeq = 'loginSequence' in options ? options.loginSequence : false;
+	const pidfile = path.join(os.tmpdir(), "htcap-pids-" + process.pid);
 
-	const pidfile = path.join(os.tmpdir(), "htcap-pids-" + process.pid)
-	fs.writeFileSync(pidfile, crawler.browser().process().pid)
-
-	utils.print_out("[");
-
-	function exit(){
+	async function exit(){
+		//await sleep(100000)
 		clearTimeout(execTO);
-		crawler.browser().close();
-		fs.unlink(pidfile, (err) => {})
+		await crawler.browser().close();
+		fs.unlink(pidfile, (err) => {});
+		process.exit();
 	}
 
+	async function getPageText(page){
+		const el = await crawler.page().$("html");
+		const v = await el.getProperty('innerText');
+		return await v.jsonValue();
+	}
+
+	async function end(){
+		if(endRequested) return;
+		endRequested = true;
+		if(domLoaded && !crawler.redirect()){
+			const hash = await getPageText(crawler.page());
+			var json = '["page_hash",' + JSON.stringify(hash) + '],';
+			utils.print_out(json);
+
+			if(options.returnHtml){
+				json = '["html",' + JSON.stringify(hash) + '],';
+				utils.print_out(json);
+			}
+		}
+
+		await utils.printStatus(crawler);
+		await exit();
+	}
+
+	async function loginErr(message, seqline){
+		if(seqline){
+			message = "action " + seqline + ": " + message;
+		}
+		crawler.errors().push(["login_sequence", message]);
+		await end();
+	}
+
+	async function isLogged(page, condition){
+		const text = await page.content();
+		const regexp = new RegExp(condition, "gi");
+		return text.match(regexp) != null;
+	}
+
+
+	fs.writeFileSync(pidfile, crawler.browser().process().pid);
+	utils.print_out("[");
+
 	crawler.on("redirect", async function(e, crawler){
-		// console.log(crawler.redirect());
-		// console.log(e.params.url);
-		// utils.printCookies(crawler);
-		// utils.printRequest({type:'link',method:"GET",url:e.params.url});
-		// exit();
+
 	});
 
 
@@ -155,34 +192,88 @@ htcrawl.launch(targetUrl, options).then( crawler => {
 		//crawler.browser().close();
 	});
 
-
-	async function end(){
-		if(endRequested) return;
-		endRequested = true;
-		if(domLoaded && !crawler.redirect()){
-			const el = await crawler.page().$("html");
-			const v = await el.getProperty('innerText');
-			const hash = await v.jsonValue();
-			var json = '["page_hash",' + JSON.stringify(hash) + '],';
-			utils.print_out(json);
-
-			if(options.returnHtml){
-				json = '["html",' + JSON.stringify(hash) + '],';
-				utils.print_out(json);
-			}
-		}
-
-		await utils.printStatus(crawler);
-		exit();
-	}
-
 	execTO = setTimeout(function(){
 		crawler.errors().push(["probe_timeout", "maximum execution time reached"]);
 		end();
 	}, options.maxExecTime);
 
 
-	crawler.start().then(end).catch(end);
+	try {
+		await crawler.load();
+	} catch(err){
+		await end();
+	}
 
-})
+	if(loginSeq) {
+		if(await isLogged(crawler.page(), loginSeq.loggedinCondition) == false){
+			if(loginSeq.url && loginSeq.url != targetUrl && !options.loadWithPost){
+				try{
+					await crawler.navigate(loginSeq.url);
+				} catch(err){
+					await loginErr("navigating to login page");
+				}
+			}
+			let seqline = 1;
+			for(let seq of loginSeq.sequence){
+				switch(seq[0]){
+					case "sleep":
+						//await crawler.page().waitFor(seq[1]);
+						await sleep(seq[1]);
+						break;
+					case "write":
+						try{
+							await crawler.page().type(seq[1], seq[2]);
+						} catch(e){
+							await loginErr("element not found", seqline);
+						}
+						break;
+					case "set":
+						try{
+							await crawler.page().$eval(seq[1], (el, u) => {el.value = u}, seq[2]);
+						} catch(e){
+							await loginErr("element not found", seqline);
+						}
+						break;
+					case "click":
+						try{
+							await crawler.page().click(seq[1]);
+						} catch(e){
+							await loginErr("element not found", seqline);
+						}
+						await crawler.waitForRequestsCompletion();
+						break;
+					case "clickToNavigate":
+						try{
+							let nav = await crawler.clickToNavigate(seq[1], seq[2]);
+							if(!nav){
+								loginErr("navigation error", seqline);
+							}
+						} catch(err){
+							await loginErr("element not found", seqline);
+						}
+						break;
+					case "assertLoggedin":
+						if(await isLogged(crawler.page(), loginSeq.loggedinCondition) == false){
+							await loginErr("login sequence fails", seqline);
+						}
+						break;
+					default:
+						await loginErr("action not found", seqline);
+				}
+				seqline++;
+			}
+		}
+	}
+
+	try {
+		if(!options.doNotCrawl){
+			options.exceptionOnRedirect = true;
+			await crawler.start();
+		}
+		await end();
+	} catch(err){
+		await end();
+	}
+
+})();
 

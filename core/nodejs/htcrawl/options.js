@@ -71,5 +71,6 @@ exports.options = {
 	headlessChrome: true,
 	extraHeaders: false,
 	openChromeDevtoos: false,
-	exceptionOnRedirect: false
+	exceptionOnRedirect: false,
+	navigationTimeout: 10000
 };

@@ -123,7 +123,7 @@ function createSection(result){
 	// if(!resultHasData(result))
 	// 	return;
 
-	if(result.out_of_scope || result.errors.indexOf('contentType') > -1)
+	if(result.out_of_scope || result.errors.indexOf('content_type') > -1)
 		return;
 
 
@@ -929,7 +929,7 @@ function initReport(){
 	var modalurl;
 	for(var a = 0; a < results.length; a++){
 
-		if('out_of_scope' in results[a] || results[a].errors.indexOf('contentType') > -1){
+		if('out_of_scope' in results[a] || results[a].errors.indexOf('content_type') > -1){
 			if('out_of_scope' in results[a]){
 				modalurl = newElement("p",[],null, query("#outofscope .modal-content")[0]);
 				tot_outofscope++;

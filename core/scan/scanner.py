@@ -138,7 +138,7 @@ class Scanner:
 			run = getattr(mod, self.scanner.title())
 			run(self.db_file, num_threads, request_types, display_progress, scanner_argv, proxy, cookies, user_agent, extra_headers)
 		except Exception as e:
-			print "Error: %s" % e
+			print "Error : %s" % e
 			return
 
 		print "Scan finished"

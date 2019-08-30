@@ -45,6 +45,7 @@ function initProbe(options, inputValues){
 		this._pendingJsonp = [];
 		this._pendingFetch = [];
 		this._pendingWebsocket = [];
+		this._stop = false;
 		this.inputValues = inputValues;
 		this.currentUserScriptParameters = [];
 		this.domModifications = [];
@@ -1022,6 +1023,9 @@ function initProbe(options, inputValues){
 				delFromPendings();
 				return false;
 			}
+			if(typeof uRet == "object"){
+				message = uRet.message;
+			}
 			return ws.__originalSend(message);
 		}
 		ws.addEventListener("message", function(message){
@@ -1055,7 +1059,7 @@ function initProbe(options, inputValues){
 
 
 	Probe.prototype.crawlDOM = async function(node, layer){
-
+		if(this._stop) return;
 		layer = typeof layer != 'undefined' ? layer : 0;
 		if(layer == this.options.maximumRecursion){
 			console.log(">>>>RECURSON LIMIT REACHED :" + layer)
@@ -1070,6 +1074,7 @@ function initProbe(options, inputValues){
 
 		//let analyzed = 0;
 		for(let el of dom){
+			if(this._stop) return;
 			let elsel = this.getElementSelector(el);
 			if(!this.isAttachedToDOM(el)){
 				console.log("!!00>>> " + this.stringifyElement(el) + " detached before analysis !!! results may be incomplete")
@@ -1077,6 +1082,7 @@ function initProbe(options, inputValues){
 				if(!uRet) continue;
 			}
 			for(let event of this.getEventsForElement(el)){
+				if(this._stop) return;
 				//console.log("analyze element " + this.describeElement(el));
 				this.takeDOMSnapshot();
 				if(options.triggerEvents){
