@@ -476,6 +476,11 @@ class Crawler:
 					Shared.allowed_domains.add(pattern)
 			elif o == '-x':
 				for eu in v.split(","):
+					try:
+						re.match(eu, "")
+					except:
+						print "* ERROR: regex failed: %s" % eu
+						sys.exit(1)
 					Shared.excluded_urls.add(eu)
 			elif o == "-G":
 				Shared.options['group_qs'] = True

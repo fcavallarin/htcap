@@ -220,7 +220,7 @@ if(targetUrl.length < 4 || targetUrl.substring(0,4).toLowerCase() != "http"){
 						//await crawler.page().waitFor(seq[1]);
 						await sleep(seq[1]);
 						break;
-					case "type":
+					case "write":
 						try{
 							await crawler.page().type(seq[1], seq[2]);
 						} catch(e){
