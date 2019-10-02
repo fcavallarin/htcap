@@ -38,4 +38,6 @@ class Util:
 			sys.exit(1)
 
 		run = self.get_mod(mp, util)
-		run([util] + argv[1:], db_file)
+		args = [db_file] if db_file else []
+		args.extend(argv[1:])
+		run(args, util)

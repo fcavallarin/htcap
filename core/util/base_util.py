@@ -12,7 +12,8 @@ version.
 
 from __future__ import unicode_literals
 import sys
-import getopt 
+import getopt
+import os
 
 class BaseUtil:
 
@@ -21,7 +22,8 @@ class BaseUtil:
 		return dict(
 			descr = "",
 			optargs = '',
-			minargs = 0
+			minargs = 0, # minimum number of arguments (excluding dbfile if used)
+			use_dbfile = True # Threat the first argument as dbfile
 		)
 
 	def usage(self):
@@ -31,18 +33,27 @@ class BaseUtil:
 			% (self.get_settings()['descr'], self.utilname)
 		)
 
-	def __init__(self, argv, db_file=None):
-		self.utilname = argv[0]
+	def __init__(self, argv, utilname):
+		self.utilname = utilname
 		settings = self.get_settings()
 
-		if len(argv) < (settings['minargs'] + 1):
+		if len(argv) - 1 < settings['minargs']:
 			print self.usage()
 			sys.exit(1)
 
+		if settings['use_dbfile']:
+			db_file = argv[0]
+			argv = argv[1:]
+
+			if not os.path.exists(db_file):
+				print "No such file: %s" % db_file
+				sys.exit(1)
+
 		try:
-			opts, args = getopt.getopt(argv[1:], settings['optargs'])
+			opts, args = getopt.getopt(argv, settings['optargs'])
 		except getopt.GetoptError as err:
 			print str(err)
 			sys.exit(1)
+
 
 		self.main(args, opts, db_file)

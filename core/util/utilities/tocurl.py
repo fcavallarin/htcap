@@ -17,7 +17,8 @@ class Tocurl(BaseUtil):
 		return dict(
 			descr = "Export saved requests to curl arguments",
 			optargs = '',
-			minargs = 1
+			minargs = 0,
+			use_dbfile = True
 		)
 
 	def usage(self):
@@ -27,13 +28,12 @@ class Tocurl(BaseUtil):
 			% (self.get_settings()['descr'], self.utilname)
 		)
 
-	def main(self, args, opts, db_file=None):
+	def main(self, args, opts, db_file):
 		qry = "SELECT method, url, data, referer, cookies FROM request WHERE %s"
 
-		dbfile = args[0]
-		where = args[1] if len(args) > 1 else "1=1"
+		where = args[0] if len(args) > 0 else "1=1"
 
-		conn = sqlite3.connect(dbfile)
+		conn = sqlite3.connect(db_file)
 		conn.row_factory = sqlite3.Row 
 
 		cur = conn.cursor()

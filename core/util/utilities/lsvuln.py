@@ -15,7 +15,8 @@ class Lsvuln(BaseUtil):
 		return dict(
 			descr = "List all vulnerabilities",
 			optargs = '',
-			minargs = 1
+			minargs = 0,
+			use_dbfile = True
 		)
 
 	def usage(self):
@@ -25,7 +26,7 @@ class Lsvuln(BaseUtil):
 			% (self.get_settings()['descr'], self.utilname)
 		)
 
-	def main(self, args, opts, db_file=None):
+	def main(self, args, opts, db_file):
 		qry = """
 			SELECT scanner,start_date,end_date,id_request,type,description FROM assessment a 
 			INNER JOIN vulnerability av ON a.id=av.id_assessment
@@ -33,10 +34,9 @@ class Lsvuln(BaseUtil):
 			%s
 		"""
 
-		dbfile = args[0] if not db_file else db_file
-		where = args[1] if len(args) > 1 else "1=1"
+		where = args[0] if len(args) > 0 else "1=1"
 
-		conn = sqlite3.connect(dbfile)
+		conn = sqlite3.connect(db_file)
 		conn.row_factory = sqlite3.Row 
 
 		cur = conn.cursor()

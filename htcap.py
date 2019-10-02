@@ -80,6 +80,6 @@ if __name__ == '__main__':
 				dbfile = cr.db_file if cr else None
 			sc = Scanner(argv[1:], dbfile)
 		elif argv[0] == "util":
-			dbfile = cr.db_fname if cr else None
+			dbfile = cr.db_file if cr else (sc.db_file if sc else None)
 			Util(argv[1:], dbfile)
 	sys.exit(0)

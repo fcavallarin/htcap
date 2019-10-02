@@ -33,7 +33,8 @@ class Report(BaseUtil):
 		return dict(
 			descr = "Generate the html report",
 			optargs = '',
-			minargs = 2
+			minargs = 1,
+			use_dbfile = True
 		)
 
 	def usage(self):
@@ -181,7 +182,7 @@ class Report(BaseUtil):
 
 
 
-	def main(self, args, opts, db_file=None):
+	def main(self, args, opts, db_file):
 
 		base_dir = os.path.dirname(os.path.realpath(__file__)) + os.sep + "htmlreport" + os.sep
 
@@ -189,12 +190,8 @@ class Report(BaseUtil):
 		# 	print "usage: %s <dbfile> <outfile>" % args[0]
 		# 	sys.exit(1)
 
-		dbfile = args[0] if not db_file else db_file
-		outfile = args[1]
-
-		if not os.path.exists(dbfile):
-			print "No such file: %s" % dbfile
-			sys.exit(1)
+		#db_file = args[0]
+		outfile = args[0]
 
 		if os.path.exists(outfile):
 			sys.stdout.write("File %s already exists. Overwrite [y/N]: " % outfile)
@@ -202,7 +199,7 @@ class Report(BaseUtil):
 				sys.exit(1)
 			os.remove(outfile)
 
-		conn = sqlite3.connect(dbfile)
+		conn = sqlite3.connect(db_file)
 		conn.row_factory = sqlite3.Row
 		cur = conn.cursor() 
 
