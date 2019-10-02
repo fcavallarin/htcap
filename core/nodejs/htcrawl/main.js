@@ -229,7 +229,7 @@ Crawler.prototype.start = async function(){
 
 	try {
 		await _this._page.evaluate(async function(){
-			await window.__PROBE__.dispatchProbeEvent("start");
+			//await window.__PROBE__.dispatchProbeEvent("start");
 			console.log("startAnalysis");
 			await window.__PROBE__.startAnalysis();
 		});

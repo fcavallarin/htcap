@@ -113,13 +113,12 @@ if(targetUrl.length < 4 || targetUrl.substring(0,4).toLowerCase() != "http"){
 	crawler.on("domcontentloaded", async function(e, crawler){
 		//utils.printCookies(crawler);
 		domLoaded = true;
-		await utils.printLinks("html", crawler.page())
-		await utils.printForms("html", crawler.page())
-		//await sleep(4000)
+		await utils.printLinks("html", crawler.page());
 	});
 
-	crawler.on("start", function(e, crawler){
+	crawler.on("start", async function(e, crawler){
 		//console.log("--->Start");
+		await utils.printForms("html", crawler.page());
 	})
 
 
