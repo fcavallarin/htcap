@@ -55,7 +55,7 @@ def generate_filename(name, ext=None, out_file_overwrite=False, ask_out_file_ove
 
 	if ask_out_file_overwrite and os.path.exists(fname()):
 		try:
-			sys.stdout.write("File %s already exists. Overwrite [y/N]: " % fname())
+			stdoutw("File %s already exists. Overwrite [y/N]: " % fname())
 			out_file_overwrite = sys.stdin.read(1) == "y"
 		except KeyboardInterrupt:
 			print "\nAborted"
@@ -242,13 +242,13 @@ def check_dependences(base_dir, usePhantomjs=False):
 	node_dir = os.path.join(base_dir, '..', 'nodejs')
 	node_deps = ""
 	try:
-		node_deps = subprocess.check_output(get_node_cmd() + [os.path.join(node_dir, 'ckdeps.js')])
+		node_deps = subprocess.check_output(get_node_cmd() + [os.path.join(node_dir, 'ckdeps.js')]).decode()
 	except:
 		pass
 
 	if node_deps != "":
 		#errors.append("puppeteer")
-		sys.stdout.write("Puppeteer is missing, install it via npm? [Y/n]: ")
+		stdoutw("Puppeteer is missing, install it via npm? [Y/n]: ")
 		if sys.stdin.read(1) != "n":
 			print "Installing Puppeteer"
 			try:
@@ -382,3 +382,14 @@ def detect_content_type(str):
 				return "application/x-www-form-urlencoded"
 			except:
 				return "text/plain"
+
+
+def decode_bytes(b):
+	codecs = ("utf-8", "latin-1")
+	for c in codecs:
+		try:
+			return b.decode(c)
+		except:
+			pass
+	return None
+

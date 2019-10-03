@@ -80,9 +80,9 @@ class BaseScanner:
 		# if self._type == "external":
 		# 	self.settings['scanner_exe'] = self.settings['scanner_exe'].split(" ")
 
-		self.db = Database(db_file)
-		self.id_assessment = self.db.create_assessment(self.scanner_name, int(time.time()))
-		self.pending_requests = self.db.get_requests(self.settings['request_types'])
+		self._db = Database(db_file)
+		self.id_assessment = self._db.create_assessment(self.scanner_name, int(time.time()))
+		self.pending_requests = self._db.get_requests(self.settings['request_types'])
 		self.tot_requests = len(self.pending_requests)
 		self._duplicated_requests = []
 
@@ -242,9 +242,12 @@ class BaseScanner:
 				waittime += 0.1
 				time.sleep(0.1)
 			except KeyboardInterrupt:
-				die = raw_input("\nForce exit? [y/N] ").strip()
-				if die == "y":
-					return False
+				try:
+					die = raw_input("\nForce exit? [y/N] ").strip()
+					if die == "y":
+						return False
+				except KeyboardInterrupt:
+					return True
 		print ""
 		return True
 
@@ -273,22 +276,28 @@ class BaseScanner:
 		else :
 			sys.exit(code)
 
+	def db(self, method, params):
+		self._th_lock_db.acquire()
+		m = getattr(self._db, method)
+		ret = m(*params)
+		self._th_lock_db.release()
+		return ret
 
 	def save_vulnerability(self, request, type, description):
 		self._th_lock_db.acquire()
-		self.db.insert_vulnerability(self.id_assessment, request.db_id, type, description)
+		self._db.insert_vulnerability(self.id_assessment, request.db_id, type, description)
 		self._th_lock_db.release()
 
 
 	def save_vulnerabilities(self, request, vulnerabilities):
 		self._th_lock_db.acquire()
-		self.db.insert_vulnerabilities(self.id_assessment, request.db_id, vulnerabilities)
+		self._db.insert_vulnerabilities(self.id_assessment, request.db_id, vulnerabilities)
 		self._th_lock_db.release()
 
 
 	def save_assessment(self):
 		self._th_lock_db.acquire()
-		self.db.save_assessment(self.id_assessment, int(time.time()))
+		self._db.save_assessment(self.id_assessment, int(time.time()))
 		self._th_lock_db.release()
 
 

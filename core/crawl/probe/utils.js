@@ -128,8 +128,8 @@ async function getFormAsRequest(frm, page){
 	}
 
 	formObj.url = await (await frm.getProperty("action")).jsonValue();
-	if(typeof formObj.url != "string"){
-		formObj.url = "";
+	if(typeof formObj.url != "string" || !formObj.url){
+		formObj.url = page.url();
 	}
 	formObj.data = [];
 	inputs = await frm.$$("input, select, textarea");

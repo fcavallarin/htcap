@@ -303,7 +303,7 @@ class Database:
 			for r in cur.fetchall():
 				# !! parent must be null (or unset)
 				req = Request(r['type'], r['method'], r['url'], referer=r['referer'], data=r['data'], json_cookies=r['cookies'], db_id=r['id'], parent_db_id=r['id_parent'], extra_headers=json.loads(r['extra_headers']))
-			 	ret.append(req)
+				ret.append(req)
 			self.close()
 		except Exception as e:
 			print "114 %s" % str(e)

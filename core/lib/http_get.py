@@ -155,6 +155,7 @@ class HttpGet:
 				opener.close()
 
 				if html:
+					html = decode_bytes(html)
 					finder = UrlFinder(html)
 					try:
 						urls = finder.get_urls()
@@ -214,7 +215,7 @@ class HttpGet:
 		}
 
 		while True:
-			try :
+			try:
 				existing_cookies = []
 				for cookie in self.request.cookies:
 					clc = cookie.get_cookielib_cookie()
@@ -225,11 +226,11 @@ class HttpGet:
 					jar_request.set_cookie(clc)
 
 				for cookie in [x for x in cookies if x not in existing_cookies]:
-				 	c = Cookie(cookie) # check what to do with cookie.setter
+					c = Cookie(cookie) # check what to do with cookie.setter
 					jar_request.set_cookie(c.get_cookielib_cookie())
 
 				opener = self.urllib2_opener(self.request, None, follow_redirect)
-				req = urllib2.Request(url=url, data=data)
+				req = urllib2.Request(url=url, data=data.encode() if data else None)
 				req.get_method = lambda: method
 				jar_request.add_cookie_header(req)
 				headers = self.request.extra_headers
@@ -252,7 +253,8 @@ class HttpGet:
 
 				ret['code'] = res.getcode()
 				ret['url'] = res.geturl()
-				ret['headers'] = [x.strip() for x in res.info().headers]
+				#ret['headers'] = [x.strip() for x in res.info().headers]
+				ret['headers'] = ["%s: %s" % x for x in res.info().items()]
 				ret['body'] = res.read()
 				ret['time'] = time.time() - now
 

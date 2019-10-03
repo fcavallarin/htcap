@@ -95,7 +95,7 @@ class Native(BaseScanner):
 				vulns.extend(vulnerabilities)
 
 			if len(vulns) > 0:
-				parent = self.scanner.db.get_request(request.parent_db_id)
+				parent = self.scanner.db("get_request", [request.parent_db_id])
 				self.sprint("%s contains vulnerable request: %s"  % (parent.url if parent else "/", request))
 				self.sprint("\033[31m%s %s   %s\033[0m" % (request.method, request.url, request.data))
 				for v in vulns:
