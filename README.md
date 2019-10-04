@@ -1,6 +1,23 @@
 ## HTCAP
 
-Htcap is a web application scanner able to crawl single page application (SPA) in a recursive manner by intercepting ajax calls and DOM changes.
+htcap is a web application scanner able to crawl single page application (SPA) recursively by intercepting ajax calls and DOM changes.
+
+## KEY FEATURES
+
+- Recursive DOM crawling engine
+- Discovers ajax/fetch/jsonp/websocket requests
+- Supports cookies, proxy, custom headers, http auth and more
+- Heuristic page deduplication engine based on text similarities
+- Scriptable login sequences
+- All findings are saved to sqlite database and can be exported to an interactive html report
+- The built-in fuzzers can detect SQL-Injection, XSS, Command Execution, File disclosure and many more
+- Can be easly interfaced with Sqlmap, Arachni, Wapiti, Burp and many other tools
+- Fuzzers are built on top of a fuzzing framework so they can be easly created/customized
+- Fuzzers fully support REST and SOAP payloads (json and xml)
+- Both crawler and fuzzers run in a mulithreaded environment
+
+## BRIEF
+
 Htcap is not just another vulnerability scanner since it's focused on the crawling process and it's aimed to detect and intercept ajax/fetch calls, websockets, jsonp ecc. It uses its own fuzzers plus a set of external tools to discover vulnerabilities and it's designed to be a tool for both manual and automated penetration test of modern web applications.
 
 It also features a small but powerful framework to quickly develop custom fuzzers with less than 60 lines of python.

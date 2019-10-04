@@ -32,7 +32,8 @@ exports.launch = async function(url, options){
 		'--ssl-version-max=tls1.3',
 		'--ssl-version-min=tls1',
 		'--disable-web-security',
-		'--allow-running-insecure-content'
+		'--allow-running-insecure-content',
+		'--proxy-bypass-list=<-loopback>'
 	];
 	for(let a in defaults){
 		if(!(a in options)) options[a] = defaults[a];
@@ -229,7 +230,7 @@ Crawler.prototype.start = async function(){
 
 	try {
 		await _this._page.evaluate(async function(){
-			await window.__PROBE__.dispatchProbeEvent("start");
+			//await window.__PROBE__.dispatchProbeEvent("start");
 			console.log("startAnalysis");
 			await window.__PROBE__.startAnalysis();
 		});

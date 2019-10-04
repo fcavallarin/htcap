@@ -29,7 +29,7 @@ class Progressbar:
 
 
 	def out(self, tot, scanned):
-		perc = (scanned * self.width) / (tot if tot > 0 else 1)
+		perc = int((scanned * self.width) / (tot if tot > 0 else 1))
 		pad = self.width - perc
 		tm = int(time.time() - self.start_time) / 60
 		bar = "%s%s%s%s" % (self.head, self.prc*perc, self.pdc*pad, self.tail)

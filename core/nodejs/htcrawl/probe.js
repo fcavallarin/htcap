@@ -1072,6 +1072,10 @@ function initProbe(options, inputValues){
 		// map propety events and fill input values
 		await this.initializeElement(node);
 
+		if(node == document){
+			await this.dispatchProbeEvent("start");
+		}
+
 		//let analyzed = 0;
 		for(let el of dom){
 			if(this._stop) return;

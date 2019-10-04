@@ -231,7 +231,7 @@ class Crawler:
 
 
 	def randstr(self, length):
-		all_chars = string.digits + string.letters + string.punctuation
+		all_chars = string.digits + string.ascii_letters + string.punctuation
 		random_string = ''.join(choice(all_chars) for _ in range(length))
 		return random_string
 

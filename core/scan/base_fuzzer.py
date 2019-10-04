@@ -42,7 +42,8 @@ class MutationResponse:
 		self.code = response['code']
 		self.url = response['url']
 		self.headers = response['headers']
-		self.body = response['body']
+		self.body = decode_bytes(response['body'])
+		self.body_binary = response['body']
 		self.time = response['time']
 
 

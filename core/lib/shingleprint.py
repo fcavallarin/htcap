@@ -87,6 +87,7 @@ class ShinglePrint:
 
 	def _hash_tokens(self):
 		for t in self.tokens:
+			t = t.encode()
 			h = crc32(t) & 0xffffffff
 			#print "got %x %d %d" % ((h&0xffffffff), self.heap.nheap, self.nfeatures)
 			if self.heap.nheap == self.nfeatures and h >= self.heap.heap[0]:

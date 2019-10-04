@@ -17,7 +17,8 @@ class Updcookie(BaseUtil):
 		return dict(
 			descr = "Update the value of a cookie of saved requests",
 			optargs = '',
-			minargs = 3
+			minargs = 2,
+			use_dbfile = True
 		)
 
 	def usage(self):
@@ -28,24 +29,19 @@ class Updcookie(BaseUtil):
 		)
 
 
-	def main(self, args, opts, db_file=None):
+	def main(self, args, opts, db_file):
 		qry = """
 			SELECT id, cookies
 			FROM request 
 			WHERE %s
 		"""
 
-		dbfile = args[0]
-		cname = args[1]
-		cvalue = args[2]
+		cname = args[0]
+		cvalue = args[1]
 
-		if not os.path.exists(dbfile):
-			print "No such file %s" % dbfile
-			sys.exit(1)
+		where = args[2] if len(args) > 2 else "1=1"
 
-		where = args[3] if len(args) > 3 else "1=1"
-
-		conn = sqlite3.connect(dbfile)
+		conn = sqlite3.connect(db_file)
 		conn.row_factory = sqlite3.Row 
 
 		cur = conn.cursor()
