@@ -60,6 +60,8 @@ class Request(object):
 		if self.method == METHOD_GET and data:
 			self.url = merge_qs(self.url, data)
 			self.data = ""
+		if not isinstance(self.data, basestring):
+			self.data = json.dumps(self.data)
 		self.trigger = trigger
 		self.db_id = db_id
 		self.parent_db_id = parent_db_id

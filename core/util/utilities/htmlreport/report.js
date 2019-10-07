@@ -1,14 +1,15 @@
 
 
-var types = ['xhr','jsonp','websockets', 'forms', 'vulnerabilities','errors'];
+var types = ['xhr', 'fetch', 'jsonp','websocket', 'form', 'vulnerabilities','errors'];
 
 function getIcon(type, founds){
 	var icons = {
-		forms:"F",
-		xhr: "X", 
+		form:"F",
+		xhr: "X",
+		fetch: "E",
 		jsonp: "J",
 		errors: null, 
-		websockets: "W",
+		websocket: "W",
 		vulnerabilities:"V"
 	};
 
@@ -22,11 +23,12 @@ function getIcon(type, founds){
 
 function getLabel(type){
 	var labels = {
-		forms:"Forms",
-		xhr: "XHR", 
+		form:"Forms",
+		xhr: "XHR",
+		fetch: "Fetch",
 		jsonp: "JSONP", 
 		errors: "Errors", 
-		websockets: "Web Sockets",
+		websocket: "Web Sockets",
 		vulnerabilities: "Vulnerabilities"
 	};
 
@@ -114,6 +116,74 @@ function toggleTrashSection(target){
 	}
 }
 
+function prettyprintRequestData(data){
+	var o;
+	var cont = newElement("div.prettyprint-cont");
+	var cb = newElement("input",['type','checkbox','checked','1']);
+	cb.onchange = function(){
+		var c = this.parentNode.parentNode;
+		if(this.checked){
+			query("textarea", c)[0].style.display = "none";
+			query("pre", c)[0].style.display = "block";
+		} else {
+			query("textarea", c)[0].style.display = "block";
+			query("pre", c)[0].style.display = "none";
+		}
+	}
+	newElement("label",[], [cb, "pretty print"], cont);
+	try {
+		o = JSON.parse(data);
+	} catch(e){
+		return newElement("textarea", [], data);
+	}
+	var el = newElement("pre.json-print", [], null, cont);
+	el.innerHTML =  prettifyJson(o);
+	newElement("textarea", ['style','display:none'], data, cont);
+	return cont;
+}
+
+
+function createRequestDetailContent(req){
+	var tr;
+	var cont = newElement("table.requestdetail-table");
+
+	tr = newElement("tr", [], null, cont);
+	newElement("td", [], "ID", tr);
+	newElement("td", [], req.id, tr);
+
+	tr = newElement("tr", [], null, cont);
+	newElement("td", [], "Type", tr);
+	newElement("td", [], req.type, tr);
+
+	if(req.trigger){
+		tr = newElement("tr", [], null, cont);
+		newElement("td", [], "Trigger", tr);
+		newElement("td", [], req.trigger, tr);
+	}
+
+	tr = newElement("tr", [], null, cont);
+	newElement("td", [], "Method", tr);
+	newElement("td", [], req.method, tr);
+
+	tr = newElement("tr", [], null, cont);
+	newElement("td", [], "URL", tr);
+	newElement("td", [], req.url, tr);
+
+	if(req.method != "GET"){
+		tr = newElement("tr", [], null, cont);
+		newElement("td", [], "Data", tr);
+		newElement("td", [], prettyprintRequestData(req.data), tr);
+	}
+
+	tr = newElement("tr", [], null, cont);
+	newElement("td", [], "Cookies", tr);
+	newElement("td", [], prettyprintRequestData(req.cookies), tr);
+
+	tr = newElement("tr", [], null, cont);
+	newElement("td", [], "Extra headers", tr);
+	newElement("td", [], prettyprintRequestData(req.extra_headers), tr);
+	return cont;
+}
 
 function createSection(result){
 
@@ -145,24 +215,29 @@ function createSection(result){
 			if(types[i] == "errors"){
 				cont = req;
 			} else {
-				if(req.request){
-					var trigger = newElement("span.trigger",["data-trigger", req.trigger], "☍");
-					if(req.trigger){
-						trigger.onclick = function(){
-							this.textContent = this.textContent.length > 1 ? "☍" : this.getAttribute('data-trigger');
-						}
-						trigger.setAttribute("title","trigger element: " + req.trigger)
-					} else {
-						trigger.className += " empty"
-					}
+				var trigger = newElement("span.trigger",["data-trigger", req.trigger], "☍");
+				var opener = newElement("span.opener",["title", "Show request details"], "♨");
+				opener.onclick = (function(id){return function(){
+					openModal("#request", createRequestDetailContent(getRequest(id)));
+				}})(req.id);
 
-					var cont = [trigger];
-					if(typeof req.request == 'string'){
-						cont.push(req.request);
-					} else {
-						cont.push(req.request[0] + " ");
-						cont.push(newElement("span.result-post-data", [], req.request[1]));
+				if(req.trigger){
+					trigger.onclick = function(){
+						this.textContent = this.textContent.length > 1 ? "☍" : this.getAttribute('data-trigger');
 					}
+					trigger.setAttribute("title","Show trigger element");
+				} else {
+					trigger.className += " empty";
+				}
+
+				var cont = [opener, trigger];
+				if(typeof req == 'string'){
+					cont.push(req);
+				} else {
+					var dirarrow = req.method != "GET" ? "❯ " : "❮ ";
+					cont.push(newElement("span.result-post-data",['title', req.method, "style", "cursor:default"], dirarrow));
+					cont.push(req.url + " ");
+					cont.push(newElement("span.result-post-data", [], req.data/*.substring(0,60)*/));
 				}
 
 				//var cont = req.trigger + "-->" + result[types[i]][a].request;
@@ -173,7 +248,7 @@ function createSection(result){
 						openModal("#vulnerability", newElement("pre",[],c));
 					}})(vcont.description);
 
-				} 
+				}
 			}
 			newElement("div.result",[], cont, resAccord);
 
@@ -188,7 +263,7 @@ function createSection(result){
 		"data-url", result.url, 
 		"data-index", result.index, 
 		"data-founds",founds.join(","),
-		"title", "Request ID: " + result.id
+		//"title", "Request ID: " + result.id
 	]);
 	var urlclass = ".url";
 	var urlattrs = [];
@@ -220,6 +295,10 @@ function createSection(result){
 			e.preventDefault();
 		}
 	}
+	var opener = newElement("span.opener",["title", "Show request details"], "♨");
+		opener.onclick = (function(id){return function(){
+			openModal("#request", createRequestDetailContent(getRequest(id)));
+	}})(result.id);
 
 	var trash = newElement("a.trash-button.button",[], 'trash');
 	trash.onclick = (function(target){ return function(){
@@ -244,6 +323,7 @@ function createSection(result){
 
 	section.appendChild(ics);
 	section.appendChild(openico);
+	section.appendChild(opener);
 	section.appendChild(link);
 	section.appendChild(accord);
 
@@ -278,7 +358,7 @@ function createSections(limit){
 		if('html_element' in results[a]){
 
 			cont.appendChild(results[a].html_element);
-			results[a].index = index;			 
+			results[a].index = index;
 
 			index++;
 			cnt++;
@@ -289,9 +369,6 @@ function createSections(limit){
 		filter();
 
 }
-
-
-
 
 
 
@@ -389,19 +466,6 @@ function toggleAccordion(el,forceState){
 }
 
 
-// function filterResultAccordion(element){
-// 	var els = query(".results", element);
-// 	for(var a = 0; a < els.length; a++){
-// 		console.log(els[a])
-// 		var state = query('#opt_'+els[a].getAttribute("data-for")).checked ? "open" : "close";
-// 		toggleAccordion(els[a], state);
-// 	}
-// }
-
-
-
-
-
 
 function filterSections(showFilters){
 
@@ -425,24 +489,8 @@ function filterSections(showFilters){
 		if(!founds)continue;
 		///console.log(founds.split(","))
 		els[a].classList[!arraysub(showFilters, founds.split(",")) ? 'add' : 'remove']('hidden');
+
 	}
-
-
-	// // url hider filter
-	// var regexp = query('#urlhider').value.replace(/\n/g,"");
-	// var rows = query("[data-url]");
-
-	// for(var a = 0; a < rows.length; a++){
-	// 	var method = rows[a].getAttribute("data-method") ? rows[a].getAttribute("data-method") + " " : "";
-	// 	var url = method + rows[a].getAttribute("data-url") + " " + rows[a].getAttribute("data-post-data");
-	// 	if(!rows[a].classList.contains("hidden")){ // already hidden by checkbox filter
-	// 		try{
-	// 			rows[a].classList[(regexp == "" || url.trim().match(new RegExp(regexp,"gi")) == null) ? 'remove' : 'add']('hidden');
-	// 		}catch(e){
-	// 			errcont.innerText = e.message;
-	// 		}
-	// 	}
-	// }
 
 }
 
@@ -486,23 +534,6 @@ function filter(fromindex){
 			}
 		}
 	}
-
-
-
-	// // url hider filter
-	// var regexp = query('#urlhider').value.replace(/\n/g,"");
-	// var rows = query("[data-url]");
-
-	// for(var a = 0; a < rows.length; a++){
-	// 	var url = rows[a].getAttribute("data-url");
-	// 	if(!rows[a].classList.contains("hidden")){ // already hidden by checkbox filter
-	// 		try{
-	// 			rows[a].classList[(regexp == "" || url.match(new RegExp(regexp,"gi")) == null) ? 'remove' : 'add']('hidden');
-	// 		}catch(e){
-	// 			errcont.innerText = e.message;
-	// 		}
-	// 	}
-	// }
 
 
 	// results hider filter
@@ -663,6 +694,29 @@ function closeModal(selector){
 	}
 }
 
+
+function getRequest(id){
+	var results = report.results;
+	var types_req = ['xhr','jsonp','websocket', 'fetch', 'form'];
+	for(var a = 0; a < results.length; a++){
+		if(id == results[a].id){
+			return results[a];
+		}
+		//console.log(results[a])
+		for(var b = 0; b < types_req.length; b++){
+			if(types_req[b] in results[a]){
+				for(var i = 0; i < results[a][types_req[b]].length; i++){
+					if(results[a][types_req[b]][i].id == id){
+						return results[a][types_req[b]][i];
+					}
+				}
+			}
+		}
+	}
+	return null;
+}
+
+
 function saveStatus(){
 	var a;
 	var status = {
@@ -768,6 +822,42 @@ function loadStatus(file){
 	reader.readAsText(file);
 }
 
+function prettifyJson(obj, layer){
+	var i,
+		html = "",
+		pd = " ".repeat(2);
+	if(typeof layer == 'undefined' || layer < 1)layer = 1;
+
+	switch(typeof obj){
+		case "object":
+			if(!obj){
+				return "<span class=jsn-null>" + obj + "</span>";
+			}
+			if(obj.constructor == Array){
+				for(i = 0; i < obj.length; i++){
+					html += "<p>" + pd.repeat(layer) + prettifyJson(obj[i], layer + 1);
+					html += i < obj.length-1 ? "," : "" + "</p>";
+				}
+			} else {
+				var props = Object.keys(obj);
+				for(i = 0; i < props.length; i++){
+					html += "<p>" + pd.repeat(layer) + '<span class=jsn-prop>"' + props[i] + '"</span>: ';
+					html += prettifyJson(obj[props[i]], layer + 1);
+					html += i < props.length-1 ? "," : "" + "</p>";
+				}
+			}
+			break;
+		case "string":
+			return "<span class=jsn-string>" + JSON.stringify(obj) + "</span>";
+		default:
+			return "<span class=jsn-" + typeof obj + ">" + obj + "</span>";
+	}
+
+	html += html ? pd.repeat(layer-1) : ""; // padding of prv layer to align the closing bracket
+	return obj.constructor == Array ? "[" + html + "]" : "{" + html + "}";
+}
+
+
 
 function initGUI(){
 
@@ -804,6 +894,11 @@ function initGUI(){
 	query('#outofscope-close').onclick = function(){
 		closeModal("#outofscope");
 	};
+
+	query('#request-close').onclick = function(){
+		closeModal("#request");
+	};
+
 
 	var btn;
 	var buttons = query("#buttons");

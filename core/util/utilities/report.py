@@ -48,8 +48,27 @@ class Report(BaseUtil):
 	def get_report(self, cur):
 		report = []
 		qry = """
-			SELECT r.type,r.id,r.url,r.method,r.data,r.http_auth,r.referer,r.out_of_scope, ri.trigger, r.crawler_errors, 
-			 (ri.id is not null) AS has_requests, ri.type AS req_type,ri.method AS req_method,ri.url AS req_url,ri.data AS req_data 
+			SELECT r.type,
+			 r.id,
+			 r.url,
+			 r.type,
+			 r.method,
+			 r.data,
+			 r.http_auth,
+			 r.referer,
+			 r.cookies,
+			 r.extra_headers,
+			 r.out_of_scope,
+			 ri.trigger,
+			 r.crawler_errors,
+			 (ri.id is not null) AS has_requests,
+			 ri.id AS req_id,
+			 ri.type AS req_type,
+			 ri.method AS req_method,
+			 ri.url AS req_url,
+			 ri.data AS req_data,
+			 ri.cookies AS req_cookies,
+			 ri.extra_headers AS req_extra_headers
 			FROM request r 
 			LEFT JOIN request_child rc ON r.id=rc.id_request
 			LEFT JOIN request ri ON ri.id = rc.id_child
@@ -132,13 +151,17 @@ class Report(BaseUtil):
 			d = dict(
 				id = row['id'],
 				url = row['url'],
+				type = row['type'],
 				method = row['method'],
 				data = row['data'],
 				referer = row['referer'],
+				cookies = row['cookies'],
+				extra_headers = row['extra_headers'],
 				xhr = [],
+				fetch = [],
 				jsonp = [],
-				websockets = [],
-				forms = [],
+				websocket = [],
+				form = [],
 				errors = json.loads(row['crawler_errors']) if row['crawler_errors'] else [],
 				vulnerabilities =  self.get_assessment_vulnerabilities(cur, row['id'])
 			)
@@ -147,30 +170,19 @@ class Report(BaseUtil):
 			if row['has_requests']:
 				for r in report:
 					if r['id'] != row['id']: continue
-					req_obj = {}
 
 					trigger = json.loads(r['trigger']) if 'trigger' in r and r['trigger'] else None # {'event':'ready','element':'[document]'}
-					req_obj['trigger'] = "%s.%s()" % (trigger['element'], trigger['event']) if trigger else ""
 
-					if r['req_type'] in ('xhr', 'fetch'):
-						req_obj['request'] = ["%s %s" % (r['req_method'], r['req_url'])]
-						if r['req_data']: req_obj['request'].append(r['req_data'])
-						d['xhr'].append(req_obj)
-
-					elif r['req_type']=='jsonp':
-						req_obj['request'] = r['req_url']
-						d['jsonp'].append(req_obj)
-
-					elif r['req_type']=='websocket':
-						req_obj['request'] = r['req_url']
-						d['websockets'].append(req_obj)
-
-					elif r['req_type']=='form':
-						#req_obj['request'] = "%s %s data:%s" % (r['req_method'], r['req_url'], r['req_data'])
-						req_obj['request'] = ["%s %s" % (r['req_method'], r['req_url'])]
-						if r['req_data']: req_obj['request'].append(r['req_data'])
-						d['forms'].append(req_obj)
-
+					d[r['req_type']].append({
+						"id": r['req_id'],
+						"type": r['req_type'],
+						"method": r['req_method'],
+						"url": r['req_url'],
+						"data": r['req_data'],
+						"cookies": r['req_cookies'],
+						"extra_headers": r['req_extra_headers'],
+						"trigger": "%s.%s()" % (trigger['element'], trigger['event']) if trigger else ""
+					})
 
 			if row['has_requests'] or row['out_of_scope'] or len(d['errors']) > 0 or len(d['vulnerabilities']) > 0:
 				ret['results'].append(d)
@@ -186,11 +198,6 @@ class Report(BaseUtil):
 
 		base_dir = os.path.dirname(os.path.realpath(__file__)) + os.sep + "htmlreport" + os.sep
 
-		# if len(args) < 3:
-		# 	print "usage: %s <dbfile> <outfile>" % args[0]
-		# 	sys.exit(1)
-
-		#db_file = args[0]
 		outfile = args[0]
 
 		if os.path.exists(outfile):

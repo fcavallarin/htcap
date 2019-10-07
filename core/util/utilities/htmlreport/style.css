@@ -132,7 +132,7 @@ label{
 	padding-bottom:2px;
 	border-radius:2px;
 	color:#fff;
-	margin-right:4px;
+	margin-right:2px;
 	margin-left:1px;
 	cursor:default;
 	font-size:10px;
@@ -285,14 +285,14 @@ section.marked .mark-button:before{
 }
 
 
-#trash-close, #marked-close, #outofscope-close, #vulnerability-close, #nonhtml-close, #notes-close{
+#trash-close, #marked-close, #outofscope-close, #vulnerability-close, #request-close, #nonhtml-close, #notes-close{
 	position:absolute;
 	right:10px;
 	top:0px;
 	font-size:22px;
 	cursor:pointer;
 }
-#trash-close:hover, #marked-close:hover, #outofscope-close:hover, #nonhtml-close:hover, #notes-close:hover{
+#trash-close:hover, #marked-close:hover, #outofscope-close:hover, #nonhtml-close:hover, #notes-close:hover, #vulnerability-close:hover, #request-close:hover{
 	color:#F04158;
 }
 
@@ -395,7 +395,7 @@ section.marked .mark-button:before{
 }
 
 
-span.trigger{
+.trigger, .opener{
 	display: inline-block;
 	margin:0 4px 0 0;
 	padding: 1;
@@ -407,6 +407,10 @@ span.trigger{
 	font-size:13px;
 	line-height:14px;
 	color:#02582F;
+}
+
+span.opener{
+
 }
 
 span.trigger.empty{
@@ -423,4 +427,52 @@ span.trigger.empty{
 	height:100%;
 	font-size:14px;
 	padding:10px;
+}
+
+
+.requestdetail-table tr{
+	margin:2px;
+}
+
+.requestdetail-table td{
+	vertical-align: top;
+	padding:5px;
+	margin:0;
+}
+
+.requestdetail-table td:first-child{
+	width:25%;
+	text-align:right;
+	padding-right:15px;
+}
+
+.requestdetail-table textarea{
+	height:150px;
+	width:600px;
+}
+
+.json-print{
+	display:block;
+	overflow:auto;
+	padding:6px;
+	border:1px solid #000;
+}
+.json-print p{
+	margin:3px;
+}
+.jsn-prop{
+	color:#aa1111;
+}
+.jsn-number{
+	color:#116644;
+	font-weight: bold;
+}
+.jsn-string{
+	color:#0B41F9;
+}
+.jsn-boolean{
+	color:#A08301;
+}
+.jsn-null{
+	color: #E12711;
 }
