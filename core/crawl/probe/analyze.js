@@ -27,7 +27,7 @@ var sleep = function(n){
 };
 
 
-var argv = utils.parseArgs(process.argv, "hVaftUdICc:MSp:Tsx:A:r:mHX:PD:R:Oi:u:vy:E:lJ:L:z", {});
+var argv = utils.parseArgs(process.argv, "hVaftUdICc:MSp:Tsx:A:r:mHX:PD:R:Oi:u:vy:E:lJ:L:zM", {});
 var options = argv.opts
 
 var targetUrl = argv.args[0];
@@ -56,7 +56,7 @@ if(targetUrl.length < 4 || targetUrl.substring(0,4).toLowerCase() != "http"){
 	const pidfile = path.join(os.tmpdir(), "htcap-pids-" + process.pid);
 
 	async function exit(){
-		//await sleep(100000)
+		//await sleep(1000000)
 		clearTimeout(execTO);
 		await crawler.browser().close();
 		fs.unlink(pidfile, (err) => {});

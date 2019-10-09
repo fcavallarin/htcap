@@ -224,8 +224,8 @@ function parseArgsToOptions(args, defaults){
 				var arr = args.opts[a][1].split(":");
 				options.httpAuth = [arr[0], arr.slice(1).join(":")];
 				break;
-			case "M": // unused
-				options.mapEvents = false;
+			case "M":
+				options.simulateRealEvents = false;
 				break;
 			case "T": // unused
 				options.triggerAllMappedEvents = false;
@@ -361,7 +361,6 @@ function usage(){
 				"  -f              don't fill values\n" +
 				"  -t              don't trigger events (onload only)\n" +
 				"  -s              don't check websockets\n" +
-				"  -M              don't map events\n" +
 				"  -T              don't trigger mapped events\n" +
 				"  -S              don't check for <script> insertion\n" +
 				"  -P              load page with POST\n" +
@@ -385,6 +384,7 @@ function usage(){
 				"  -E              set extra http headers (json encoded {name:value}\n" +
 				"  -L              set login sequence\n" +
 				"  -z              do not crawl\n" +
+				"  -M              don't simulate real mouse/keyboard events\n" +
 				"  -J <path>       print json to file instead of stdout";
 	console.log(usage);
 }

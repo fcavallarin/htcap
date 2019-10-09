@@ -80,7 +80,8 @@ class Crawler:
 			'deduplicate_pages': True,
 			'headless_chrome': True,
 			'extra_headers': False,
-			'login_sequence': None
+			'login_sequence': None,
+			'simulate_real_events': True
 		}
 
 
@@ -130,6 +131,7 @@ class Crawler:
 			   "  -e               disable hEuristic page deduplication\n"
 			   "  -l               do not run chrome in headless mode\n"
 			   "  -E HEADER        set extra http headers (ex -E foo=bar -E bar=foo)\n"
+			   "  -M               don't simulate real mouse/keyboard events\n"
 			   "  -L SEQUENCE      set login sequence\n"
 			   )
 
@@ -429,7 +431,7 @@ class Crawler:
 		save_html = False
 
 		try:
-			opts, args = getopt.getopt(argv, 'hc:t:jn:x:A:p:d:BGR:U:wD:s:m:C:qr:SIHFP:OvelE:L:')
+			opts, args = getopt.getopt(argv, 'hc:t:jn:x:A:p:d:BGR:U:wD:s:m:C:qr:SIHFP:OvelE:L:M')
 		except getopt.GetoptError as err:
 			print str(err)
 			sys.exit(1)
@@ -522,6 +524,8 @@ class Crawler:
 				Shared.options['deduplicate_pages'] = False
 			elif o == "-l":
 				Shared.options['headless_chrome'] = False
+			elif o == "-M":
+				Shared.options['simulate_real_events'] = False
 			elif o == "-E":
 				if not Shared.options['extra_headers']:
 					Shared.options['extra_headers'] = {}
@@ -583,6 +587,9 @@ class Crawler:
 
 		if Shared.options['extra_headers']:
 			probe_options.extend(["-E", json.dumps(Shared.options['extra_headers'])])
+
+		if not Shared.options['simulate_real_events']:
+			probe_options.append("-M")
 
 		Shared.probe_cmd = probe_cmd + probe_options
 
