@@ -38,8 +38,7 @@ function printRequest(req){
 	if(!("data" in req))
 		req.data = null;
 	req.url = filterUrl(req.url);
-	if(!req.url)
-		return;
+
 	let jr = JSON.stringify(req);
 	if(printedRequests.indexOf(jr) != -1)
 		return;
@@ -51,10 +50,6 @@ function printRequest(req){
 
 function filterUrl(url){
 	url = url.split("#")[0];
-	if(url.match(/^[a-z0-9\-_]+\:/i) && !url.match(/(^https?)|(^ftps?)\:/i)){
-		return null;
-	}
-
 	return url;
 }
 
