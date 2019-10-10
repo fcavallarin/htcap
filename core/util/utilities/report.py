@@ -1,13 +1,13 @@
-# -*- coding: utf-8 -*- 
+# -*- coding: utf-8 -*-
 
 
 """
 HTCAP - beta 1
 Author: filippo.cavallarin@wearesegment.com
 
-This program is free software; you can redistribute it and/or modify it under 
-the terms of the GNU General Public License as published by the Free Software 
-Foundation; either version 2 of the License, or (at your option) any later 
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; either version 2 of the License, or (at your option) any later
 version.
 """
 
@@ -26,7 +26,7 @@ sys.setdefaultencoding('utf8')
 class Report(BaseUtil):
 
 	def dict_from_row(self, row):
-		return dict(zip(row.keys(), row)) 
+		return dict(zip(row.keys(), row))
 
 	@staticmethod
 	def get_settings():
@@ -40,7 +40,7 @@ class Report(BaseUtil):
 	def usage(self):
 		return (
 			"%s\n"
-			"usage: %s <dbfile> <outfile>\n" 
+			"usage: %s <dbfile> <outfile>\n"
 			% (self.get_settings()['descr'], self.utilname)
 		)
 
@@ -69,17 +69,18 @@ class Report(BaseUtil):
 			 ri.data AS req_data,
 			 ri.cookies AS req_cookies,
 			 ri.extra_headers AS req_extra_headers
-			FROM request r 
+			FROM request r
 			LEFT JOIN request_child rc ON r.id=rc.id_request
 			LEFT JOIN request ri ON ri.id = rc.id_child
 			WHERE
 			r.type IN ('link', 'redirect','form')
-			and (has_requests=0 OR req_type IN ('xhr','form','websocket','fetch') OR (req_type='jsonp' AND ri.trigger <> ''))
+			and (has_requests=0 OR req_type IN ('xhr','form','websocket','fetch', 'jsonp'))
 		"""
+
 		try:
 			cur.execute(qry)
 			for r in cur.fetchall():
-				report.append(self.dict_from_row(r))			 
+				report.append(self.dict_from_row(r))
 		except Exception as e:
 			print str(e)
 
@@ -90,7 +91,7 @@ class Report(BaseUtil):
 		qry = """
 			SELECT type, description FROM vulnerability WHERE id_request IN (
 				SELECT id FROM request WHERE (
-					id=? AND type IN ('link','redirect')) OR 
+					id=? AND type IN ('link','redirect')) OR
 					(id_parent=? AND type IN ('xhr','jsonp','form','websocket','fetch')
 				)
 			)
@@ -100,7 +101,7 @@ class Report(BaseUtil):
 
 			cur.execute(qry, (id_request,id_request))
 			for r in cur.fetchall():
-				report.append(json.dumps({"type":r['type'], "description":r['description']}))			 
+				report.append(json.dumps({"type":r['type'], "description":r['description']}))
 		except Exception as e:
 			print str(e)
 
@@ -113,7 +114,7 @@ class Report(BaseUtil):
 		qry = """
 			SELECT *,
 			 (SELECT htcap_version FROM crawl_info) AS htcap_version,
-			 (SELECT COUNT(*) FROM request WHERE crawled=1) AS pages_crawled 
+			 (SELECT COUNT(*) FROM request WHERE crawled=1) AS pages_crawled
 			FROM crawl_info
 		"""
 
@@ -171,6 +172,9 @@ class Report(BaseUtil):
 				for r in report:
 					if r['id'] != row['id']: continue
 
+					if r['req_type'] == "jsonp" and r['req_url'].find("?") == -1:
+						continue
+
 					trigger = json.loads(r['trigger']) if 'trigger' in r and r['trigger'] else None # {'event':'ready','element':'[document]'}
 
 					d[r['req_type']].append({
@@ -208,7 +212,7 @@ class Report(BaseUtil):
 
 		conn = sqlite3.connect(db_file)
 		conn.row_factory = sqlite3.Row
-		cur = conn.cursor() 
+		cur = conn.cursor()
 
 		base_html = (
 			"<html>\n"

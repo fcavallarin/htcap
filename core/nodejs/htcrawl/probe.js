@@ -449,7 +449,7 @@ function initProbe(options, inputValues){
 			if(this.options.simulateRealEvents){
 				if(this.options.mouseEvents.indexOf(evname) != -1){
 					evt = new MouseEvent(evname, {view: window, bubbles: true, cancelable: true});
-					if(evname.toLowerCase() == "click" && el.matches('a, button, input[type="submit"]')){
+					if(evname.toLowerCase() == "click" && el.matches('a, button, input[type="submit"], input[type="file"]')){
 						el.addEventListener(evname, pdh);
 					}
 				/*} else if(this.options.keyboardEvents.indexOf(evname) != -1){*/

@@ -367,6 +367,11 @@ Crawler.prototype.bootstrapPage = async function(browser){
 		dialog.accept();
 	});
 
+	browser.on("targetcreated", async (target)=>{
+		const p = await target.page();
+		if(p) p.close();
+	});
+
 
 	page.exposeFunction("__htcrawl_probe_event__",   (name, params) =>  {return this.dispatchProbeEvent(name, params)}); // <- automatically awaited.."If the puppeteerFunction returns a Promise, it will be awaited."
 

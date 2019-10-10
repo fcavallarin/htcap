@@ -678,6 +678,7 @@ function openModal(selector, content){
 	if(content){
 		var c = query(selector +  " .modal-content")[0];
 		c.innerHTML = "";
+		c.scrollTo(0, 0);
 		c.appendChild(content);
 	}
 }
