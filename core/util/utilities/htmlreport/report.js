@@ -237,7 +237,7 @@ function createSection(result){
 					var dirarrow = req.method != "GET" ? "❯ " : "❮ ";
 					cont.push(newElement("span.result-post-data",['title', req.method, "style", "cursor:default"], dirarrow));
 					cont.push(req.url + " ");
-					cont.push(newElement("span.result-post-data", [], req.data/*.substring(0,60)*/));
+					cont.push(newElement("span.result-post-data", [], req.data.substring(0,300)));
 				}
 
 				//var cont = req.trigger + "-->" + result[types[i]][a].request;
@@ -824,10 +824,11 @@ function loadStatus(file){
 }
 
 function prettifyJson(obj, layer){
-	var i,
+	var i, br
 		html = "",
 		pd = " ".repeat(2);
-	if(typeof layer == 'undefined' || layer < 1)layer = 1;
+
+	if(!layer)layer = 1;
 
 	switch(typeof obj){
 		case "object":
@@ -835,11 +836,13 @@ function prettifyJson(obj, layer){
 				return "<span class=jsn-null>" + obj + "</span>";
 			}
 			if(obj.constructor == Array){
+				br = ['[', ']'];
 				for(i = 0; i < obj.length; i++){
 					html += "<p>" + pd.repeat(layer) + prettifyJson(obj[i], layer + 1);
 					html += i < obj.length-1 ? "," : "" + "</p>";
 				}
 			} else {
+				br = ['{', '}'];
 				var props = Object.keys(obj);
 				for(i = 0; i < props.length; i++){
 					html += "<p>" + pd.repeat(layer) + '<span class=jsn-prop>"' + props[i] + '"</span>: ';
@@ -847,15 +850,14 @@ function prettifyJson(obj, layer){
 					html += i < props.length-1 ? "," : "" + "</p>";
 				}
 			}
-			break;
+			if(!html) return br.join("");
+			// padding of prv layer to align the closing bracket
+			return br[0] + pd.repeat(layer-1) + html + br[1];
 		case "string":
-			return "<span class=jsn-string>" + JSON.stringify(obj) + "</span>";
-		default:
-			return "<span class=jsn-" + typeof obj + ">" + obj + "</span>";
+			var printableHtml = obj.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+			return "<span class=jsn-string>" + JSON.stringify(printableHtml) + "</span>";
 	}
-
-	html += html ? pd.repeat(layer-1) : ""; // padding of prv layer to align the closing bracket
-	return obj.constructor == Array ? "[" + html + "]" : "{" + html + "}";
+	return "<span class=jsn-" + typeof obj + ">" + obj + "</span>";
 }
 
 
