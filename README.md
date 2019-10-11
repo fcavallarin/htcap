@@ -15,6 +15,7 @@ htcap is a web application scanner able to crawl single page application (SPA) r
 - Fuzzers are built on top of a fuzzing framework so they can be easly created/customized
 - Fuzzers fully support REST and SOAP payloads (json and xml)
 - Both crawler and fuzzers run in a mulithreaded environment
+- The report comes with advanced filtering capabilities and workflow tools
 
 ## BRIEF
 

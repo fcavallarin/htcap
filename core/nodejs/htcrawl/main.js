@@ -33,7 +33,8 @@ exports.launch = async function(url, options){
 		'--ssl-version-min=tls1',
 		'--disable-web-security',
 		'--allow-running-insecure-content',
-		'--proxy-bypass-list=<-loopback>'
+		'--proxy-bypass-list=<-loopback>',
+		'--window-size=1300,1000'
 	];
 	for(let a in defaults){
 		if(!(a in options)) options[a] = defaults[a];
@@ -315,7 +316,9 @@ Crawler.prototype.bootstrapPage = async function(browser){
 	crawler._page = page;
 	//if(options.verbose)console.log("new page")
 	await page.setRequestInterception(true);
-
+	if(options.bypassCSP){
+		await page.setBypassCSP(true);
+	}
 	page.on('request', async req => {
 		const overrides = {};
 		if(req.isNavigationRequest() && req.frame() == page.mainFrame()){
@@ -362,6 +365,11 @@ Crawler.prototype.bootstrapPage = async function(browser){
 
 	page.on("dialog", function(dialog){
 		dialog.accept();
+	});
+
+	browser.on("targetcreated", async (target)=>{
+		const p = await target.page();
+		if(p) p.close();
 	});
 
 

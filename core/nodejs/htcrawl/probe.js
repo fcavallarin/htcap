@@ -409,7 +409,7 @@ function initProbe(options, inputValues){
 	};
 
 
-	Probe.prototype.trigger = function(el,evname){
+	Probe.prototype.trigger = function(el, evname){
 		/* 	workaround for a phantomjs bug on linux (so maybe not a phantom bug but some linux libs??).
 			if you trigger click on input type=color evertything freezes... maybe due to some
 			color picker that pops up ...
@@ -418,41 +418,49 @@ function initProbe(options, inputValues){
 			return;
 		}
 
+		if(typeof evname != "string")return;
+
 		var pdh = function(e){
+			/*
 			var el = e.target;
-			var urlproto;
+			var urlproto = null;
 
 			if(el.matches("a")){
 				urlproto = el.protocol;
 				if(el.target == "_blank") el.target = "_self"; // @workaround prevent new tabs
-			} else { // button or submit
+			} else if(el.form){ // button or submit
 				let url = document.createElement("a");
 				url.href = el.form.action;
 				urlproto = url.protocol;
 				if(el.form.target == "_blank") el.form.target = "_self" // @workaround prevent new tabs
 			}
 
-			if(urlproto.match(/^https?\:/i) == null){ // @workaround prevent malfomed urls and about:blank to lead to about:blank
+			if(urlproto && urlproto.match(/^https?\:/i) == null){ // @workaround prevent malfomed urls and about:blank to lead to about:blank
 				e.preventDefault();
 			}
-
+			*/
+			e.preventDefault();
 			e.stopPropagation();
 		}
 
 		if ('createEvent' in document) {
-
-			if(this.options.mouseEvents.indexOf(evname) != -1){
-				var evt = new MouseEvent(evname, {view: window, bubbles: true, cancelable: true});
-				if(evname.toLowerCase() == "click" && el.matches('a, button, input[type="submit"]')){
-					el.addEventListener(evname, pdh);
+			// @TODO solve the "mouse event" problem
+			var evt = null;
+			if(this.options.simulateRealEvents){
+				if(this.options.mouseEvents.indexOf(evname) != -1){
+					evt = new MouseEvent(evname, {view: window, bubbles: true, cancelable: true});
+					if(evname.toLowerCase() == "click" && el.matches('a, button, input[type="submit"], input[type="file"]')){
+						el.addEventListener(evname, pdh);
+					}
+				/*} else if(this.options.keyboardEvents.indexOf(evname) != -1){*/
 				}
-			/*} else if(this.options.keyboardEvents.indexOf(evname) != -1){*/
-
-			} else {
-				var evt = document.createEvent('HTMLEvents');
-				evt.initEvent(evname, true, false);
-
 			}
+
+			if(evt == null) {
+				evt = document.createEvent('HTMLEvents');
+				evt.initEvent(evname, true, false);
+			}
+
 			el.dispatchEvent(evt);
 		} else {
 			evname = 'on' + evname;
@@ -572,9 +580,10 @@ function initProbe(options, inputValues){
 		var name = element.nodeName.toLowerCase();
 		var ret = [];
 		var selector = ""
+		var id = element.getAttribute("id");
 
-		if(element.id){
-			selector = "#" + element.id;
+		if(id && id.match(/^[a-z][a-z0-9\-_:\.]*$/i)){
+			selector = "#" + id;
 		} else {
 			let p = element;
 			let cnt = 1;
@@ -702,7 +711,7 @@ function initProbe(options, inputValues){
 		console.log("page initialized ");
 		var _this = this;
 		this.started_at = (new Date()).getTime();
-		await this.crawlDOM(document, 0);
+		await this.crawlDOM(document);
 		console.log("DOM analyzed ");
 	};
 
@@ -1072,7 +1081,8 @@ function initProbe(options, inputValues){
 		// map propety events and fill input values
 		await this.initializeElement(node);
 
-		if(node == document){
+		//if(node == document){
+		if(layer == 0){
 			await this.dispatchProbeEvent("start");
 		}
 
