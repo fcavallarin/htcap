@@ -243,12 +243,9 @@ if(targetUrl.length < 4 || targetUrl.substring(0,4).toLowerCase() != "http"){
 						break;
 					case "clickToNavigate":
 						try{
-							let nav = await crawler.clickToNavigate(seq[1], seq[2]);
-							if(!nav){
-								loginErr("navigation error", seqline);
-							}
+							await crawler.clickToNavigate(seq[1], seq[2]);
 						} catch(err){
-							await loginErr("element not found", seqline);
+							await loginErr(err, seqline);
 						}
 						break;
 					case "assertLoggedin":
