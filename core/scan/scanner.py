@@ -77,6 +77,8 @@ class Scanner:
 			proxy = json.loads(crawl_info['proxy'])
 			cookies = json.loads(crawl_info['cookies'])
 			extra_headers = json.loads(crawl_info['extra_headers'])
+			if not extra_headers:
+				extra_headers = {}
 			user_agent = crawl_info['user_agent']
 		except KeyError:
 			print "Unable to read proxy, cookies and user_agent from db.. maybe db created vith an old version . . ."

@@ -47,7 +47,7 @@ class HttpGet:
 		self.proxy = parse_proxy_string(proxy) if isinstance(proxy, basestring) else proxy
 		self.retries_interval = 0.5
 		self.useragent = useragent
-		self.extra_headers = extra_headers
+		self.extra_headers = extra_headers if extra_headers else {}
 
 	def urllib2_opener(self, request, jar_response, follow_redirect = None):
 		url = request.url
@@ -94,6 +94,9 @@ class HttpGet:
 
 			for eh in request.extra_headers:
 				headers.append((eh, request.extra_headers[eh]))
+
+			for eh in self.extra_headers:
+				headers.append((eh, self.extra_headers[eh]))
 
 			opener = urllib2.build_opener(*handlers)
 			opener.addheaders = headers
@@ -235,12 +238,12 @@ class HttpGet:
 				req = urllib2.Request(url=url, data=data.encode() if data else None)
 				req.get_method = lambda: method
 				jar_request.add_cookie_header(req)
-				headers = self.request.extra_headers
-				if self.extra_headers:
-					for h in self.extra_headers:
-						headers[h] = self.extra_headers[h]
-				for hn in headers:
-					req.add_header(hn, headers[hn])
+				# headers = self.request.extra_headers
+				# if self.extra_headers:
+				# 	for h in self.extra_headers:
+				# 		headers[h] = self.extra_headers[h]
+				# for hn in headers:
+				# 	req.add_header(hn, headers[hn])
 
 				if data and not 'Content-type' in req.headers:
 					req.add_header("Content-type", detect_content_type(data))
