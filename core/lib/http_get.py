@@ -92,6 +92,8 @@ class HttpGet:
 			if request.referer:
 				headers.append(("Referer", request.referer))
 
+			for eh in request.extra_headers:
+				headers.append((eh, request.extra_headers[eh]))
 
 			opener = urllib2.build_opener(*handlers)
 			opener.addheaders = headers
