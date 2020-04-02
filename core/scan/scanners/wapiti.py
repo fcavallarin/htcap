@@ -18,6 +18,8 @@ import re
 import json
 import base64
 import uuid
+import getopt
+import os
 
 from core.lib.exception import *
 from core.lib.cookie import Cookie
@@ -28,10 +30,29 @@ class Wapiti(BaseScanner):
 
 
 	def init(self, argv):
+		self.wapiti_bin = None
+		self.wapiti_cmd = "wapiti"
+
 		try:
-			self.utils.execmd("wapiti")
+			opts, args = getopt.getopt(argv, 'hx:')
+		except getopt.GetoptError as err:
+			print str(err)
+			self.exit(1)
+
+		for o, v in opts:
+			if o == '-h':
+				self.usage()
+				self.exit(0)
+			elif o == '-x':
+				self.wapiti_bin = v
+
+		if self.wapiti_bin:
+			self.wapiti_cmd = os.path.join(self.wapiti_bin, self.wapiti_cmd)
+
+		try:
+			self.utils.execmd(self.wapiti_cmd)
 		except:
-			print "Wapiti executable not found in $PATH"
+			print "Wapiti executable not found %s" % self.wapiti_cmd
 			self.exit(1)
 
 
@@ -40,6 +61,14 @@ class Wapiti(BaseScanner):
 			request_types = "xhr,link,form,jsonp,redirect,fetch",
 			num_threads = 10
 		)
+
+
+	def usage(self):
+		print (	"htcap wapiti module\nusage: scan wapiti <db_file> [options]\n"
+				"Options are:\n"
+				"  -h       this help\n"
+				"  -x PATH  set wapiti bin dir (by default is's supposed to be in $PATH)"
+			)
 
 
 	class Scan(ScannerThread):
@@ -84,23 +113,22 @@ class Wapiti(BaseScanner):
 				cmd.extend(("--proxy", "%s://%s:%s/" % (proto, self.scanner.proxy['host'], self.scanner.proxy['port'])))
 
 			extra_headers = []
-			if self.request.extra_headers:
-				for hn in self.request.extra_headers:
-					if hn not in self.scanner.extra_headers:
-						extra_headers.append(hn + ":" + self.request.extra_headers[hn])
+			for hn in self.request.extra_headers:
+				if hn not in self.scanner.extra_headers:
+					extra_headers.append(hn + ":" + self.request.extra_headers[hn])
 
-				for hn in self.scanner.extra_headers:
-					extra_headers.append(hn + ":" + self.scanner.extra_headers[hn])
+			for hn in self.scanner.extra_headers:
+				extra_headers.append(hn + ":" + self.scanner.extra_headers[hn])
 
-				for header in extra_headers:
-					cmd.extend(("--header", header))
+			for header in extra_headers:
+				cmd.extend(("--header", header))
 
 			if len(request.cookies) > 0:
 				cmd.extend(("--cookie", cookie_file))
 
 			out = None
 			try:
-				cmd_out = self.utils.execmd("wapiti", cmd)
+				cmd_out = self.utils.execmd(self.scanner.wapiti_cmd, cmd)
 				out = cmd_out['out']
 			except Exception as e:
 				self.sprint(e)

@@ -101,6 +101,15 @@ if(targetUrl.length < 4 || targetUrl.substring(0,4).toLowerCase() != "http"){
 		return text.match(regexp) != null;
 	}
 
+	async function getElement(selector, page){
+		selector = selector.trim();
+		if(selector.startsWith("$")){
+			let e = await page.$x(selector.substring(1));
+			return e.length > 0 ? e[0] : null;
+		}
+
+		return await page.$(selector);
+	}
 
 	fs.writeFileSync(pidfile, crawler.browser().process().pid);
 	utils.print_out("[");
@@ -216,44 +225,47 @@ if(targetUrl.length < 4 || targetUrl.substring(0,4).toLowerCase() != "http"){
 			for(let seq of loginSeq.sequence){
 				switch(seq[0]){
 					case "sleep":
-						//await crawler.page().waitFor(seq[1]);
 						await sleep(seq[1]);
 						break;
 					case "write":
 						try{
-							await crawler.page().type(seq[1], seq[2]);
+							let e = await getElement(seq[1], crawler.page());
+							await e.type(seq[2]);
 						} catch(e){
-							await loginErr("element not found", seqline);
+							await loginErr("element not found ", seqline);
 						}
 						break;
 					case "set":
 						try{
-							await crawler.page().$eval(seq[1], (el, u) => {el.value = u}, seq[2]);
+							let e = await getElement(seq[1], crawler.page());
+							await crawler.page().evaluate((el, u) => {el.value = u}, e, seq[2])
 						} catch(e){
 							await loginErr("element not found", seqline);
 						}
 						break;
 					case "click":
 						try{
-							await crawler.page().click(seq[1]);
+							let e = await getElement(seq[1], crawler.page());
+							await e.click();
 						} catch(e){
 							await loginErr("element not found", seqline);
 						}
 						await crawler.waitForRequestsCompletion();
 						break;
 					case "clickToNavigate":
-						try{
-							let nav = await crawler.clickToNavigate(seq[1], seq[2]);
-							if(!nav){
-								loginErr("navigation error", seqline);
-							}
-						} catch(err){
+						let e = await getElement(seq[1], crawler.page());
+						if(e == null){
 							await loginErr("element not found", seqline);
+						}
+						try{
+							await crawler.clickToNavigate(e, seq[2]);
+						} catch(err){
+							await loginErr(err, seqline);
 						}
 						break;
 					case "assertLoggedin":
 						if(await isLogged(crawler.page(), loginSeq.loggedinCondition) == false){
-							await loginErr("login sequence fails", seqline);
+							await loginErr("login sequence faild", seqline);
 						}
 						break;
 					default:

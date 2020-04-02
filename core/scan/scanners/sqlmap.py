@@ -18,6 +18,7 @@ import json
 import base64
 import uuid
 import getopt
+import os
 
 import threading
 
@@ -35,9 +36,10 @@ class Sqlmap(BaseScanner):
 
 	def init(self, argv):
 		self.skip_duplicates = True
-
+		self.sqlmap_bin = None
+		self.sqlmap_cmd = "sqlmap"
 		try:
-			opts, args = getopt.getopt(argv, 'hs')
+			opts, args = getopt.getopt(argv, 'hsx:')
 		except getopt.GetoptError as err:
 			print str(err)
 			self.exit(1)
@@ -48,11 +50,16 @@ class Sqlmap(BaseScanner):
 				self.exit(0)
 			elif o == '-s':
 				self.skip_duplicates = False
+			elif o == '-x':
+				self.sqlmap_bin = v
+
+		if self.sqlmap_bin:
+			self.sqlmap_cmd = os.path.join(self.sqlmap_bin, self.sqlmap_cmd)
 
 		try:
-			self.utils.execmd("sqlmap")
+			self.utils.execmd(self.sqlmap_cmd)
 		except:
-			print "Sqlmap executable not found in $PATH"
+			print "Sqlmap executable not found %s" % self.sqlmap_cmd
 			self.exit(1)
 
 
@@ -61,16 +68,16 @@ class Sqlmap(BaseScanner):
 	def usage(self):
 		print (	"htcap sqlmap module\nusage: scan sqlmap <db_file> [options]\n"
 				"Options are:\n"
-				"  -h   this help\n"
-				"  -s   do not skip duplicated urls\n"
+				"  -h       this help\n"
+				"  -s       do not skip duplicated urls\n"
+				"  -x PATH  set sqlmap bin dir (by default is's supposed to be in $PATH)"
 			)
 
 	def get_settings(self):
 		return dict(
 			request_types = "xhr,link,form,jsonp,redirect,fetch",
 			num_threads = 5,
-			process_timeout = 300,
-			scanner_exe = "/usr/share/sqlmap/sqlmap.py"
+			process_timeout = 300
 		)
 
 
@@ -122,21 +129,21 @@ class Sqlmap(BaseScanner):
 				cmd.extend(("--proxy", "%s://%s:%s" % (self.scanner.proxy['proto'], self.scanner.proxy['host'], self.scanner.proxy['port'])))
 
 			extra_headers = []
-			if self.request.extra_headers:
-				for hn in self.request.extra_headers:
-					if hn not in self.scanner.extra_headers:
-						extra_headers.append(hn + ":" + self.request.extra_headers[hn])
+			#if self.request.extra_headers:
+			for hn in self.request.extra_headers:
+				if hn not in self.scanner.extra_headers:
+					extra_headers.append(hn + ":" + self.request.extra_headers[hn])
 
-				for hn in self.scanner.extra_headers:
-					extra_headers.append(hn + ":" + self.scanner.extra_headers[hn])
+			for hn in self.scanner.extra_headers:
+				extra_headers.append(hn + ":" + self.scanner.extra_headers[hn])
 
-				if len(extra_headers) > 0:
-					cmd.extend(("--headers", "\n".join(extra_headers)))
+			if len(extra_headers) > 0:
+				cmd.extend(("--headers", "\n".join(extra_headers)))
 
 			out = None
 			#self.sprint(cmd_to_str(cmd))
 			try:
-				cmd_out = self.utils.execmd("sqlmap", cmd)
+				cmd_out = self.utils.execmd(self.scanner.sqlmap_cmd, cmd)
 				# self.sprint(cmd_out['out'])
 				# self.sprint(cmd_out['err'])
 				# self.sprint(cmd_out['returncode'])
