@@ -15,7 +15,7 @@ RUN apt-get update && \
     apt-get clean
 RUN locale-gen en_US.UTF-8
     # htcap and scanner dependencies:
-RUN apt-get install -y curl python python3 python3-setuptools nodejs npm && \
+RUN apt-get install -y curl git python python3 python3-setuptools nodejs npm && \
     # Chromium dependencies:
     apt-get install -y libasound2 libatk-bridge2.0-0 libgconf-2-4 libgtk-3-0 libnss3 libxss1 libxtst6 xvfb && \
     apt-get clean
@@ -31,12 +31,12 @@ RUN curl -Ls https://github.com/Arachni/arachni/releases/download/v1.5.1/arachni
     rm arachni.tar.gz && \
     mv arachni-1.5.1-* arachni && \
     ln -s /usr/local/share/arachni/bin/* /usr/local/bin/
-RUN curl -Ls https://github.com/sqlmapproject/sqlmap/archive/1.3.tar.gz -o sqlmap.tar.gz && \
+RUN curl -Ls https://github.com/sqlmapproject/sqlmap/archive/1.4.tar.gz -o sqlmap.tar.gz && \
     tar xzf sqlmap.tar.gz && \
     rm sqlmap.tar.gz && \
     mv sqlmap-* sqlmap && \
     ln -s /usr/local/share/sqlmap/sqlmap.py /usr/local/bin/sqlmap
-RUN curl -Ls https://sourceforge.net/projects/wapiti/files/wapiti/wapiti-3.0.1/wapiti3-3.0.1.tar.gz/download -o wapiti.tar.gz && \
+RUN curl -Ls https://sourceforge.net/projects/wapiti/files/wapiti/wapiti-3.0.3/wapiti3-3.0.3.tar.gz/download -o wapiti.tar.gz && \
     tar xzf wapiti.tar.gz && \
     rm wapiti.tar.gz && \
     mv wapiti3-* wapiti && \
