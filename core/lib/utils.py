@@ -239,13 +239,9 @@ def check_dependences(base_dir, usePhantomjs=False):
 
 	probe_dir = os.path.join(base_dir, 'probe', 'chrome-probe')
 	node_dir = os.path.join(base_dir, '..', 'nodejs')
-	node_deps = ""
-	try:
-		node_deps = subprocess.check_output(get_node_cmd() + [os.path.join(node_dir, 'ckdeps.js')]).decode()
-	except:
-		pass
+	node_deps = os.path.exists(os.path.join(node_dir, "node_modules/puppeteer"))
 
-	if node_deps != "":
+	if not node_deps:
 		#errors.append("puppeteer")
 		stdoutw("Puppeteer is missing, install it via npm? [Y/n]: ")
 		if sys.stdin.read(1) != "n":
