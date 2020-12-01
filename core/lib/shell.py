@@ -82,6 +82,8 @@ class CommandExecutor:
 
 				self.process = subprocess.Popen(self.cmd, **kwargs)
 				self.out, self.err = self.process.communicate()
+				self.out = self.out.decode()
+				self.err = self.err.decode()
 
 			except Exception as e:
 				print(e)
