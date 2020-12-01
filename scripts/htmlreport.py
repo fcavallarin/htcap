@@ -16,16 +16,12 @@ import sys
 import os
 import sqlite3
 import json
-from urlparse import urlsplit
+from urllib.parse import urlsplit
 import glob
-import importlib
-
-reload(sys)
-sys.setdefaultencoding('utf8')
 
 sys.path.append(os.path.realpath(os.path.dirname(os.path.realpath(__file__)) + os.sep + ".."))
 
-print "* WARNING: this script is here for back compatibility reasons and will be removed soon!!\n* Use 'htcap util report' instead"
+print("* WARNING: this script is here for back compatibility reasons and will be removed soon!!\n* Use 'htcap util report' instead")
 
 mod = importlib.import_module("core.util.utilities.report")
 run = getattr(mod, "Report")

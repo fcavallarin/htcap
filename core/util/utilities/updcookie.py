@@ -7,9 +7,6 @@ import os
 
 from core.util.base_util import BaseUtil
 
-reload(sys)
-sys.setdefaultencoding('utf8')
-
 class Updcookie(BaseUtil):
 
 	@staticmethod

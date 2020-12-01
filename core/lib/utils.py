@@ -19,12 +19,11 @@ import posixpath
 import subprocess
 import json
 import xml.etree.ElementTree as XML
-
-from urllib import urlencode, unquote
-from urlparse import urlsplit, urljoin, parse_qsl
+from urllib.parse import urlencode, unquote
+from urllib.parse import urlsplit, urljoin, parse_qsl
 from core.lib.exception import *
 from core.constants import *
-from HTMLParser import HTMLParser
+from html.parser import HTMLParser
 from core.lib.shell import CommandExecutor
 
 def get_program_infos():
@@ -58,7 +57,7 @@ def generate_filename(name, ext=None, out_file_overwrite=False, ask_out_file_ove
 			stdoutw("File %s already exists. Overwrite [y/N]: " % fname())
 			out_file_overwrite = sys.stdin.read(1) == "y"
 		except KeyboardInterrupt:
-			print "\nAborted"
+			print("\nAborted")
 			sys.exit(0)
 
 	if not out_file_overwrite:
@@ -250,7 +249,7 @@ def check_dependences(base_dir, usePhantomjs=False):
 		#errors.append("puppeteer")
 		stdoutw("Puppeteer is missing, install it via npm? [Y/n]: ")
 		if sys.stdin.read(1) != "n":
-			print "Installing Puppeteer"
+			print("Installing Puppeteer")
 			try:
 				npm_install = subprocess.Popen([npm, "install"], cwd=node_dir)
 				npm_install.communicate()

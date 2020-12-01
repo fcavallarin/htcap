@@ -10,7 +10,7 @@ Foundation; either version 2 of the License, or (at your option) any later
 version.
 """
 
-from __future__ import unicode_literals
+
 import sys
 import time
 import re
@@ -22,7 +22,7 @@ import os
 
 import threading
 
-from urlparse import urlparse, urljoin, parse_qs, parse_qsl, urlsplit
+from urllib.parse import urlparse, urljoin, parse_qs, parse_qsl, urlsplit
 
 from core.lib.exception import *
 from core.lib.cookie import Cookie
@@ -41,7 +41,7 @@ class Sqlmap(BaseScanner):
 		try:
 			opts, args = getopt.getopt(argv, 'hsx:')
 		except getopt.GetoptError as err:
-			print str(err)
+			print(str(err))
 			self.exit(1)
 
 		for o, v in opts:
@@ -59,7 +59,7 @@ class Sqlmap(BaseScanner):
 		try:
 			self.utils.execmd(self.sqlmap_cmd)
 		except:
-			print "Sqlmap executable not found %s" % self.sqlmap_cmd
+			print("Sqlmap executable not found %s" % self.sqlmap_cmd)
 			self.exit(1)
 
 
@@ -95,7 +95,7 @@ class Sqlmap(BaseScanner):
 			self.sprint("Scanning %s" % self.request.url)
 			out_dir = self.tmp_dir + "/tmp"
 			if not os.path.exists(out_dir):
-				os.makedirs(out_dir, 0700)
+				os.makedirs(out_dir, 0o700)
 
 			cookie_file = self.tmp_dir + "/cookies.json"
 			with open(cookie_file,'w') as cf:

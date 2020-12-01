@@ -11,9 +11,9 @@ version.
 """
 
 import time
-import cookielib
-from urllib import quote
-from urlparse import urlparse, urljoin, parse_qs, urlsplit
+import http.cookiejar
+from urllib.parse import quote
+from urllib.parse import urlparse, urljoin, parse_qs, urlsplit
 import xml.etree.ElementTree as ET
 import json
 
@@ -121,7 +121,7 @@ class RequestPattern:
 		"""
 		sets to 0 all object values
 		"""
-		keys = obj.keys() if isinstance(obj, dict) else range(0, len(obj))
+		keys = list(obj.keys()) if isinstance(obj, dict) else list(range(0, len(obj)))
 
 		for k in keys:
 			if not hasattr(obj[k], '__iter__'):

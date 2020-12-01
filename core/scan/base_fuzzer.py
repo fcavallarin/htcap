@@ -10,7 +10,7 @@ Foundation; either version 2 of the License, or (at your option) any later
 version.
 """
 
-from __future__ import unicode_literals
+
 import sys
 import time
 import re
@@ -28,8 +28,8 @@ from core.lib.cookie import Cookie
 from core.lib.utils import *
 from core.constants import *
 from core.lib.http_get import HttpGet
-from urlparse import urljoin, urlsplit, parse_qsl, parse_qs
-from urllib import urlencode, quote
+from urllib.parse import urljoin, urlsplit, parse_qsl, parse_qs
+from urllib.parse import urlencode, quote
 
 
 
@@ -69,7 +69,7 @@ class Mutation:
 		self.cookie = None
 		self.header = None
 
-		if not isinstance(value, basestring):
+		if not isinstance(value, str):
 			value = value[0] % tuple(value[1:])
 		ppath = param.split("/")
 		if ppath[0] == "get":
@@ -148,7 +148,7 @@ class Mutation:
 			prop = None
 		e = node.find("/".join(par))
 		if prop:
-			if prop in e.attrib.keys():
+			if prop in list(e.attrib.keys()):
 				e.attrib[prop] = value
 			else:
 				raise Exception("property not found %s" % prop)
@@ -184,7 +184,7 @@ class Mutations:
 		self.params = self._get_params()
 		return self
 
-	def next(self):
+	def __next__(self):
 		if self._nextm:
 			mut = self._nextm
 			self._nextm = None
@@ -328,7 +328,7 @@ class Mutations:
 		try:
 			for e in obj:
 				cp = "%s%s" % (path+"/" if path else "post-json/", e)
-				if not obj[e] or isinstance(obj[e], int) or isinstance(obj[e], float) or isinstance(obj[e], basestring):
+				if not obj[e] or isinstance(obj[e], int) or isinstance(obj[e], float) or isinstance(obj[e], str):
 					pars.append(cp)
 				else:
 					rp = self._get_json_parameters(obj[e], cp)
@@ -349,7 +349,7 @@ class Mutations:
 				cp = "%s%s" % (path+"/" if path else "post-xml/%s/" % node.tag, e.tag)
 				if len(e) == 0:
 					pars.append(cp)
-				for p in e.attrib.keys():
+				for p in list(e.attrib.keys()):
 					pars.append("%s.%s" % (cp, p))
 				rp = self._get_xml_parameters(e, cp)
 				if rp:

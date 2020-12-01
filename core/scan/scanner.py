@@ -10,7 +10,7 @@ Foundation; either version 2 of the License, or (at your option) any later
 version.
 """
 
-from __future__ import unicode_literals
+
 import sys
 import time
 import re
@@ -25,7 +25,7 @@ import importlib
 from core.lib.exception import *
 from core.lib.cookie import Cookie
 from core.lib.utils import *
-from base_scanner import BaseScanner
+from .base_scanner import BaseScanner
 from core.lib.database import Database
 
 class Scanner:
@@ -49,7 +49,7 @@ class Scanner:
 		try:
 			opts, args = getopt.getopt(argv, 'hn:r:vm:p:U:c:E:')
 		except getopt.GetoptError as err:
-			print str(err)
+			print(str(err))
 			sys.exit(1)
 
 		for o, v in opts:
@@ -81,7 +81,7 @@ class Scanner:
 				extra_headers = {}
 			user_agent = crawl_info['user_agent']
 		except KeyError:
-			print "Unable to read proxy, cookies and user_agent from db.. maybe db created vith an old version . . ."
+			print("Unable to read proxy, cookies and user_agent from db.. maybe db created vith an old version . . .")
 			pass
 
 		for o, v in opts:
@@ -98,13 +98,13 @@ class Scanner:
 					try:
 						proxy = parse_proxy_string(v)
 					except Exception as e:
-						print e
+						print(e)
 						sys.exit(1)
 			elif o == '-c':
 				try:
 					cookies = parse_cookie_string(v)
 				except:
-					print "Unable to decode cookies"
+					print("Unable to decode cookies")
 					sys.exit(1)
 			elif o == '-U':
 				user_agent = v
@@ -118,11 +118,11 @@ class Scanner:
 		scanner_argv = args[2:]
 
 		if not self.scanner in self.scanners:
-			print "Available scanners are:\n  %s" % "\n  ".join(sorted(self.scanners))
+			print("Available scanners are:\n  %s" % "\n  ".join(sorted(self.scanners)))
 			sys.exit(1)
 
 		if not os.path.exists(self.db_file):
-			print "No such file %s" % self.db_file
+			print("No such file %s" % self.db_file)
 			sys.exit(1)
 
 		try:
@@ -140,15 +140,15 @@ class Scanner:
 			run = getattr(mod, self.scanner.title())
 			run(self.db_file, num_threads, request_types, display_progress, scanner_argv, proxy, cookies, user_agent, extra_headers)
 		except Exception as e:
-			print "Error : %s" % e
+			print("Error : %s" % e)
 			return
 
-		print "Scan finished"
+		print("Scan finished")
 
 
 
 	def usage(self):
-		print ("\nUsage: scan [options] <scanner> <db_file> [scanner_options]\n"
+		print(("\nUsage: scan [options] <scanner> <db_file> [scanner_options]\n"
 			"Options: \n"
 			"  -h                   this help\n"
 			"  -n THREADS           number of parallel threads\n"
@@ -175,5 +175,5 @@ class Scanner:
 			# "  - form\n"
 			# "  - jsonp\n"
 			# "  - websocket\n"
-		)
+		))
 

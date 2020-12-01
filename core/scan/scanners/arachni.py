@@ -10,7 +10,7 @@ Foundation; either version 2 of the License, or (at your option) any later
 version.
 """
 
-from __future__ import unicode_literals
+
 import sys
 import os
 import time
@@ -18,7 +18,7 @@ import re
 import json
 import base64
 import uuid
-import urllib
+import urllib.request, urllib.parse, urllib.error
 import getopt
 import datetime
 
@@ -43,7 +43,7 @@ class Arachni(BaseScanner):
 		try:
 			opts, args = getopt.getopt(argv, 'hspbx:')
 		except getopt.GetoptError as err:
-			print str(err)
+			print(str(err))
 			self.exit(1)
 
 		for o, v in opts:
@@ -67,12 +67,12 @@ class Arachni(BaseScanner):
 		try:
 			self.utils.execmd(self.acmd)
 		except:
-			print "arachni executable not found %s" % self.acmd
+			print("arachni executable not found %s" % self.acmd)
 			self.exit(1)
 		try:
 			self.utils.execmd(self.rcmd)
 		except:
-			print "arachni_reporter executable not found"
+			print("arachni_reporter executable not found")
 			self.exit(1)
 
 
@@ -148,7 +148,7 @@ class Arachni(BaseScanner):
 			cmd.append(self.request.url)
 
 			if not self.scanner.execute_command:
-				print cmd_to_str(self.scanner.acmd + cmd)
+				print(cmd_to_str(self.scanner.acmd + cmd))
 				self.exit(0)
 				return False
 
@@ -171,10 +171,10 @@ class Arachni(BaseScanner):
 			try:
 				cmd_out = self.utils.execmd(self.scanner.rcmd, ["--reporter", "json:outfile=%s" % json_file, out_file])
 			except Exception as e:
-				print "%s" % e
+				print("%s" % e)
 
 			if cmd_out['err']:
-				print ">>> error exporting arachni to json: %s %s" % (cmd_out['err'], self.request.url)
+				print(">>> error exporting arachni to json: %s %s" % (cmd_out['err'], self.request.url))
 				return
 
 			if not os.path.isfile(json_file):
@@ -187,7 +187,7 @@ class Arachni(BaseScanner):
 			try:
 				report = json.loads(jsn)
 			except Exception as e:
-				print err
+				print(err)
 
 			issues = report['issues']
 
@@ -206,7 +206,7 @@ class Arachni(BaseScanner):
 				descr = "D E T A I L S\n\nName:       %s\nReference:  %s\nSeverity:   %s\n\n\nR E Q U E S T\n\n%s" % fields
 
 				if req and req['method'] == "post":
-					descr += "%s" % urllib.urlencode(req['body'])
+					descr += "%s" % urllib.parse.urlencode(req['body'])
 				self.save_vulnerabilities([{"type":i['check']['shortname'], "description": descr}])
 				#self.save_vulnerability(request, i['check']['shortname'], descr)
 

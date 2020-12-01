@@ -10,24 +10,24 @@ Foundation; either version 2 of the License, or (at your option) any later
 version.
 """
 
-from __future__ import unicode_literals
+
 import sys
 import time
 import re
 import json
-import urllib
-import cookielib
+import urllib.request, urllib.parse, urllib.error
+import http.cookiejar
 import threading
 import base64
 import posixpath
 import tempfile
 import os
 import uuid
-import urllib2
+import urllib.request, urllib.error, urllib.parse
 import shutil
 import datetime
 
-from urlparse import urlparse, urlsplit, urljoin, parse_qs
+from urllib.parse import urlparse, urlsplit, urljoin, parse_qs
 
 import core.lib.thirdparty.pysocks.socks as socks
 from core.lib.thirdparty.pysocks.sockshandler import SocksiPyHandler
@@ -107,7 +107,7 @@ class BaseScanner:
 		# 	raise Exception("scanner_exe not found")
 
 		self._running = True
-		print "Scanner %s started with %d threads (^C to pause or change verbosity)" % (self.scanner_name, self.settings['num_threads'])
+		print("Scanner %s started with %d threads (^C to pause or change verbosity)" % (self.scanner_name, self.settings['num_threads']))
 
 		for n in range(0, self.settings['num_threads']):
 			thread = self.Executor(self)
@@ -162,7 +162,7 @@ class BaseScanner:
 						self._th_lock_stdout.acquire()
 						for id in self._print_queue:
 							for out in self._print_queue[id]:
-								print out
+								print(out)
 						self._print_queue = {}
 						self._th_lock_stdout.release()
 					if th.isAlive():
@@ -176,13 +176,13 @@ class BaseScanner:
 					pass
 				self.pause_threads(True)
 				if not self.get_runtime_command():
-					print "Exiting . . ."
+					print("Exiting . . .")
 					self.request_exit()
 					return
-				print "Scan is running"
+				print("Scan is running")
 				self.pause_threads(False)
 		if self.display_progress:
-			print ""
+			print("")
 
 
 	def get_runtime_command(self):
@@ -195,9 +195,9 @@ class BaseScanner:
 				"Hit ctrl-c again to exit\n"
 			)
 			try:
-				ui = raw_input("> ").strip()
+				ui = input("> ").strip()
 			except KeyboardInterrupt:
-				print ""
+				print("")
 				return False
 			if ui == "r":
 				break
@@ -208,7 +208,7 @@ class BaseScanner:
 				self.display_progress = True
 				break
 
-			print " "
+			print(" ")
 
 		return True
 
@@ -243,12 +243,12 @@ class BaseScanner:
 				time.sleep(0.1)
 			except KeyboardInterrupt:
 				try:
-					die = raw_input("\nForce exit? [y/N] ").strip()
+					die = input("\nForce exit? [y/N] ").strip()
 					if die == "y":
 						return False
 				except KeyboardInterrupt:
 					return True
-		print ""
+		print("")
 		return True
 
 	def pause_threads(self, pause):
@@ -271,8 +271,8 @@ class BaseScanner:
 			self._exitcode = code
 			self._th_lock.release()
 			self.kill_threads()
-			print "kill thread"
-			print ""
+			print("kill thread")
+			print("")
 		else :
 			sys.exit(code)
 
@@ -331,7 +331,7 @@ class BaseScanner:
 			self.pause = False
 			self.thread_uuid = uuid.uuid4()
 			self.tmp_dir = "%s%shtcap_tempdir-%s" % (tempfile.gettempdir(), os.sep, self.thread_uuid)
-			os.makedirs(self.tmp_dir, 0700)
+			os.makedirs(self.tmp_dir, 0o700)
 
 		def inc_counter(self):
 			self.scanner._th_lock.acquire()

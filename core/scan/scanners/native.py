@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
-from __future__ import unicode_literals
-from urlparse import urljoin, urlsplit, parse_qsl
+
+from urllib.parse import urljoin, urlsplit, parse_qsl
 import getopt
 import re
 from core.scan.base_scanner import BaseScanner, ScannerThread
@@ -23,12 +23,12 @@ class Native(BaseScanner):
 		try:
 			opts, args = getopt.getopt(argv, 'hf:')
 		except getopt.GetoptError as err:
-			print str(err)
+			print(str(err))
 			self.exit(1)
 
 		for o, v in opts:
 			if o == '-h':
-				print self.usage()
+				print(self.usage())
 				self.exit(0)
 			elif o == '-f':
 				self.enabled_fuzzers = v.split(",")
@@ -47,7 +47,7 @@ class Native(BaseScanner):
 
 
 	def end(self):
-		print("\nTot vulnerabilities: %d (not vuln: %d)" % (len(self.vulns), self.tmp))
+		print(("\nTot vulnerabilities: %d (not vuln: %d)" % (len(self.vulns), self.tmp)))
 		pass
 
 

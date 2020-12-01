@@ -29,11 +29,19 @@ Htcap’s Javascript crawling engine has been rewritten to take advantage of the
 
 More infos at [htcap.org](http://htcap.org).
 
+
+## DEMO
+The video below shows htcap crawling gmail.  
+The crawl lasted for many hours and about 3000 XHR request have been captured.  
+
+[![crawling gmail](https://htcap.org/img/htcap-gmail-video.png)](https://www.youtube.com/watch?v=5FLmWjKE2JI "HTCAP Crawling Gmail")
+
+
 ## SETUP
 
 ### Requirements
 
- 1. Python 2.7
+ 1. Python 3
  2. Nodejs and npm
  3. Sqlmap (for sqlmap scanner module)
  4. Arachni (for arachni scanner module)

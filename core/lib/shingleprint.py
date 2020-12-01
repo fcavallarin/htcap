@@ -36,7 +36,7 @@ R. Capocelli, A. De Santis, U. Vaccaro eds., Sequences II: Methods in Communicat
 Security, and Computer Science, Springer-Verlag, 1993. http://athos.rutgers.edu/~muthu/broder.ps
 
 """
-from __future__ import division
+
 import sys
 import os
 import time
@@ -46,7 +46,7 @@ from zlib import crc32
 
 #from core.lib.thirdparty.simhash import Simhash
 
-from urlparse import urlsplit, urljoin, parse_qsl
+from urllib.parse import urlsplit, urljoin, parse_qsl
 from core.lib.exception import *
 from core.constants import *
 
@@ -131,7 +131,7 @@ class ShinglePrint:
 		count = min(len(f1), len(f2))
 		intersectsize = matchcount
 		unionsize = 2 * count - matchcount
-		return intersectsize / unionsize
+		return intersectsize // unionsize
 
 	@staticmethod
 	def similarity(x, y):
@@ -139,7 +139,7 @@ class ShinglePrint:
 		u = (x | y)
 		# print "%x %x" % (x, y)
 		# print "%f %f" % (ShinglePrint.hammingWeight(i), ShinglePrint.hammingWeight(u))
-		return ShinglePrint.hammingWeight(i) / ShinglePrint.hammingWeight(u)
+		return ShinglePrint.hammingWeight(i) // ShinglePrint.hammingWeight(u)
 
 	@staticmethod
 	def hammingWeight(l):
@@ -265,7 +265,7 @@ class HashQueue:
 				return 1
 			if self.hash[i] == crc:
 				return 1
-			h += 2 * (self.nhash / 4) + 1;
+			h += 2 * (self.nhash // 4) + 1;
 		return 0
 
 
@@ -278,7 +278,7 @@ class HashQueue:
 		for i in range(self.nhash):
 			if oldocc[i] == self.FULL:
 				if not self.do_hash_insert(oldhash[i]):
-					print "internal error: gc failed, table full"
+					print("internal error: gc failed, table full")
 					sys.exit(1);
 
 
@@ -288,7 +288,7 @@ class HashQueue:
 		self.gc()
 		if self.do_hash_insert(crc):
 			return
-		print "internal error: insert failed, table full"
+		print("internal error: insert failed, table full")
 
 
 	def do_hash_contains(self, crc):
@@ -299,7 +299,7 @@ class HashQueue:
 				return 0
 			if self.occ[i] == self.FULL and self.hash[i] == crc:
 				return 1
-			h += 2 * (self.nhash / 4) + 1
+			h += 2 * (self.nhash // 4) + 1
 		return -1
 
 
@@ -312,7 +312,7 @@ class HashQueue:
 		result = self.do_hash_contains(crc);
 		if result >= 0:
 			return result
-		print "internal error: can't find value, table full"
+		print("internal error: can't find value, table full")
 
 
 	def do_hash_delete(self, crc):
@@ -325,7 +325,7 @@ class HashQueue:
 
 			if self.occ[i] == self.EMPTY:
 				return 0
-			h += 2 * (self.nhash / 4) + 1
+			h += 2 * (self.nhash // 4) + 1
 
 		return -1
 
@@ -338,7 +338,7 @@ class HashQueue:
 		result = self.do_hash_delete(crc)
 		if self.result >= 0:
 			return result
-		print "internal error: delete failed, table full"
+		print("internal error: delete failed, table full")
 
 
 

@@ -10,7 +10,7 @@ Foundation; either version 2 of the License, or (at your option) any later
 version.
 """
 
-from __future__ import unicode_literals
+
 import sys
 import os
 import datetime
@@ -18,9 +18,9 @@ import time
 import getopt
 import json
 import re
-from urlparse import urlsplit, urljoin
-from urllib import unquote
-import urllib2
+from urllib.parse import urlsplit, urljoin
+from urllib.parse import unquote
+import urllib.request, urllib.error, urllib.parse
 import threading
 import subprocess
 from random import choice
@@ -33,19 +33,19 @@ from core.lib.exception import *
 from core.lib.cookie import Cookie
 from core.lib.database import Database
 
-from lib.shared import *
-from lib.crawl_result import *
+from .lib.shared import *
+from .lib.crawl_result import *
 from core.lib.request import Request
 from core.lib.http_get import HttpGet
 from core.lib.shell import CommandExecutor
 
-from crawler_thread import CrawlerThread
+from .crawler_thread import CrawlerThread
 #from core.lib.shingleprint import ShinglePrint
 from core.lib.texthash import TextHash
 from core.lib.request_pattern import RequestPattern
 from core.lib.utils import *
 from core.constants import *
-from lib.utils import *
+from .lib.utils import *
 from core.lib.progressbar import Progressbar
 
 class Crawler:
@@ -91,7 +91,7 @@ class Crawler:
 
 	def usage(self):
 		infos = get_program_infos()
-		print ("htcap crawler ver " + infos['version'] + "\n"
+		print(("htcap crawler ver " + infos['version'] + "\n"
 			   "usage: crawl [options] url outfile\n"
 			   "hit ^C to pause the crawler or change verbosity\n"
 			   "Options: \n"
@@ -132,7 +132,7 @@ class Crawler:
 			   "  -E HEADER        set extra http headers (ex -E foo=bar -E bar=foo)\n"
 			   "  -M               don't simulate real mouse/keyboard events\n"
 			   "  -L SEQUENCE      set login sequence\n"
-			   )
+			   ))
 
 
 	def generate_filename(self, name, out_file_overwrite):
@@ -190,10 +190,10 @@ class Crawler:
 		try:
 			h.get_requests()
 		except NotHtmlException:
-			print "\nError: Document is not html"
+			print("\nError: Document is not html")
 			sys.exit(1)
 		except Exception as e:
-			print "\nError: unable to open url: %s" % e
+			print("\nError: unable to open url: %s" % e)
 			sys.exit(1)
 
 
@@ -207,7 +207,7 @@ class Crawler:
 			# request, timeout, retries=None, useragent=None, proxy=None):
 			httpget = HttpGet(getreq, 10, 1, "Googlebot", Shared.options['proxy'])
 			lines = httpget.get_file().split("\n")
-		except urllib2.HTTPError:
+		except urllib.error.HTTPError:
 			return []
 		except:
 			return []
@@ -261,7 +261,7 @@ class Crawler:
 					running_threads = [t for t in threads if t.status == THSTAT_RUNNING]
 					if len(running_threads) == 0:
 						if self.display_progress or self.verbose:
-							print ""
+							print("")
 						break
 
 				if len(req_to_crawl) > 0:
@@ -280,11 +280,11 @@ class Crawler:
 						crawled += 1
 						pending -= 1
 						if self.verbose:
-							print "crawl result for: %s " % result.request
+							print("crawl result for: %s " % result.request)
 							if len(result.request.user_output) > 0:
-								print "  user: %s" % json.dumps(result.request.user_output)
+								print("  user: %s" % json.dumps(result.request.user_output))
 							if result.errors:
-								print "* crawler errors: %s" % ", ".join(result.errors)
+								print("* crawler errors: %s" % ", ".join(result.errors))
 
 						database.save_crawl_result(result, True)
 
@@ -296,7 +296,7 @@ class Crawler:
 										filtered_requests.append(r)
 								result.found_requests = filtered_requests
 								if self.verbose:
-									print " * marked as duplicated ... requests filtered"
+									print(" * marked as duplicated ... requests filtered")
 
 							self.page_hashes.append(result.page_hash)
 							for r in result.found_requests:
@@ -307,20 +307,20 @@ class Crawler:
 							database.save_request(req)
 
 							if self.verbose and req not in Shared.requests and req not in req_to_crawl:
-									print "  new request found %s" % req
+									print("  new request found %s" % req)
 
 							if request_is_crawlable(req) and req not in Shared.requests and req not in req_to_crawl:
 
 								if request_depth(req) > Shared.options['max_depth'] or request_post_depth(req) > Shared.options['max_post_depth']:
 									if self.verbose:
-										print "  * cannot crawl: %s : crawl depth limit reached" % req
+										print("  * cannot crawl: %s : crawl depth limit reached" % req)
 									result = CrawlResult(req, errors=[ERROR_CRAWLDEPTH])
 									database.save_crawl_result(result, False)
 									continue
 
 								if req.redirects > Shared.options['max_redirects']:
 									if self.verbose:
-										print "  * cannot crawl: %s : too many redirects" % req
+										print("  * cannot crawl: %s : too many redirects" % req)
 									result = CrawlResult(req, errors=[ERROR_MAXREDIRECTS])
 									database.save_crawl_result(result, False)
 									continue
@@ -341,9 +341,9 @@ class Crawler:
 					pass
 				self.pause_threads(threads, True)
 				if not self.get_runtime_command():
-					print "Exiting . . ."
+					print("Exiting . . .")
 					return
-				print "Crawler is running"
+				print("Crawler is running")
 				self.pause_threads(threads, False)
 
 
@@ -360,9 +360,9 @@ class Crawler:
 				"Hit ctrl-c again to exit\n"
 			)
 			try:
-				ui = raw_input("> ").strip()
+				ui = input("> ").strip()
 			except KeyboardInterrupt:
-				print ""
+				print("")
 				return False
 
 			if ui == "r":
@@ -378,7 +378,7 @@ class Crawler:
 				self.verbose = False
 				self.display_progress = False
 				break
-			print " "
+			print(" ")
 
 		return True
 
@@ -396,7 +396,7 @@ class Crawler:
 					if request_is_crawlable(req) and not req in start_requests:
 						start_requests.append(req)
 		except KeyboardInterrupt:
-			print "\nAborted"
+			print("\nAborted")
 			sys.exit(0)
 
 		return start_requests
@@ -409,9 +409,9 @@ class Crawler:
 
 		deps_errors = check_dependences(self.base_dir)
 		if len(deps_errors) > 0:
-			print "Dependences errors: "
+			print("Dependences errors: ")
 			for err in deps_errors:
-				print "  %s" % err
+				print("  %s" % err)
 			sys.exit(1)
 
 		start_cookies = []
@@ -432,7 +432,7 @@ class Crawler:
 		try:
 			opts, args = getopt.getopt(argv, 'hc:t:jn:x:A:p:d:BGR:U:wD:s:m:C:qr:SIHFP:OvelE:L:M')
 		except getopt.GetoptError as err:
-			print str(err)
+			print(str(err))
 			sys.exit(1)
 
 
@@ -452,7 +452,7 @@ class Crawler:
 					with open(v) as cf:
 						cookie_string = cf.read()
 				except Exception as e:
-					print "error reading cookie file"
+					print("error reading cookie file")
 					sys.exit(1)
 			elif o == '-r':
 				start_referer = v
@@ -468,7 +468,7 @@ class Crawler:
 				try:
 					Shared.options['proxy'] = parse_proxy_string(v)
 				except Exception as e:
-					print e
+					print(e)
 					sys.exit(1)
 			elif o == '-d':
 				for ad in v.split(","):
@@ -480,7 +480,7 @@ class Crawler:
 					try:
 						re.match(eu, "")
 					except:
-						print "* ERROR: regex failed: %s" % eu
+						print("* ERROR: regex failed: %s" % eu)
 						sys.exit(1)
 					Shared.excluded_urls.add(eu)
 			elif o == "-G":
@@ -494,13 +494,13 @@ class Crawler:
 			elif o == "-s":
 				if not v in (CRAWLSCOPE_DOMAIN, CRAWLSCOPE_DIRECTORY, CRAWLSCOPE_URL):
 					self.usage()
-					print "* ERROR: wrong scope set '%s'" % v
+					print("* ERROR: wrong scope set '%s'" % v)
 					sys.exit(1)
 				Shared.options['scope'] = v
 			elif o == "-m":
 				if not v in (CRAWLMODE_PASSIVE, CRAWLMODE_ACTIVE, CRAWLMODE_AGGRESSIVE):
 					self.usage()
-					print "* ERROR: wrong mode set '%s'" % v
+					print("* ERROR: wrong mode set '%s'" % v)
 					sys.exit(1)
 				Shared.options['mode'] = v
 			elif o == "-S":
@@ -536,27 +536,27 @@ class Crawler:
 						Shared.options['login_sequence'] = json.loads(cf.read())
 						Shared.options['login_sequence']["__file__"] = os.path.abspath(v)
 				except ValueError as e:
-					print "* ERROR: decoding login sequence"
+					print("* ERROR: decoding login sequence")
 					sys.exit(1)
 				except Exception as e:
-					print "* ERROR: login sequence file not found"
+					print("* ERROR: login sequence file not found")
 					sys.exit(1)
 
 
 		probe_cmd = get_node_cmd()
 		if not probe_cmd: # maybe useless
-			print "Error: unable to find node executable"
+			print("Error: unable to find node executable")
 			sys.exit(1)
 
 
 		if Shared.options['scope'] != CRAWLSCOPE_DOMAIN and len(Shared.allowed_domains) > 0:
-			print "* Warinig: option -d is valid only if scope is %s" % CRAWLSCOPE_DOMAIN
+			print("* Warinig: option -d is valid only if scope is %s" % CRAWLSCOPE_DOMAIN)
 
 		if cookie_string:
 			try:
 				start_cookies = parse_cookie_string(cookie_string)
 			except Exception as e:
-				print "error decoding cookie string"
+				print("error decoding cookie string")
 				sys.exit(1)
 
 		if Shared.options['mode'] != CRAWLMODE_AGGRESSIVE:
@@ -613,20 +613,20 @@ class Crawler:
 				pe = ProbeExecutor(login_req, Shared.probe_cmd + ["-z"], login_sequence=Shared.options['login_sequence'])
 				probe = pe.execute()
 				if not probe:
-					print "\n* ERROR: login sequence failed to execute probe"
+					print("\n* ERROR: login sequence failed to execute probe")
 					sys.exit(1)
 				if probe.status == "ok":
 					for c in probe.cookies:
 						if not Shared.options['login_sequence']['cookies'] or c.name in Shared.options['login_sequence']['cookies']:
 							Shared.start_cookies.append(c)
 				else:
-					print "\n* ERROR: login sequence failed:\n   %s" % probe.errmessage
+					print("\n* ERROR: login sequence failed:\n   %s" % probe.errmessage)
 					sys.exit(1)
 			except KeyboardInterrupt:
 				pe.terminate()
-				print "\nAborted"
+				print("\nAborted")
 				sys.exit(0)
-			print "done"
+			print("done")
 
 
 		for sc in start_cookies:
@@ -641,7 +641,7 @@ class Crawler:
 		)
 
 		if not hasattr(ssl, "SSLContext"):
-			print "* WARNING: SSLContext is not supported with this version of python, consider to upgrade to >= 2.7.9 in case of SSL errors"
+			print("* WARNING: SSLContext is not supported with this version of python, consider to upgrade to >= 2.7.9 in case of SSL errors")
 
 		stdoutw("Initializing . ")
 
@@ -652,7 +652,7 @@ class Crawler:
 		try:
 			database = self.init_db(self.db_file, out_file)
 		except Exception as e:
-			print str(e)
+			print(str(e))
 			sys.exit(1)
 
 		database.save_crawl_info(
@@ -673,8 +673,8 @@ class Crawler:
 		database.commit()
 		database.close()
 
-		print "done"
-		print "Database %s initialized, crawl started with %d threads (^C to pause or change verbosity)" % (self.db_file, num_threads)
+		print("done")
+		print("Database %s initialized, crawl started with %d threads (^C to pause or change verbosity)" % (self.db_file, num_threads))
 
 		for n in range(0, num_threads):
 			thread = CrawlerThread()
@@ -688,7 +688,7 @@ class Crawler:
 
 		self.crawl_end_time = int(time.time())
 
-		print "Crawl finished, %d pages analyzed in %d minutes" % (Shared.requests_index, (self.crawl_end_time - self.crawl_start_time) / 60)
+		print("Crawl finished, %d pages analyzed in %d minutes" % (Shared.requests_index, (self.crawl_end_time - self.crawl_start_time) // 60))
 
 		database.save_crawl_info(end_date=self.crawl_end_time)
 

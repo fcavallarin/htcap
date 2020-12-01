@@ -84,7 +84,7 @@ class CommandExecutor:
 				self.out, self.err = self.process.communicate()
 
 			except Exception as e:
-				print e
+				print(e)
 				raise
 
 		self.thread = threading.Thread(target = executor)
