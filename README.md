@@ -41,7 +41,7 @@ The crawl lasted for many hours and about 3000 XHR request have been captured.
 
 ### Requirements
 
- 1. Python 3
+ 1. Python 3.3
  2. Nodejs and npm
  3. Sqlmap (for sqlmap scanner module)
  4. Arachni (for arachni scanner module)

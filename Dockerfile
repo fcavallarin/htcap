@@ -15,7 +15,7 @@ RUN apt-get update && \
     apt-get clean
 RUN locale-gen en_US.UTF-8
     # htcap and scanner dependencies:
-RUN apt-get install -y curl git python python3 python3-setuptools nodejs npm && \
+RUN apt-get install -y curl git python python3 python3-setuptools python3-pip nodejs npm && \
     # Chromium dependencies:
     apt-get install -y libasound2 libatk-bridge2.0-0 libgconf-2-4 libgtk-3-0 libnss3 libxss1 libxtst6 xvfb && \
     apt-get clean
@@ -41,7 +41,8 @@ RUN curl -Ls https://sourceforge.net/projects/wapiti/files/wapiti/wapiti-3.0.3/w
     rm wapiti.tar.gz && \
     mv wapiti3-* wapiti && \
     cd wapiti && \
-    python3 setup.py install
+    python3 setup.py install && \
+    pip3 install six
 WORKDIR /out
 VOLUME /out
 CMD ["sh", "-c", "while true; do sleep 10; done"]
