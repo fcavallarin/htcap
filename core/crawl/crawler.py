@@ -80,6 +80,7 @@ class Crawler:
 			'deduplicate_pages': True,
 			'headless_chrome': True,
 			'extra_headers': False,
+			'local_storage': False,
 			'login_sequence': None,
 			'simulate_real_events': True
 		}
@@ -130,6 +131,7 @@ class Crawler:
 			   "  -e               disable hEuristic page deduplication\n"
 			   "  -l               do not run chrome in headless mode\n"
 			   "  -E HEADER        set extra http headers (ex -E foo=bar -E bar=foo)\n"
+			   "  -g KEY/VALUE     set browser's Local/Session storaGe (ex -g L:foo=bar -g S:bar=foo)\n"
 			   "  -M               don't simulate real mouse/keyboard events\n"
 			   "  -L SEQUENCE      set login sequence\n"
 			   ))
@@ -430,7 +432,7 @@ class Crawler:
 		save_html = False
 
 		try:
-			opts, args = getopt.getopt(argv, 'hc:t:jn:x:A:p:d:BGR:U:wD:s:m:C:qr:SIHFP:OvelE:L:M')
+			opts, args = getopt.getopt(argv, 'hc:t:jn:x:A:p:d:BGR:U:wD:s:m:C:qr:SIHFP:OvelE:L:Mg:')
 		except getopt.GetoptError as err:
 			print(str(err))
 			sys.exit(1)
@@ -541,6 +543,15 @@ class Crawler:
 				except Exception as e:
 					print("* ERROR: login sequence file not found")
 					sys.exit(1)
+			elif o == "-g":
+				if not Shared.options['local_storage']:
+					Shared.options['local_storage'] = {}
+				(hn, hv) = v.split("=", 1)
+				ktks = hn.split(":", 1)
+				if len(ktks) != 2 or ktks[0] not in ("L", "S"):
+					print("Error: the -g option must be in the form '[L|S]:key=value', use 'L' to set locaStorage and 'S' to set sessionStorage")
+					sys.exit(1)
+				Shared.options['local_storage'][ktks[1]] = {"type": ktks[0], "value": hv}
 
 
 		probe_cmd = get_node_cmd()
@@ -586,6 +597,9 @@ class Crawler:
 
 		if Shared.options['extra_headers']:
 			probe_options.extend(["-E", json.dumps(Shared.options['extra_headers'])])
+
+		if Shared.options['local_storage']:
+			probe_options.extend(["-g", json.dumps(Shared.options['local_storage'])])
 
 		if not Shared.options['simulate_real_events']:
 			probe_options.append("-M")

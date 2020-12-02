@@ -27,7 +27,7 @@ var sleep = function(n){
 };
 
 
-var argv = utils.parseArgs(process.argv, "hVaftUdICc:MSp:Tsx:A:r:mHX:PD:R:Oi:u:vy:E:lJ:L:zM", {});
+var argv = utils.parseArgs(process.argv, "hVaftUdICc:MSp:Tsx:A:r:mHX:PD:R:Oi:u:vy:E:lJ:L:zMg:", {});
 var options = argv.opts
 
 var targetUrl = argv.args[0];
@@ -205,6 +205,14 @@ if(targetUrl.length < 4 || targetUrl.substring(0,4).toLowerCase() != "http"){
 		end();
 	}, options.maxExecTime);
 
+	if(options.localStorage){
+		page.evaluateOnNewDocument((storage) => {
+			for(let s in storage){
+				let fn = storage[s].type == "S" ? window.sessionStorage : window.localStorage;
+				fn.setItem(s, storage[s].value);
+			}
+		}, options.localStorage)
+	}
 
 	try {
 		await crawler.load();
