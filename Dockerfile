@@ -31,7 +31,7 @@ RUN curl -Ls https://github.com/Arachni/arachni/releases/download/v1.5.1/arachni
     rm arachni.tar.gz && \
     mv arachni-1.5.1-* arachni && \
     ln -s /usr/local/share/arachni/bin/* /usr/local/bin/
-RUN curl -Ls https://github.com/sqlmapproject/sqlmap/archive/1.4.8.tar.gz -o sqlmap.tar.gz && \
+RUN curl -Ls https://github.com/sqlmapproject/sqlmap/archive/1.4.12.tar.gz -o sqlmap.tar.gz && \
     tar xzf sqlmap.tar.gz && \
     rm sqlmap.tar.gz && \
     mv sqlmap-* sqlmap && \

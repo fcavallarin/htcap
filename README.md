@@ -61,7 +61,7 @@ Install Docker and run the following:
 $ git clone https://github.com/fcavallarin/htcap.git htcap
 $ cd htcap
 $ docker build -t htcap --build-arg HTCAP_VERSION=master . # replace master by the desired htcap commit hash or branch
-$ mkdir htcap-out && docker run -v "$(pwd)/htcap-out/":/out/ --rm --name htcap htcap
+$ mkdir -p htcap-out && docker run -v "$(pwd)/htcap-out/":/out/ --rm --name htcap htcap
 $ docker exec -it htcap bash
 $ htcap # now you can use htcap in the Docker container
 ```
