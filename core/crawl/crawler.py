@@ -131,7 +131,7 @@ class Crawler:
 			   "  -e               disable hEuristic page deduplication\n"
 			   "  -l               do not run chrome in headless mode\n"
 			   "  -E HEADER        set extra http headers (ex -E foo=bar -E bar=foo)\n"
-			   "  -g KEY/VALUE     set browser's Local/Session storaGe (ex -g L:foo=bar -g S:bar=foo)\n"
+			   "  -g KEY/VALUE     set browser's localStorage/sessionStorage (ex -g L:foo=bar -g S:bar=foo)\n"
 			   "  -M               don't simulate real mouse/keyboard events\n"
 			   "  -L SEQUENCE      set login sequence\n"
 			   ))
