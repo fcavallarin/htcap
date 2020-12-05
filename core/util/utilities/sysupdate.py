@@ -41,14 +41,14 @@ class Sysupdate(BaseUtil):
 		if not npm:
 			print("Error: npm command not found")
 
-		rc = os.system("cd %s && %s pull" % (quote(base_dir), quote(git)))
+		rc = os.system("cd %s && %s pull" % (quote(base_dir), git))
 		if rc is not 0:
 			print("Update error (git)")
 			return rc
 		if dev:
-			os.system("cd %s && %s checkout developer" % (quote(base_dir), quote(git)))
+			os.system("cd %s && %s checkout developer" % (quote(base_dir), git))
 
-		rc = os.system("cd %s && %s update --no-save" % (quote(node_dir), quote(npm)))
+		rc = os.system("cd %s && %s update --no-save" % (quote(node_dir), npm))
 		if rc is not 0:
 			print("Update error (npm)")
 			return rc
