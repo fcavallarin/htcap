@@ -10,7 +10,7 @@ Foundation; either version 2 of the License, or (at your option) any later
 version.
 """
 
-from __future__ import unicode_literals
+
 import sys
 import getopt
 import os
@@ -37,8 +37,8 @@ class BaseUtil:
 		self.utilname = utilname
 		settings = self.get_settings()
 
-		if len(argv) - 1 < settings['minargs']:
-			print self.usage()
+		if len(argv) - (1 if settings['use_dbfile'] else 0) < settings['minargs']:
+			print(self.usage())
 			sys.exit(1)
 
 		if settings['use_dbfile']:
@@ -46,13 +46,15 @@ class BaseUtil:
 			argv = argv[1:]
 
 			if not os.path.exists(db_file):
-				print "No such file: %s" % db_file
+				print("No such file: %s" % db_file)
 				sys.exit(1)
+		else:
+			db_file = None
 
 		try:
 			opts, args = getopt.getopt(argv, settings['optargs'])
 		except getopt.GetoptError as err:
-			print str(err)
+			print(str(err))
 			sys.exit(1)
 
 

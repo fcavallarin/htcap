@@ -10,10 +10,10 @@ Foundation; either version 2 of the License, or (at your option) any later
 version.
 """
 
-from urlparse import urljoin
+from urllib.parse import urljoin
 from core.lib.cookie import Cookie
 from core.lib.utils import *
-from shared import *
+from .shared import *
 import posixpath
 import json
 import re
@@ -28,6 +28,9 @@ def request_in_scope(request):
 	spurl = urlsplit(Shared.starturl)
 	scope = Shared.options['scope']
 	in_scope = False
+
+	if not purl.hostname: # malformed url
+		return False
 
 	# check for scopes
 	if scope == CRAWLSCOPE_DOMAIN:
@@ -125,7 +128,7 @@ class ProbeExecutor:
 		try:
 			return json.loads(jsn)
 		except Exception:
-			print "-- JSON DECODE ERROR %s" % jsn
+			print("-- JSON DECODE ERROR %s" % jsn)
 			raise
 
 	def terminate(self):

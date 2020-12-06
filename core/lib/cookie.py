@@ -11,9 +11,9 @@ version.
 """
 
 import time
-import cookielib
-from urllib import quote
-from urlparse import urlparse, urljoin
+import http.cookiejar
+from urllib.parse import quote
+from urllib.parse import urlparse, urljoin
 
 class Cookie:
 	"""
@@ -106,7 +106,7 @@ class Cookie:
 
 
 	def get_cookielib_cookie(self):
-		return cookielib.Cookie(
+		return http.cookiejar.Cookie(
 			version = 0, 
 			name = self.name,
 			value = self.value,

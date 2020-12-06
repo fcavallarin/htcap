@@ -10,7 +10,7 @@ Foundation; either version 2 of the License, or (at your option) any later
 version.
 """
 
-from urlparse import urljoin
+from urllib.parse import urljoin
 from core.lib.cookie import Cookie
 from core.lib.utils import *
 from core.constants import *
@@ -28,10 +28,10 @@ class Request(object):
 		url = url.strip()
 
 		try:
-			url = url.decode("utf-8")
+			url = url.encode("latin-1").decode("utf-8")
 		except:
 			try:
-				url = url.decode("latin-1")
+				url = url.encode("utf-8").decode("utf-8")
 			except Exception as e:
 				raise AssertionError("unable to decode " + url)
 
@@ -60,7 +60,7 @@ class Request(object):
 		if self.method == METHOD_GET and data:
 			self.url = merge_qs(self.url, data)
 			self.data = ""
-		if not isinstance(self.data, basestring):
+		if not isinstance(self.data, str):
 			self.data = json.dumps(self.data)
 		self.trigger = trigger
 		self.db_id = db_id
@@ -239,7 +239,7 @@ class Request(object):
 
 
 	def __repr__(self):
-		print "DEBUG" + self.__str__()
+		print("DEBUG" + self.__str__())
 
 	def __str__(self):
 		return "%s %s %s %s" % (self.type, self.method, self.get_full_url(), self.data)

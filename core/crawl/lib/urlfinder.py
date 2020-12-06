@@ -11,8 +11,8 @@ version.
 """
 
 import re
-from HTMLParser import HTMLParser
-from urlparse import urljoin, urlparse
+from html.parser import HTMLParser
+from urllib.parse import urljoin, urlparse
 
 
 class UrlFinder:

@@ -10,12 +10,12 @@ Foundation; either version 2 of the License, or (at your option) any later
 version.
 """
 
-from __future__ import unicode_literals
+
 import time
 import re
 import json
-import urllib
-import cookielib
+import urllib.request, urllib.parse, urllib.error
+import http.cookiejar
 import threading
 import base64
 
@@ -23,7 +23,7 @@ import tempfile
 import os
 import uuid
 
-from urlparse import urlparse, urlsplit, urljoin, parse_qsl
+from urllib.parse import urlparse, urlsplit, urljoin, parse_qsl
 
 from core.lib.exception import *
 from core.crawl.lib.shared import *
@@ -39,8 +39,8 @@ from core.lib.request import Request
 from core.lib.utils import *
 from core.constants import *
 
-from lib.utils import *
-from lib.crawl_result import *
+from .lib.utils import *
+from .lib.crawl_result import *
 
 
 
@@ -134,7 +134,7 @@ class CrawlerThread(threading.Thread):
 					os.remove(self.cookie_file)
 				return
 			except Exception as e:
-				print "-->"+str(e)
+				print("-->"+str(e))
 				continue
 
 			url = request.url

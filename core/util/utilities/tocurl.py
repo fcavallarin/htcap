@@ -6,10 +6,6 @@ import json
 from core.lib.utils import *
 from core.util.base_util import BaseUtil
 
-reload(sys)
-sys.setdefaultencoding('utf8')
-
-
 class Tocurl(BaseUtil):
 
 	@staticmethod
@@ -47,4 +43,4 @@ class Tocurl(BaseUtil):
 			if req['data']:
 				cmd.extend(['--data', req['data']])
 
-			print cmd_to_str(cmd)
+			print(cmd_to_str(cmd))

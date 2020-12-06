@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*- 
 
 """
@@ -11,7 +11,7 @@ Foundation; either version 2 of the License, or (at your option) any later
 version.
 """
 
-from __future__ import unicode_literals
+
 import sys
 import os
 import datetime
@@ -23,9 +23,8 @@ from core.crawl.crawler import Crawler
 from core.scan.scanner import Scanner
 
 from core.util.util import Util
+import importlib
 
-reload(sys)
-sys.setdefaultencoding('utf8')
 
 def split_argv(argv):
 	argvs = []
@@ -42,7 +41,7 @@ def split_argv(argv):
 
 def usage():
 	infos = get_program_infos()
-	print ("htcap ver " + infos['version'] + "\n"
+	print(("htcap ver " + infos['version'] + "\n"
 		   "usage: htcap <command>\n"
 		   "commands are chainable using '\;' and they share the same database\n"
 		   "  ex: htcap crawl http://htcap.org htcap.db \\; scan sqlmap \\; util report htcap.html\n"
@@ -50,7 +49,7 @@ def usage():
 		   "  crawl                  run crawler\n"
 		   "  scan                   run scanner\n"
 		   "  util                   run utility\n"
-		   )
+		   ))
 
 
 if __name__ == '__main__':
@@ -65,7 +64,7 @@ if __name__ == '__main__':
 	argvs = split_argv(sys.argv[1:])
 	for argv in argvs:
 		if argv[0] not in ('crawl', 'scan', 'util'):
-			print "Command not found: %s" % argv[0]
+			print("Command not found: %s" % argv[0])
 			sys.exit(1)
 	cr = None
 	sc = None

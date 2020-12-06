@@ -1,5 +1,5 @@
 # Created by 1e0n in 2013
-from __future__ import division, unicode_literals
+
 
 import sys
 import re
@@ -9,8 +9,8 @@ import collections
 from itertools import groupby
 
 if sys.version_info[0] >= 3:
-    basestring = str
-    unicode = str
+    str = str
+    str = str
     long = int
 else:
     range = xrange
@@ -45,11 +45,11 @@ class Simhash(object):
 
         if isinstance(value, Simhash):
             self.value = value.value
-        elif isinstance(value, basestring):
-            self.build_by_text(unicode(value))
+        elif isinstance(value, str):
+            self.build_by_text(str(value))
         elif isinstance(value, collections.Iterable):
             self.build_by_features(value)
-        elif isinstance(value, long):
+        elif isinstance(value, int):
             self.value = value
         else:
             raise Exception('Bad parameter with type {}'.format(type(value)))
@@ -77,9 +77,9 @@ class Simhash(object):
         v = [0] * self.f
         masks = [1 << i for i in range(self.f)]
         if isinstance(features, dict):
-            features = features.items()
+            features = list(features.items())
         for f in features:
-            if isinstance(f, basestring):
+            if isinstance(f, str):
                 h = self.hashfunc(f.encode('utf-8'))
                 w = 1
             else:
@@ -143,7 +143,7 @@ class SimhashIndex(object):
 
             for dup in dups:
                 sim2, obj_id = dup.split(',', 1)
-                sim2 = Simhash(long(sim2, 16), self.f)
+                sim2 = Simhash(int(sim2, 16), self.f)
 
                 d = simhash.distance(sim2)
                 if d <= self.k:

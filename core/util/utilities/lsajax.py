@@ -6,10 +6,6 @@ import os
 
 from core.util.base_util import BaseUtil
 
-reload(sys)
-sys.setdefaultencoding('utf8')
-
-
 class Lsajax(BaseUtil):
 
 	@staticmethod
@@ -79,8 +75,8 @@ class Lsajax(BaseUtil):
 			else: 
 				pages[page] = [descr]
 
-		for page,ajax in pages.items():
-			print "Request ID: %s\nPage URL:   %s\nReferer:    %s\nAjax requests:" % page 
+		for page,ajax in list(pages.items()):
+			print("Request ID: %s\nPage URL:   %s\nReferer:    %s\nAjax requests:" % page) 
 			for aj in ajax:
-				print aj
-			print "- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - \n"
+				print(aj)
+			print("- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - \n")

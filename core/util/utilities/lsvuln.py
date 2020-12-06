@@ -5,9 +5,6 @@ import json
 
 from core.util.base_util import BaseUtil
 
-reload(sys)
-sys.setdefaultencoding('utf8')
-
 class Lsvuln(BaseUtil):
 
 	@staticmethod
@@ -42,6 +39,6 @@ class Lsvuln(BaseUtil):
 		cur = conn.cursor()
 		cur.execute(qry % where)
 		for vuln in cur.fetchall():
-			print vuln['description']
-			print "- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - "
+			print(vuln['description'])
+			print("- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - ")
 

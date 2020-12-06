@@ -10,20 +10,20 @@ Foundation; either version 2 of the License, or (at your option) any later
 version.
 """
 
-from __future__ import unicode_literals
+
 import sys
 import os
 import datetime
 import time
 import json
 import re
-import cookielib
-import urllib
-import urllib2
+import http.cookiejar
+import urllib.request, urllib.parse, urllib.error
+import urllib.request, urllib.error, urllib.parse
 import base64
 import ssl
-from urlparse import urlsplit, urljoin
-from urllib import urlencode
+from urllib.parse import urlsplit, urljoin
+from urllib.parse import urlencode
 from core.crawl.lib.urlfinder import UrlFinder
 
 import core.lib.thirdparty.pysocks.socks as socks
@@ -44,7 +44,7 @@ class HttpGet:
 		self.request = request
 		self.timeout = timeout
 		self.retries = retries if retries else 1
-		self.proxy = parse_proxy_string(proxy) if isinstance(proxy, basestring) else proxy
+		self.proxy = parse_proxy_string(proxy) if isinstance(proxy, str) else proxy
 		self.retries_interval = 0.5
 		self.useragent = useragent
 		self.extra_headers = extra_headers if extra_headers else {}
@@ -53,7 +53,7 @@ class HttpGet:
 		url = request.url
 		headers = []
 
-		class RedirectHandler(urllib2.HTTPRedirectHandler):
+		class RedirectHandler(urllib.request.HTTPRedirectHandler):
 			def http_error_302(self, req, fp, code, msg, headers):
 				raise RedirectException(headers['Location'])
 
@@ -61,11 +61,11 @@ class HttpGet:
 
 
 		try :
-			handlers = [urllib2.HTTPCookieProcessor(jar_response)]
+			handlers = [urllib.request.HTTPCookieProcessor(jar_response)]
 
 			# SSLContext is available from python 2.7.9
 			if hasattr(ssl, "SSLContext"):
-				handlers.append(urllib2.HTTPSHandler(context=ssl.SSLContext(ssl.PROTOCOL_SSLv23)))
+				handlers.append(urllib.request.HTTPSHandler(context=ssl.SSLContext(ssl.PROTOCOL_SSLv23)))
 
 			if not follow_redirect:
 				handlers.append(RedirectHandler)
@@ -77,7 +77,7 @@ class HttpGet:
 					handlers.append(socksh)
 				elif self.proxy['proto'] == "http":
 					proxy_string = "http://%s:%s" % (self.proxy['host'], self.proxy['port'])
-					httproxy = urllib2.ProxyHandler({'http': proxy_string,'https': proxy_string})
+					httproxy = urllib.request.ProxyHandler({'http': proxy_string,'https': proxy_string})
 					handlers.append(httproxy)
 
 			if self.useragent:
@@ -98,7 +98,7 @@ class HttpGet:
 			for eh in self.extra_headers:
 				headers.append((eh, self.extra_headers[eh]))
 
-			opener = urllib2.build_opener(*handlers)
+			opener = urllib.request.build_opener(*handlers)
 			opener.addheaders = headers
 
 			return opener
@@ -107,7 +107,7 @@ class HttpGet:
 		except RedirectException as e:
 			raise
 		except Exception as e:
-			print "\n--->"+url+" "+str(e)
+			print("\n--->"+url+" "+str(e))
 			raise
 
 
@@ -122,8 +122,8 @@ class HttpGet:
 
 		self.retries_interval = 0.5
 
-		jar_response = cookielib.LWPCookieJar()
-		jar_request = cookielib.LWPCookieJar()
+		jar_response = http.cookiejar.LWPCookieJar()
+		jar_request = http.cookiejar.LWPCookieJar()
 
 
 		html = ""
@@ -142,7 +142,7 @@ class HttpGet:
 				#Shared.th_lock.release()
 
 				opener = self.urllib2_opener(self.request, jar_response)
-				req = urllib2.Request(url=self.request.url)
+				req = urllib.request.Request(url=self.request.url)
 				jar_request.add_cookie_header(req)
 
 				res = opener.open(req, None, self.timeout)
@@ -208,7 +208,7 @@ class HttpGet:
 		if not cookies:
 			cookies = []
 
-		jar_request = cookielib.LWPCookieJar()
+		jar_request = http.cookiejar.LWPCookieJar()
 
 
 		ret = {
@@ -235,7 +235,7 @@ class HttpGet:
 					jar_request.set_cookie(c.get_cookielib_cookie())
 
 				opener = self.urllib2_opener(self.request, None, follow_redirect)
-				req = urllib2.Request(url=url, data=data.encode() if data else None)
+				req = urllib.request.Request(url=url, data=data.encode() if data else None)
 				req.get_method = lambda: method
 				jar_request.add_cookie_header(req)
 				# headers = self.request.extra_headers
@@ -250,7 +250,7 @@ class HttpGet:
 				now = time.time()
 				try:
 					res = opener.open(req, None, self.timeout)
-				except urllib2.HTTPError as e:
+				except urllib.error.HTTPError as e:
 					if not ignore_errors:
 						raise
 					res = e
@@ -259,7 +259,7 @@ class HttpGet:
 				ret['code'] = res.getcode()
 				ret['url'] = res.geturl()
 				#ret['headers'] = [x.strip() for x in res.info().headers]
-				ret['headers'] = ["%s: %s" % x for x in res.info().items()]
+				ret['headers'] = ["%s: %s" % x for x in list(res.info().items())]
 				ret['body'] = res.read()
 				ret['time'] = time.time() - now
 
@@ -284,7 +284,7 @@ class HttpGet:
 		if not url:
 			url = self.request.url
 
-		jar_request = cookielib.LWPCookieJar()
+		jar_request = http.cookiejar.LWPCookieJar()
 
 
 		cont = ""
@@ -295,7 +295,7 @@ class HttpGet:
 					jar_request.set_cookie(cookie.get_cookielib_cookie())
 
 				opener = self.urllib2_opener(self.request, None, True)
-				req = urllib2.Request(url=url)
+				req = urllib.request.Request(url=url)
 				jar_request.add_cookie_header(req)
 				res = opener.open(req, None, self.timeout)
 

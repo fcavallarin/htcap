@@ -66,7 +66,7 @@ PROXY_TYPE_SOCKS5 = SOCKS5 = 2
 PROXY_TYPE_HTTP = HTTP = 3
 
 PROXY_TYPES = {"SOCKS4": SOCKS4, "SOCKS5": SOCKS5, "HTTP": HTTP}
-PRINTABLE_PROXY_TYPES = dict(zip(PROXY_TYPES.values(), PROXY_TYPES.keys()))
+PRINTABLE_PROXY_TYPES = dict(list(zip(list(PROXY_TYPES.values()), list(PROXY_TYPES.keys()))))
 
 _orgsocket = _orig_socket = socket.socket
 

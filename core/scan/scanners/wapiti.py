@@ -10,7 +10,7 @@ Foundation; either version 2 of the License, or (at your option) any later
 version.
 """
 
-from __future__ import unicode_literals
+
 import sys
 import os
 import time
@@ -36,7 +36,7 @@ class Wapiti(BaseScanner):
 		try:
 			opts, args = getopt.getopt(argv, 'hx:')
 		except getopt.GetoptError as err:
-			print str(err)
+			print(str(err))
 			self.exit(1)
 
 		for o, v in opts:
@@ -52,7 +52,7 @@ class Wapiti(BaseScanner):
 		try:
 			self.utils.execmd(self.wapiti_cmd)
 		except:
-			print "Wapiti executable not found %s" % self.wapiti_cmd
+			print("Wapiti executable not found %s" % self.wapiti_cmd)
 			self.exit(1)
 
 
@@ -147,7 +147,7 @@ class Wapiti(BaseScanner):
 			try:
 				report = json.loads(jsn)['vulnerabilities']['Cross Site Scripting']
 			except Exception as e:
-				print err
+				print(err)
 
 			for vuln in report:
 				self.save_vulnerabilities([{"type":'xss_reflected',"description": json.dumps(vuln)}])
@@ -165,10 +165,10 @@ class Wapiti(BaseScanner):
 				elif cookie.setter:
 					domain = cookie.setter.hostname
 
-				if not domain in wcookies.keys():
+				if not domain in list(wcookies.keys()):
 					wcookies[domain] = {}
 
-				if not cookie.path in wcookies[domain].keys():
+				if not cookie.path in list(wcookies[domain].keys()):
 					wcookies[domain][cookie.path] = {}
 
 				wcookies[domain][cookie.path][cookie.name] = dict(

@@ -12,7 +12,7 @@ version.
 
 
 """
-from __future__ import division
+
 import sys
 import os
 import time
@@ -22,7 +22,7 @@ from zlib import crc32
 
 from core.lib.thirdparty.simhash import Simhash
 from core.lib.shingleprint import ShinglePrint
-from urlparse import urlsplit, urljoin, parse_qsl
+from urllib.parse import urlsplit, urljoin, parse_qsl
 from core.lib.exception import *
 from core.constants import *
 

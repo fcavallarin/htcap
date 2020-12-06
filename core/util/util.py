@@ -10,7 +10,7 @@ Foundation; either version 2 of the License, or (at your option) any later
 version.
 """
 
-from __future__ import unicode_literals
+
 import sys
 import importlib
 from glob import glob
@@ -31,10 +31,10 @@ class Util:
 
 		if not util in utils:
 			utils.sort()
-			print "Available utilities are:"
+			print("Available utilities are:")
 			for u in utils:
 				run = self.get_mod(mp, u)
-				print "   %s%s%s" % (u, " "*(20 - len(u)), run.get_settings()['descr'].split("\n")[0])
+				print("   %s%s%s" % (u, " "*(20 - len(u)), run.get_settings()['descr'].split("\n")[0]))
 			sys.exit(1)
 
 		run = self.get_mod(mp, util)

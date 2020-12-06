@@ -278,6 +278,9 @@ function parseArgsToOptions(args, defaults){
 			case "E":
 				options.extraHeaders = JSON.parse(args.opts[a][1]);
 				break;
+			case "g":
+				options.localStorage = JSON.parse(args.opts[a][1]);
+				break;
 			case "J":
 				outfile = args.opts[a][1];
 				fs.writeFileSync(outfile, "", (err) => {

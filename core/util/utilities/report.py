@@ -15,18 +15,15 @@ import sys
 import os
 import sqlite3
 import json
-from urlparse import urlsplit
+from urllib.parse import urlsplit
 from core.util.base_util import BaseUtil
 from core.lib.utils import *
-reload(sys)
-sys.setdefaultencoding('utf8')
-
 
 
 class Report(BaseUtil):
 
 	def dict_from_row(self, row):
-		return dict(zip(row.keys(), row))
+		return dict(list(zip(list(row.keys()), row)))
 
 	@staticmethod
 	def get_settings():
@@ -82,7 +79,7 @@ class Report(BaseUtil):
 			for r in cur.fetchall():
 				report.append(self.dict_from_row(r))
 		except Exception as e:
-			print str(e)
+			print(str(e))
 
 		return report
 
@@ -103,7 +100,7 @@ class Report(BaseUtil):
 			for r in cur.fetchall():
 				report.append(json.dumps({"type":r['type'], "description":r['description']}))
 		except Exception as e:
-			print str(e)
+			print(str(e))
 
 
 		return report
@@ -123,7 +120,7 @@ class Report(BaseUtil):
 			cur.execute(qry)
 			crawl = self.dict_from_row(cur.fetchone())
 		except Exception as e:
-			print str(e)
+			print(str(e))
 
 		return crawl
 
@@ -205,7 +202,7 @@ class Report(BaseUtil):
 		outfile = args[0]
 
 		if os.path.exists(outfile):
-			sys.stdout.write("File %s already exists. Overwrite [y/N]: " % outfile)
+			stdoutw("File %s already exists. Overwrite [y/N]: " % outfile)
 			if sys.stdin.read(1) != "y":
 				sys.exit(1)
 			os.remove(outfile)
@@ -234,5 +231,5 @@ class Report(BaseUtil):
 		with open(outfile,'w') as out:
 			out.write(html)
 
-		print "Report saved to %s" % outfile
+		print("Report saved to %s" % outfile)
 

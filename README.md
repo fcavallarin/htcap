@@ -41,16 +41,35 @@ The crawl lasted for many hours and about 3000 XHR request have been captured.
 
 ### Requirements
 
- 1. Python 2.7
+ 1. Python 3.3
  2. Nodejs and npm
  3. Sqlmap (for sqlmap scanner module)
  4. Arachni (for arachni scanner module)
 
-### Download and Run
+### Local Installation
 
+Install the requirements and run the following:
 ```console
 $ git clone https://github.com/fcavallarin/htcap.git htcap
 $ htcap/htcap.py
+```
+
+### Docker Installation
+
+Install Docker and run the following:
+```console
+$ git clone https://github.com/fcavallarin/htcap.git htcap
+$ cd htcap
+$ docker build -t htcap --build-arg HTCAP_VERSION=master . # replace master by the desired htcap commit hash or branch
+$ mkdir -p htcap-out && docker run -v "$(pwd)/htcap-out/":/out/ --rm --name htcap htcap
+$ docker exec -it htcap bash
+$ htcap # now you can use htcap in the Docker container
+```
+
+You can access services listening on the Docker host from within the Docker container using the hostname `host.docker.internal`.
+To get the IP for `host.docker.internal`, run the following command inside the Docker container:
+```console
+getent hosts host.docker.internal | awk '{print $1;}'
 ```
 
 ## DOCUMENTATION

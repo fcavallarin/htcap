@@ -3,7 +3,6 @@
   "version": "1.0.0",
   "license": "GPL-2.0",
   "dependencies": {
-    "htcrawl": "fcavallarin/htcrawl#developer"
-  },
-  "devDependencies": {}
+    "htcrawl": "^1.0.4"
+  }
 }

@@ -10,12 +10,12 @@ Foundation; either version 2 of the License, or (at your option) any later
 version.
 """
 
-from __future__ import unicode_literals
+
 import sys
 import time
 import re
 import os
-import urllib2
+import urllib.request, urllib.error, urllib.parse
 
 
 from core.lib.exception import *
