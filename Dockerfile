@@ -31,12 +31,12 @@ RUN curl -Ls https://github.com/Arachni/arachni/releases/download/v1.5.1/arachni
     rm arachni.tar.gz && \
     mv arachni-1.5.1-* arachni && \
     ln -s /usr/local/share/arachni/bin/* /usr/local/bin/
-RUN curl -Ls https://github.com/sqlmapproject/sqlmap/archive/1.4.12.tar.gz -o sqlmap.tar.gz && \
+RUN curl -Ls https://github.com/sqlmapproject/sqlmap/archive/1.5.4.tar.gz -o sqlmap.tar.gz && \
     tar xzf sqlmap.tar.gz && \
     rm sqlmap.tar.gz && \
     mv sqlmap-* sqlmap && \
     ln -s /usr/local/share/sqlmap/sqlmap.py /usr/local/bin/sqlmap
-RUN curl -Ls https://sourceforge.net/projects/wapiti/files/wapiti/wapiti-3.0.3/wapiti3-3.0.3.tar.gz/download -o wapiti.tar.gz && \
+RUN curl -Ls https://sourceforge.net/projects/wapiti/files/wapiti/wapiti-3.0.4/wapiti3-3.0.4.tar.gz/download -o wapiti.tar.gz && \
     tar xzf wapiti.tar.gz && \
     rm wapiti.tar.gz && \
     mv wapiti3-* wapiti && \
