@@ -27,14 +27,14 @@ The fuzzers can work with GET/POST data, XML and JSON payloads and switch betwee
 This is the very first release that uses headless chrome instead of phantomjs.
 Htcap’s Javascript crawling engine has been rewritten to take advantage of the new async/await features of ecmascript and has been converted to a nodjes module build on top of [Puppetteer](https://github.com/GoogleChrome/puppeteer).
 
-More infos at [htcap.org](http://htcap.org).
+More infos [here](http://www.fcvl.net/htcap).
 
 
 ## DEMO
 The video below shows htcap crawling gmail.  
 The crawl lasted for many hours and about 3000 XHR request have been captured.  
 
-[![crawling gmail](https://htcap.org/img/htcap-gmail-video.png)](https://www.youtube.com/watch?v=5FLmWjKE2JI "HTCAP Crawling Gmail")
+[![crawling gmail](https://www.fcvl.net/htcap/img/htcap-gmail-video.png)](https://www.youtube.com/watch?v=5FLmWjKE2JI "HTCAP Crawling Gmail")
 
 
 ## SETUP
@@ -74,7 +74,7 @@ getent hosts host.docker.internal | awk '{print $1;}'
 
 ## DOCUMENTATION
 
-Documentation, examples and demos can be found at the official website [https://htcap.org](https://htcap.org).
+Documentation, examples and demos can be found [here](http://www.fcvl.net/htcap)
 
 ## LICENSE
 
